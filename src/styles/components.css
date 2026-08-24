@@ -227,13 +227,31 @@
 .goal-hecha .pbar i{background:var(--success)}
 
 /* ── anuncio ──────────────────────────────────────────────────────────── */
-.anuncio{max-width:420px;margin-top:12vh;text-align:center}
-.anuncio-ic{width:56px;height:56px;margin:0 auto var(--space-4);border-radius:var(--radius-pill);
-  background:var(--pink-wash);color:var(--pink-dark);display:flex;align-items:center;justify-content:center}
-.anuncio-ic svg{width:28px;height:28px;stroke-width:2}
-.anuncio h2{font-size:var(--text-h2);font-weight:var(--fw-black);letter-spacing:var(--tracking-tight);
-  line-height:1.15;margin-bottom:var(--space-3)}
-.anuncio p{font-size:var(--text-base);color:var(--ink-lighter);line-height:1.5;margin-bottom:var(--space-5)}
+/* F6 — no es un modal a propósito: un modal se cierra por reflejo sin leerlo.
+   Ocupa el ancho del contenido, arriba de todo, y empuja el resto. */
+.anuncio{position:relative;background:var(--pink);color:var(--ink);border-radius:var(--radius-lg);
+  padding:var(--space-5) var(--space-6);margin-bottom:var(--space-4)}
+.anuncio h3{font-size:var(--text-h3);font-weight:var(--fw-black);letter-spacing:var(--tracking-tight);
+  line-height:1.2;padding-right:var(--space-6)}
+.anuncio p{margin-top:var(--space-2);font-size:var(--text-sm);line-height:1.5}
+.anuncio-acts{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-4)}
+.anuncio-acts button{background:transparent;border-color:var(--ink);color:var(--ink);font-weight:var(--fw-semibold)}
+.anuncio-acts button:hover{background:rgba(26,26,26,.08);border-color:var(--ink)}
+.anuncio-acts .an-primary{background:var(--ink);border-color:var(--ink);color:var(--white);font-weight:var(--fw-bold)}
+.anuncio-acts .an-primary:hover{background:var(--ink-light);border-color:var(--ink-light)}
+.anuncio-x{position:absolute;top:var(--space-3);right:var(--space-3);width:32px;height:32px;padding:0;
+  display:flex;align-items:center;justify-content:center;border-radius:var(--radius-pill);
+  background:transparent;border-color:transparent;color:var(--ink)}
+.anuncio-x:hover{background:rgba(26,26,26,.08);border-color:transparent}
+
+/* el urgente invierte: tinta con texto blanco */
+.anuncio-urgente{background:var(--ink);color:var(--white)}
+.anuncio-urgente .anuncio-x{color:var(--white)}
+.anuncio-urgente .anuncio-x:hover{background:rgba(255,255,255,.14)}
+.anuncio-urgente .anuncio-acts button{border-color:var(--white);color:var(--white)}
+.anuncio-urgente .anuncio-acts button:hover{background:rgba(255,255,255,.14);border-color:var(--white)}
+.anuncio-urgente .anuncio-acts .an-primary{background:var(--pink);border-color:var(--pink);color:var(--ink)}
+.anuncio-urgente .anuncio-acts .an-primary:hover{background:var(--pink-light);border-color:var(--pink-light)}
 
 .pbar{height:8px;border-radius:var(--radius-pill);background:var(--pink-wash);overflow:hidden;
   margin:var(--space-3) 0 var(--space-2)}
@@ -302,9 +320,6 @@
 .mov-line-txt .sub{margin-top:0}
 .mov-line-n{flex:none;font-weight:var(--fw-bold)}
 .mov-line-n.in{color:var(--success)}
-
-.aviso-cierre{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);
-  flex-wrap:wrap;background:var(--pink-wash);border-color:var(--pink);margin-bottom:var(--space-4)}
 
 /* ── cierres ──────────────────────────────────────────────────────────── */
 .cierre-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)}

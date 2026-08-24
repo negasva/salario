@@ -2,6 +2,7 @@ import * as store from '../store.js';
 import { toast } from './shell.js';
 import { plain, money, esc, digits } from '../format.js';
 import { ingresoEfectivo, excedente } from '../engine/consejo.js';
+import { estadoNotificaciones, pedirPermisoNotificaciones } from './avisos.js';
 
 export function renderAjustes(root) {
   const p = store.active();
@@ -39,6 +40,12 @@ export function renderAjustes(root) {
         <span class="label">Costo de oportunidad</span>
         <div class="fld" style="margin-top:10px"><label>Tasa anual nominal (%)</label>
           <input type="number" id="ajTasa" min="0" max="100" step="0.5" value="${p.tasaInteres}"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Avisos</span>
+        <div class="sub" id="ajNotifTexto" style="margin-top:8px"></div>
+        <div class="prow"><button id="ajNotif">Permitir notificaciones</button></div>
       </div>
 
       <div class="card">
@@ -100,6 +107,25 @@ export function renderAjustes(root) {
     store.save();
   };
   root.querySelector('#ajTasa').onchange = (e) => { p.tasaInteres = Number(e.target.value) || 0; store.save(); };
+
+  const notifTexto = {
+    'no-soportado': 'Este navegador no tiene notificaciones. Los avisos igual salen dentro de la app.',
+    granted: 'Concedido. Al abrir la app te avisamos del cierre de mes y de las metas con fecha encima.',
+    denied: 'Lo negaste. Se cambia desde el candado de la barra de direcciones; mientras tanto los avisos salen dentro de la app.',
+    default: 'Te avisamos cinco días antes del cierre de mes y de la fecha de una meta. Nada más.',
+  };
+  const pintarNotif = () => {
+    const estado = estadoNotificaciones();
+    root.querySelector('#ajNotifTexto').textContent = notifTexto[estado] || notifTexto.default;
+    const btn = root.querySelector('#ajNotif');
+    btn.disabled = estado !== 'default';
+    btn.textContent = estado === 'granted' ? 'Notificaciones activas' : 'Permitir notificaciones';
+  };
+  root.querySelector('#ajNotif').onclick = async () => {
+    await pedirPermisoNotificaciones();
+    pintarNotif();
+  };
+  pintarNotif();
 
   root.querySelector('#ajExport').onclick = () => {
     const blob = new Blob([JSON.stringify({ profiles: store.profiles() }, null, 2)], { type: 'application/json' });

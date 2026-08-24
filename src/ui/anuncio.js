@@ -1,28 +1,30 @@
 import { esc } from '../format.js';
 import { icon } from './icons.js';
 
-/* Anuncio grande, el de las cosas que no pueden pasar en silencio: tapa la
-   vista, no se cierra por fuera y siempre sale por uno de sus dos botones. */
-export function anuncio({ titulo, cuerpo, aceptar, secundario }) {
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay on';
-  overlay.innerHTML = `
-    <div class="sheet anuncio" role="alertdialog" aria-modal="true">
-      <div class="anuncio-ic">${icon('check')}</div>
-      <h2>${esc(titulo)}</h2>
-      <p>${esc(cuerpo)}</p>
-      <button class="wide btn-primary" id="anOk">${esc(aceptar.label)}</button>
-      ${secundario ? `<button class="wide" id="anAlt" style="margin-top:8px">${esc(secundario.label)}</button>` : ''}
-    </div>`;
-  document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
+/* F6 — el anuncio grande. No es un modal: un modal se cierra por reflejo sin
+   leerlo. Ocupa el ancho del contenido, arriba de todo, y empuja el resto
+   hacia abajo hasta que el usuario actúa o lo descarta.
+   Es el único lugar donde la app levanta la voz. */
+export function anuncio({ titulo, cuerpo, acciones = [], urgente = false, clave, onDescartar }) {
+  const cont = document.getElementById('content');
+  if (!cont) return null;
 
-  function cerrar() {
-    overlay.remove();
-    document.body.style.overflow = '';
-  }
-  overlay.querySelector('#anOk').onclick = () => { cerrar(); aceptar.onClick(); };
-  overlay.querySelector('#anAlt')?.addEventListener('click', () => { cerrar(); secundario.onClick(); });
-  overlay.querySelector('#anOk').focus();
-  return cerrar;
+  const el = document.createElement('div');
+  el.className = `anuncio ${urgente ? 'anuncio-urgente' : ''}`;
+  if (clave) el.dataset.clave = clave;
+  el.innerHTML = `
+    <button class="anuncio-x" aria-label="Descartar">${icon('cerrar', 'ic-sm')}</button>
+    <h3>${esc(titulo)}</h3>
+    <p>${esc(cuerpo)}</p>
+    ${acciones.length ? `<div class="anuncio-acts">
+      ${acciones.map((a, i) => `<button class="${i === 0 ? 'an-primary' : ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}
+    </div>` : ''}`;
+  cont.prepend(el);
+
+  const quitar = () => el.remove();
+  el.querySelector('.anuncio-x').onclick = () => { quitar(); onDescartar?.(); };
+  el.querySelectorAll('.anuncio-acts button').forEach((b) => {
+    b.onclick = () => { quitar(); acciones[Number(b.dataset.i)].onClick(); };
+  });
+  return quitar;
 }

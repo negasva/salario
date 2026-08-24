@@ -1,6 +1,6 @@
 import { r2, clamp, amount, lines, fixedVariableSplit } from './reparto.js';
 
-const MES = [
+export const MES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];

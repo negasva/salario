@@ -35,6 +35,7 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
   metodoDeuda,                     // 'avalancha' | 'bolaDeNieve'
   items, goals, movs,
   traspaso,                        // F5: el traspaso de fila esperando respuesta
+  avisosVistos, avisosEnviados,    // F6: qué aviso se descartó y cuál se notificó, por día
   updated,
 }
 ```
@@ -71,13 +72,15 @@ Al arrancar se podan los movimientos de más de 24 meses. El perfil entero viaja
 
 ### El motor de cálculo
 
-Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 91 pruebas en siete archivos.
+Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 104 pruebas en siete archivos.
 
 `reparto.js` hace la aritmética base. Suma porcentajes, convierte porcentaje a monto, separa fijos de variables, y calcula cuánto queda libre de un bloque después de que las otras metas lo reclamaron.
 
 `metas.js` hace lo interesante. Calcula cuánto va hacia una meta al mes, en cuántos meses la alcanzas, la cuota necesaria para una fecha objetivo, el plan de recorte cuando no alcanza, tres escenarios comparables (conservador, equilibrado, agresivo), el costo de oportunidad de ese dinero invertido a cinco y diez años, la detección de metas en competencia, y cuánto se lleva cada meta de un bloque dado.
 
 `fila.js` maneja la fila: el orden de las metas, quién sigue, el traspaso de una asignación a la siguiente, y la proyección de cuándo le toca el turno a cada una.
+
+`avisos.js` decide qué tiene que decirte la app hoy: los días que faltan para el cierre del mes, los que faltan para la fecha de una meta, y si un aviso ya se descartó hoy.
 
 `consejo.js` tiene la parte opinada. Recomienda el reparto entre corto y largo plazo según el estado de tu fondo, y maneja el ingreso variable.
 
@@ -99,11 +102,31 @@ Nunca toca renglones fijos ni mínimos de deuda. Y cada recorte viene con su pre
 
 Dos metas que quieren el mismo bloque ya no pelean para siempre. Una se pone `en_fila` y espera: su reparto se guarda, pero no consume nada, así que no le baja el tope a la que está corriendo. `claimedBy()` la ignora, y por eso el slider de la meta activa vuelve a llegar hasta donde debería.
 
-Cuando la meta activa llega a su objetivo, su asignación entera pasa a la siguiente de la fila, que se vuelve activa. Eso no pasa en silencio: sale un anuncio que tapa la pantalla y dice `Terminaste la meta Moto. Los $1.813.064 al mes pasan ahora a Fondo de emergencia.`, con un botón para aceptar y otro para repartirlo a mano. El de a mano libera el porcentaje sin asignárselo a nadie y abre la meta que sigue para que lo acomodes tú.
+Cuando la meta activa llega a su objetivo, su asignación entera pasa a la siguiente de la fila, que se vuelve activa. Eso no pasa en silencio: sale el anuncio grande de la Fase 6 diciendo `Terminaste la meta Moto. Los $1.813.064 al mes pasan ahora a Fondo de emergencia.`, con un botón para aceptar y otro para repartirlo a mano. El de a mano libera el porcentaje sin asignárselo a nadie y abre la meta que sigue para que lo acomodes tú.
 
 Si nadie contesta, a las 24 horas se aplica solo. El dinero no se queda sin dueño. Como no hay cron ni servidor, el reloj se mira cuando la app está abierta, igual que el cierre de mes: el traspaso pendiente vive en el perfil (`p.traspaso`) y sobrevive a que cierres la pestaña.
 
 Si no hay nadie esperando en la fila, no pasa nada. La meta cumplida sigue como estaba y el anuncio sale el día que pongas otra meta detrás; así una meta que ya alcanzaste no se queda sin su bloque sin que lo hayas pedido.
+
+### Los avisos
+
+El problema real de estas apps no es que estén mal hechas. Es que la gente las abre dos veces y las olvida. Así que hay dos avisos, y los dos llegan cinco días antes.
+
+El primero es el del cierre: `Quedan 5 días de agosto. Llevas $3,2 M registrados de $4,1 M presupuestados.` El segundo es el de una meta con fecha objetivo: `Faltan 5 días para tu fecha de la Moto y llevas el 78%.` Nada más. Una app que avisa de diez cosas no avisa de ninguna.
+
+Salen en un **anuncio grande** (`ui/anuncio.js`), y esa es la parte que importa. No es un toast de seis segundos en la esquina, que es lo que nadie ve, y tampoco es un modal, que se cierra por reflejo sin leerlo. Es una franja del ancho del contenido, arriba de todo, que empuja el resto de la vista hacia abajo y se queda ahí hasta que actúas o la descartas. Rosa con tinta, o tinta con blanco cuando es urgente. Uno o dos botones y una X.
+
+Descartar guarda la marca en `p.avisosVistos = { clave: fecha }` para no repetirlo el mismo día. Al escribir una marca se botan las de días anteriores, así que el mapa nunca crece.
+
+Cada aviso dice en qué vistas aparece, y son dos: el dashboard y la que le toca. El de fin de mes sale también en Movimientos, el de una meta en Metas. En las otras tres no aparece.
+
+Este componente es el único lugar donde la app levanta la voz, y lo reusan las tres cosas que lo necesitan: el cierre automático de la Fase 3, la meta completada de la Fase 5 y los dos avisos de la Fase 6.
+
+### La notificación del navegador
+
+Con la Notifications API nativa y nada más: sin librería, sin service worker, sin servidor de push. Al arrancar, si hay un aviso pendiente y el permiso está concedido, se dispara.
+
+El permiso se pide desde un botón en Ajustes, nunca al cargar la página. Pedirlo de entrada es cómo se consigue que lo nieguen para siempre. Si está negado, o el navegador no tiene la API, el anuncio en pantalla es el plan B y la app funciona igual. `p.avisosEnviados` evita mandar el mismo aviso dos veces en el día.
 
 ### El cierre de mes
 
@@ -129,7 +152,7 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 
 ### Las seis vistas
 
-**Dashboard** es el resumen. Ingreso editable, cuánto por ciento llevas repartido, estado del fondo, la escalera de prioridad, la tasa de ahorro con su tendencia, el reparto por bloques y los anillos de progreso de cada meta. Si tus esenciales pasan del 50% aparece una tarjeta de advertencia con los tres renglones que más pesan. Si la app cerró meses por ti al arrancar, sale un banner que lleva a Historial.
+**Dashboard** es el resumen. Ingreso editable, cuánto por ciento llevas repartido, estado del fondo, la escalera de prioridad, la tasa de ahorro con su tendencia, el reparto por bloques y los anillos de progreso de cada meta. Si tus esenciales pasan del 50% aparece una tarjeta de advertencia con los tres renglones que más pesan. Si la app cerró meses por ti al arrancar, sale un anuncio que lleva a Historial.
 
 **Categorías** es donde vive el detalle. Cada bloque con su slider, su porcentaje, su monto en pesos, y la lista de conceptos. Debajo de los conceptos, lo que las metas ya reclaman de ese bloque, con un botón `Ya lo guardé` que registra el aporte del mes. Al pie, la cuenta completa: presupuesto, gastos reales, comprometido por metas, y el libre. En un bloque de deudas, cada renglón muestra en cuánto se liquida y cuántos intereses cuesta, y al final el comparativo entre avalancha y bola de nieve.
 
@@ -139,7 +162,7 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 
 **Historial** cierra el mes y guarda el snapshot. Muestra la tasa de ahorro mes a mes, los esenciales como porcentaje del ingreso con semáforo, la comparación contra el promedio de los tres meses anteriores, y por cada cierre las barras enfrentadas de plan contra real con la brecha dicha en una frase.
 
-**Ajustes** tiene los perfiles, el tipo de ingreso, los meses objetivo del fondo, la tasa anual para el costo de oportunidad, y exportar/importar en JSON.
+**Ajustes** tiene los perfiles, el tipo de ingreso, los meses objetivo del fondo, la tasa anual para el costo de oportunidad, el botón que pide permiso para las notificaciones, y exportar/importar en JSON.
 
 ## El stack y por qué
 

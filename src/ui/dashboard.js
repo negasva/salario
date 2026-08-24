@@ -7,13 +7,6 @@ import { money, plain, esc, digits } from '../format.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-function nombreMes(periodo) {
-  const [a, m] = periodo.split('-');
-  const largo = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  return `${largo[Number(m) - 1]}${Number(a) === new Date().getFullYear() ? '' : ` de ${a}`}`;
-}
-
 function mesCorto(periodo) {
   const m = Number(String(periodo).split('-')[1]);
   return MESES_CORTOS[m - 1] || periodo;
@@ -85,16 +78,7 @@ export async function renderDashboard(root) {
 
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
-  const auto = store.cierresAutomaticos();
-
   root.innerHTML = `
-    ${auto.length ? `<div class="card aviso-cierre">
-      <div>
-        <span class="label">Cierre automático</span>
-        <div class="sub">Cerré ${auto.map(nombreMes).join(', ')} por ti. Revisa que esté completo.</div>
-      </div>
-      <button class="btn-primary" id="dVerCierre">Ver en Historial</button>
-    </div>` : ''}
     <div class="grid-3">
       <div class="card card-pink">
         <div class="income-head">
@@ -196,9 +180,6 @@ export async function renderDashboard(root) {
       </div>
       <div class="sub">${rec.motivo}.</div>
     </div>`;
-
-  root.querySelector('#dVerCierre')?.addEventListener('click',
-    () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'historial' } })));
 
   root.querySelector('#dIncome').onchange = (e) => {
     p.inc = digits(e.target.value);

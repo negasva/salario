@@ -37,6 +37,8 @@ window.addEventListener('ir-a-meta', (e) => {
   paintRoute();
 });
 
+window.addEventListener('ir-a-vista', (e) => { route = e.detail.route; paintRoute(); });
+
 async function boot() {
   const session = await getSession();
   if (!session) {
@@ -45,6 +47,7 @@ async function boot() {
   }
   const res = await store.bootAuth(session.user.id);
   if (res?.migrated) toast('Tu presupuesto local se subió a tu cuenta.');
+  await store.autoCerrar();
   paintRoute();
 }
 

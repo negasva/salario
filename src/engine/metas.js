@@ -119,7 +119,7 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
 }
 
 // F7 — tres escenarios comparables
-export function escenarios(faltante, ahorrado, costo, disponibleHoy, recortesDisponibles) {
+export function escenarios(ahorrado, costo, disponibleHoy, recortesDisponibles) {
   const totalRecortes = recortesDisponibles.reduce((s, r) => s + r.monto, 0);
   const plans = [
     { nombre: 'conservador', cuota: disponibleHoy, sacrificio: 'nada, solo lo que hoy tienes disponible' },
@@ -145,7 +145,7 @@ export function costoOportunidad(monto, tasaAnualPct = 10) {
 // F9 — metas en competencia
 export function conflictosDeMetas(goals) {
   const map = {};
-  goals.forEach((g) => {
+  goals.filter((g) => !g.special).forEach((g) => {
     Object.entries(g.a || {}).forEach(([itemId, pct]) => {
       if (pct > 0) (map[itemId] = map[itemId] || []).push(g);
     });
@@ -155,18 +155,17 @@ export function conflictosDeMetas(goals) {
     .map(([itemId, list]) => ({ itemId, goals: list }));
 }
 
+const RANGO = { alta: 0, media: 1, baja: 2 };
+
 export function secuenciaPlazos(goalsEnConflicto, items, income) {
-  const paralelo = goalsEnConflicto.map((g) => monthsToGoal(g, items, income));
-  let acumulado = 0;
-  const secuencia = goalsEnConflicto
+  const orden = goalsEnConflicto
     .slice()
-    .sort((a, b) => (a.prioridad === b.prioridad ? 0 : a.prioridad === 'alta' ? -1 : 1))
-    .map((g) => {
-      const m = monthsToGoal(g, items, income) || 0;
-      acumulado += m;
-      return acumulado;
-    });
-  return { paralelo, secuencia };
+    .sort((a, b) => (RANGO[a.priority] ?? 1) - (RANGO[b.priority] ?? 1));
+  let acumulado = 0;
+  return {
+    paralelo: orden.map((g) => monthsToGoal(g, items, income)),
+    secuencia: orden.map((g) => (acumulado += monthsToGoal(g, items, income) || 0)),
+  };
 }
 
 // F10 — aportes extra

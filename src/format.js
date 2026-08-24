@@ -19,3 +19,12 @@ export function plain(v, cur) {
     return String(n);
   }
 }
+
+export function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+export function digits(v) {
+  const c = String(v).replace(/[^\d]/g, '');
+  return c ? Number(c) : 0;
+}

@@ -10,6 +10,7 @@ import {
   conflictosDeMetas,
   aplicarAporte,
   plazo,
+  secuenciaPlazos,
 } from './metas.js';
 import { recomendar } from './consejo.js';
 
@@ -107,6 +108,29 @@ describe('F9 metas en competencia', () => {
     const conf = conflictosDeMetas([g1, g2]);
     expect(conf).toHaveLength(1);
     expect(conf[0].itemId).toBe('i1');
+  });
+});
+
+describe('F9 orden por prioridad', () => {
+  const items = [{ id: 'i1', p: 100 }];
+  const mk = (id, priority) => ({ id, priority, t: 100000, s: 0, a: { i1: 100 } });
+
+  it('ordena alta, media, baja sin importar el orden de entrada', () => {
+    const baja = { ...mk('baja', 'baja'), t: 300000 };
+    const media = { ...mk('media', 'media'), t: 200000 };
+    const alta = { ...mk('alta', 'alta'), t: 100000 };
+    // 1.000.000 de ingreso, el bloque i1 es el 100%: 1 mes por cada millon
+    const a = secuenciaPlazos([baja, media, alta], items, 1000000);
+    const b = secuenciaPlazos([alta, baja, media], items, 1000000);
+    expect(a.paralelo).toEqual([1, 1, 1]);
+    expect(a.secuencia).toEqual([1, 2, 3]);
+    expect(b).toEqual(a);
+  });
+
+  it('el fondo de emergencia no cuenta como competencia', () => {
+    const fondo = { id: 'f', special: 'emergencia', a: { i1: 60 } };
+    const moto = { id: 'm', a: { i1: 40 } };
+    expect(conflictosDeMetas([fondo, moto])).toHaveLength(0);
   });
 });
 

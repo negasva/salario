@@ -5,19 +5,17 @@ import {
   cuotaPorFecha, cuotaPorMeses, planRecorte, escenarios, costoOportunidad,
   conflictosDeMetas, secuenciaPlazos, aplicarAporte,
 } from '../engine/metas.js';
-import { money, plain } from '../format.js';
+import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
-function digits(v) { const c = String(v).replace(/[^\d]/g, ''); return c ? Number(c) : 0; }
 function id() { return Math.random().toString(36).slice(2, 9); }
 
 const estadoFondo = (p) => store.ensureFondoGoal(p);
 
 export function renderMetas(root) {
   const p = store.active();
-  const inc = store.incomeRepartir(p);
-  estadoFondo(p);
+  if (estadoFondo(p).creado) store.save();
 
   root.innerHTML = `
     <button id="metaAdd" class="wide btn-primary" style="margin-bottom:var(--sp-4)">+ Nueva meta</button>
@@ -69,8 +67,6 @@ function paint(root) {
   });
 }
 
-function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-
 function openGoalSheet(root, g, warnEscalon) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
@@ -79,7 +75,14 @@ function openGoalSheet(root, g, warnEscalon) {
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
 
-  function close() { overlay.remove(); document.body.style.overflow = ''; paint(root); }
+  function close() {
+    // 0.12 — una meta nueva que nunca se llenó no debe quedar en la lista
+    const idx = p.goals.indexOf(g);
+    if (idx >= 0 && !g.special && g.n === 'Nueva meta' && !g.t) { p.goals.splice(idx, 1); store.save(); }
+    overlay.remove();
+    document.body.style.overflow = '';
+    paint(root);
+  }
 
   function paintSheet() {
     const conflictos = conflictosDeMetas(p.goals).find((c) => c.goals.includes(g));
@@ -146,7 +149,7 @@ function openGoalSheet(root, g, warnEscalon) {
     overlay.querySelector('#gClose').onclick = close;
     overlay.querySelector('#gDone').onclick = close;
     overlay.querySelector('#gName').oninput = (e) => { g.n = e.target.value; store.save(); };
-    overlay.querySelector('#gCost').onchange = (e) => { g.t = digits(e.target.value); store.save(); paintSheet(); };
+    overlay.querySelector('#gCost').onchange = (e) => { g.t = digits(e.target.value); g.manual = true; store.save(); paintSheet(); };
     overlay.querySelector('#gSaved').onchange = (e) => { g.s = digits(e.target.value); store.save(); paintSheet(); };
     overlay.querySelector('#gPriority').onchange = (e) => { g.priority = e.target.value; store.save(); };
 
@@ -250,7 +253,7 @@ function openGoalSheet(root, g, warnEscalon) {
       const escBox = document.createElement('div');
       escBox.className = 'grid';
       escBox.style.marginTop = '14px';
-      escenarios(faltante, g.s, g.t, disp, recortes).forEach((e) => {
+      escenarios(g.s, g.t, disp, recortes).forEach((e) => {
         const el = document.createElement('div');
         el.className = 'card-2';
         el.style.padding = '10px';
@@ -294,8 +297,8 @@ function openGoalSheet(root, g, warnEscalon) {
         const free = freeFor(p.goals, g, it.id);
         const v = g.a[it.id] || 0;
         return `<div class="alloc" data-id="${it.id}">
-          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num alloc-amt" style="color:var(--blue)">${money(amount(it, inc) * v / 100, p.cur)}</span></div>
-          <input type="range" min="0" max="100" step="1" value="${v}" max="${free}">
+          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num alloc-amt">${money(amount(it, inc) * v / 100, p.cur)}</span></div>
+          <input type="range" min="0" max="${free}" step="1" value="${v}">
           ${free < 100 ? `<div class="hint">Otras metas ya usan ${r2(100 - free)}% de este bloque. Tope aquí: ${r2(free)}%.</div>` : ''}
         </div>`;
       }).join('');

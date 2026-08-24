@@ -142,6 +142,15 @@ export function costoOportunidad(monto, tasaAnualPct = 10) {
   return { vf5: r2(valorFuturo(monto, tasaAnualPct, 5)), vf10: r2(valorFuturo(monto, tasaAnualPct, 10)) };
 }
 
+// F2.2 — cuánto se lleva cada meta de un bloque, al mes
+export function metasEnItem(goals, item, income) {
+  const bloque = amount(item, income);
+  return goals
+    .map((g) => ({ goal: g, pct: Number(g.a?.[item.id]) || 0 }))
+    .filter((x) => x.pct > 0)
+    .map((x) => ({ ...x, monto: r2((bloque * x.pct) / 100) }));
+}
+
 // F9 — metas en competencia
 export function conflictosDeMetas(goals) {
   const map = {};

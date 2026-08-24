@@ -13,6 +13,11 @@ function id() { return Math.random().toString(36).slice(2, 9); }
 
 const estadoFondo = (p) => store.ensureFondoGoal(p);
 
+// Categorías pide abrir una meta; se guarda aquí y renderMetas la destapa
+// al montar, así la hoja siempre vive dentro de su propia vista.
+let pendiente = null;
+export function abrirMeta(goalId) { pendiente = goalId; }
+
 export function renderMetas(root) {
   const p = store.active();
   if (estadoFondo(p).creado) store.save();
@@ -34,6 +39,12 @@ export function renderMetas(root) {
   };
 
   paint(root);
+
+  if (pendiente) {
+    const g = p.goals.find((x) => x.id === pendiente);
+    pendiente = null;
+    if (g) openGoalSheet(root, g, false);
+  }
 }
 
 function paint(root) {

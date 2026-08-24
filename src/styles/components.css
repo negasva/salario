@@ -179,6 +179,15 @@
 .line .fixedtoggle{font-size:11px;padding:7px 9px;flex:none}
 .line .fixedtoggle.on{color:var(--ink);border-color:var(--pink);background:var(--pink-wash)}
 .line .lx{width:30px;height:30px;padding:0;flex:none;display:flex;align-items:center;justify-content:center}
+.line-meta{background:var(--pink-wash);border-left:3px solid var(--pink);cursor:pointer;
+  padding:8px 10px;border-radius:var(--radius-sm)}
+.line-meta.line-fondo{border-left-color:var(--warning)}
+.line-meta .lm-n{flex:1;min-width:0;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--ink)}
+.line-meta .lm-p{flex:none}
+.line-meta .lm-v{flex:none;font-size:var(--text-sm);font-weight:var(--fw-bold)}
+.line-meta .mini{flex:none;font-size:11px;padding:7px 9px;display:flex;align-items:center;gap:4px}
+.line-meta .lm-ok{color:var(--success);border-color:var(--success)}
+.cat-cuenta .over{color:var(--danger)}
 
 /* ── overlay / sheet ──────────────────────────────────────────────────── */
 .overlay{position:fixed;inset:0;z-index:80;background:rgba(26,26,26,.45);display:none;

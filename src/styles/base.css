@@ -1,0 +1,18 @@
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+  font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3,p{margin:0}
+button,input,select{font-family:inherit;color:inherit}
+button{cursor:pointer;background:var(--card-2);color:var(--text);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:8px 12px;transition:background var(--t-fast),border-color var(--t-fast)}
+button:hover{border-color:var(--muted)}
+button:active{transform:translateY(1px)}
+button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+input,select{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:8px 10px;font-size:15px}
+input:focus,select:focus{outline:none;border-color:var(--blue)}
+a{color:var(--blue)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}

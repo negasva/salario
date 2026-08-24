@@ -4,6 +4,7 @@ import { renderShell, toast } from './ui/shell.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderCategorias } from './ui/categorias.js';
 import { renderMetas } from './ui/metas.js';
+import { renderMovimientos } from './ui/movimientos.js';
 import { renderHistorial } from './ui/historial.js';
 import { renderAjustes } from './ui/ajustes.js';
 import { getSession, onAuthChange } from './auth.js';
@@ -19,6 +20,7 @@ const ROUTES = {
   dashboard: renderDashboard,
   categorias: renderCategorias,
   metas: renderMetas,
+  movimientos: renderMovimientos,
   historial: renderHistorial,
   ajustes: renderAjustes,
 };

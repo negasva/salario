@@ -1,6 +1,7 @@
 import * as store from '../store.js';
 import { toast } from './shell.js';
-import { plain } from '../format.js';
+import { plain, money } from '../format.js';
+import { ingresoEfectivo, excedente } from '../engine/consejo.js';
 
 function digits(v) { const c = String(v).replace(/[^\d]/g, ''); return c ? Number(c) : 0; }
 
@@ -81,10 +82,14 @@ export function renderAjustes(root) {
       ${[0, 1, 2].map((i) => `<div class="fld"><input class="ajMes" data-i="${i}" value="${plain(p.ingresoHistorial[i], p.cur)}" inputmode="numeric"></div>`).join('')}
       <div class="sub" id="ajResumen"></div>`;
     const paintResumen = () => {
-      const vals = p.ingresoHistorial.filter((v) => v > 0);
-      const prom = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-      const min = vals.length ? Math.min(...vals) : 0;
-      histBox.querySelector('#ajResumen').innerHTML = `Promedio para repartir: <b class="num">${plain(prom, p.cur)}</b> · Mínimo para esenciales: <b class="num">${plain(min, p.cur)}</b>`;
+      const { promedio, minimo } = ingresoEfectivo(p.ingresoHistorial);
+      let html = `Promedio para repartir: <b class="num">${plain(promedio, p.cur)}</b> · Mínimo para esenciales: <b class="num">${plain(minimo, p.cur)}</b>`;
+      const ultimo = p.ingresoHistorial[p.ingresoHistorial.length - 1];
+      if (ultimo > promedio) {
+        const ex = excedente(ultimo, promedio);
+        html += `<br>Excedente del último mes: <b class="num">${money(ex.total, p.cur)}</b> — ${money(ex.metasYFondo, p.cur)} a metas y fondo, ${money(ex.libre, p.cur)} libre.`;
+      }
+      histBox.querySelector('#ajResumen').innerHTML = html;
     };
     histBox.querySelectorAll('.ajMes').forEach((inp) => {
       inp.onchange = (e) => { p.ingresoHistorial[Number(e.target.dataset.i)] = digits(e.target.value); store.save(); paintResumen(); };

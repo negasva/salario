@@ -1,5 +1,5 @@
 import * as store from '../store.js';
-import { amount, freeFor, claimedBy, clamp, r2 } from '../engine/reparto.js';
+import { amount, freeFor, clamp, r2 } from '../engine/reparto.js';
 import {
   monthlyToward, monthsToGoal, whenText, emergencyTarget, emergencyStatus, escalonActual,
   cuotaPorFecha, planRecorte, escenarios, costoOportunidad, conflictosDeMetas, secuenciaPlazos, aplicarAporte,
@@ -125,7 +125,12 @@ function openGoalSheet(root, g, warnEscalon) {
         </div>
         ${g.dateMode ? `<div class="fld"><label>Fecha objetivo</label><input type="date" id="gDate" value="${g.dueDate || ''}"></div><div id="gCuota" class="sub"></div>` : ''}
 
-        ${conflictos ? `<div class="sub" style="color:var(--amber);margin-bottom:12px">Esta meta compite por bloque con otra(s). En paralelo tardan más; en secuencia, una termina antes.</div>` : ''}
+        ${conflictos ? (() => {
+          const { paralelo, secuencia } = secuenciaPlazos(conflictos.goals, p.items, inc);
+          return `<div class="sub" style="color:var(--amber);margin-bottom:12px">Esta meta compite por el mismo bloque con ${conflictos.goals.length - 1} otra(s).
+          En paralelo: ${paralelo.map((m) => m ? m + ' meses' : 'sin aporte').join(' / ')}.
+          En secuencia (por prioridad): ${secuencia.join(' → ')} meses.</div>`;
+        })() : ''}
 
         <div class="label" style="margin:14px 0 8px">Rutas sugeridas</div>
         <div id="gOpts"></div>
@@ -212,6 +217,23 @@ function openGoalSheet(root, g, warnEscalon) {
         };
         cardsBox.appendChild(el);
       });
+
+      // F7 — tres escenarios comparables
+      const disp = monthlyToward(g, p.items, inc);
+      const escBox = document.createElement('div');
+      escBox.className = 'grid';
+      escBox.style.marginTop = '14px';
+      escenarios(faltante, g.s, g.t, disp, recortes).forEach((e) => {
+        const el = document.createElement('div');
+        el.className = 'card-2';
+        el.style.padding = '10px';
+        el.innerHTML = `<b style="text-transform:capitalize">${e.nombre}</b>
+          <div class="sub num" style="margin-top:4px">${money(e.cuota, p.cur)} al mes</div>
+          <div class="sub" style="margin-top:4px">${e.meses ? `${e.meses} meses, hacia ${e.fecha}` : 'no alcanza'}</div>
+          <div class="sub" style="margin-top:4px">Sacrificas: ${e.sacrificio}</div>`;
+        escBox.appendChild(el);
+      });
+      planBox.appendChild(escBox);
     }
 
     function paintOpts() {

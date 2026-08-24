@@ -1,5 +1,6 @@
-import { supabase, getSession } from './auth.js';
+import { supabase } from './auth.js';
 import { r2, clamp } from './engine/reparto.js';
+import { ingresoEfectivo } from './engine/consejo.js';
 
 const KEY = 'reparto:v7';
 const OLD_KEYS = ['reparto:v6', 'reparto:v5'];
@@ -64,14 +65,14 @@ export function freshProfile(name) {
 // F18 — ingreso variable: promedio para repartir, minimo para calcular esenciales
 export function incomeRepartir(p) {
   if (p.ingresoTipo !== 'variable') return p.inc;
-  const vals = (p.ingresoHistorial || []).filter((v) => v > 0);
-  return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : p.inc;
+  const { promedio } = ingresoEfectivo(p.ingresoHistorial || []);
+  return promedio || p.inc;
 }
 
 export function incomeEsenciales(p) {
   if (p.ingresoTipo !== 'variable') return p.inc;
-  const vals = (p.ingresoHistorial || []).filter((v) => v > 0);
-  return vals.length ? Math.min(...vals) : p.inc;
+  const { minimo } = ingresoEfectivo(p.ingresoHistorial || []);
+  return minimo || p.inc;
 }
 
 export function active() {

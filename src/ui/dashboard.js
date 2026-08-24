@@ -1,10 +1,10 @@
-import * as store from './../store.js';
-import { total, amount, claimedAll, diagnosticoEsenciales } from '../engine/reparto.js';
+import * as store from '../store.js';
+import { total, claimedAll, diagnosticoEsenciales } from '../engine/reparto.js';
 import { emergencyTarget, emergencyStatus, escalonActual, ESCALERA, monthsToGoal } from '../engine/metas.js';
 import { recomendar } from '../engine/consejo.js';
 import { money } from '../format.js';
 
-function svgBar(items, cur) {
+function svgBar(items) {
   const t = total(items);
   const sc = Math.max(100, t);
   let x = 0;
@@ -66,7 +66,7 @@ export function renderDashboard(root) {
         </div>
         <input id="dIncome" class="income-input num" type="text" inputmode="numeric" value="${p.inc}">
         ${p.ingresoTipo === 'variable' ? `<div class="sub" style="margin-top:6px">Repartes sobre el promedio: <b class="num">${money(inc, p.cur)}</b></div>` : ''}
-        ${svgBar(p.items, p.cur)}
+        ${svgBar(p.items)}
       </div>
       <div class="card">
         <span class="label">Tu mes</span>

@@ -16,4 +16,15 @@ input,select{background:var(--card-2);border:1px solid var(--line);border-radius
 input:focus,select:focus{outline:none;border-color:var(--blue)}
 a{color:var(--blue)}
 svg{width:20px;height:20px;flex:none;display:block}
+
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:24px;padding:0}
+input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:99px;background:var(--card-2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--text);margin-top:-6.5px;border:0;cursor:pointer;transition:transform var(--t-fast)}
+input[type=range]::-webkit-slider-thumb:active{transform:scale(1.15)}
+input[type=range]::-moz-range-track{height:5px;border-radius:99px;background:var(--card-2)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radius:50%;background:var(--text);
+  cursor:pointer;transition:transform var(--t-fast)}
+input[type=range]::-moz-range-thumb:active{transform:scale(1.15)}
+input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid var(--mint);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

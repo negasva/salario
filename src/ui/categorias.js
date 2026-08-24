@@ -95,9 +95,19 @@ function wireCard(root, it, p) {
     renderCategorias(root);
   }
 
+  // el arrastre solo actualiza los campos visibles, sin re-render ni guardado en cada tick
+  function liveDrag(v) {
+    it.p = r2(clamp(v, 0, 100));
+    const pctEl = card.querySelector('.cat-pct');
+    const montoEl = card.querySelector('.cat-monto');
+    if (document.activeElement !== pctEl) pctEl.value = it.p;
+    if (document.activeElement !== montoEl) montoEl.value = plain(amount(it, store.incomeRepartir(p)), p.cur);
+  }
+
   card.querySelector('.cat-name').oninput = (e) => { it.n = e.target.value; store.save(); };
   card.querySelector('.cat-desc').oninput = (e) => { it.d = e.target.textContent; store.save(); };
-  card.querySelector('.cat-range').oninput = (e) => setPct(Number(e.target.value));
+  card.querySelector('.cat-range').oninput = (e) => liveDrag(Number(e.target.value));
+  card.querySelector('.cat-range').onchange = (e) => setPct(Number(e.target.value));
   card.querySelector('.cat-pct').onchange = (e) => setPct(Number(String(e.target.value).replace(',', '.')) || 0);
   card.querySelector('.cat-monto').onchange = (e) => {
     const inc = store.incomeRepartir(p);

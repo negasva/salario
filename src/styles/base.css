@@ -1,32 +1,42 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;max-width:100%;overflow-x:hidden}
-html{background:var(--bg)}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
-  font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+html{background:var(--pink-wash)}
+body{margin:0;background:var(--pink-wash);color:var(--ink);font-family:var(--font-sans);
+  font-size:var(--text-sm);line-height:1.45;-webkit-font-smoothing:antialiased}
 .num{font-variant-numeric:tabular-nums}
 h1,h2,h3,p{margin:0}
 button,input,select{font-family:inherit;color:inherit}
-button{cursor:pointer;background:var(--card-2);color:var(--text);border:1px solid var(--line);
-  border-radius:var(--r-sm);padding:8px 12px;transition:background var(--t-fast),border-color var(--t-fast)}
-button:hover{border-color:var(--muted)}
+
+button{cursor:pointer;background:var(--white);color:var(--ink);border:1px solid var(--pink-lighter);
+  border-radius:var(--radius-sm);padding:9px 14px;font-size:var(--text-sm);font-weight:var(--fw-semibold);
+  transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast)}
+button:hover{border-color:var(--pink);background:var(--pink-wash)}
 button:active{transform:translateY(1px)}
-button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
-button:disabled{opacity:.4;cursor:default}
-button.mini{padding:6px 10px;font-size:12px}
-input,select{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-sm);
-  padding:8px 10px;font-size:15px}
-input:focus,select:focus{outline:none;border-color:var(--blue)}
-a{color:var(--blue)}
+button:focus-visible{outline:2px solid var(--pink-dark);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+button:disabled:hover{border-color:var(--pink-lighter);background:var(--white)}
+button.mini{padding:6px 10px;font-size:var(--text-xs)}
+
+input,select{background:var(--white);border:1px solid var(--pink-lighter);border-radius:var(--radius-sm);
+  padding:9px 12px;font-size:var(--text-sm)}
+input:focus,select:focus{outline:none;border-color:var(--pink)}
+input::placeholder{color:var(--ink-lighter);opacity:.7}
+
+a{color:var(--pink-dark)}
+a:hover{color:var(--pink)}
 svg{width:20px;height:20px;flex:none;display:block}
 
-input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:24px;padding:0}
-input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:99px;background:var(--card-2)}
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:24px;padding:0;border:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--pink-lighter)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
-  background:var(--text);margin-top:-6.5px;border:0;cursor:pointer;transition:transform var(--t-fast)}
-input[type=range]::-webkit-slider-thumb:active{transform:scale(1.15)}
-input[type=range]::-moz-range-track{height:5px;border-radius:99px;background:var(--card-2)}
-input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radius:50%;background:var(--text);
+  background:var(--pink);border:2px solid var(--white);box-shadow:var(--shadow-sm);margin-top:-7px;
   cursor:pointer;transition:transform var(--t-fast)}
+input[type=range]::-webkit-slider-thumb:active{transform:scale(1.15)}
+input[type=range]::-moz-range-track{height:6px;border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--pink-lighter)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:2px solid var(--white);border-radius:50%;
+  background:var(--pink);cursor:pointer;transition:transform var(--t-fast)}
 input[type=range]::-moz-range-thumb:active{transform:scale(1.15)}
-input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid var(--mint);outline-offset:2px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid var(--pink-dark);outline-offset:2px}
+input[type=range]:disabled{opacity:.45}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

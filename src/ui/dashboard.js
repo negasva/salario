@@ -1,51 +1,71 @@
 import * as store from '../store.js';
-import { total, claimedAll, diagnosticoEsenciales } from '../engine/reparto.js';
-import { emergencyTarget, emergencyStatus, escalonActual, ESCALERA, monthsToGoal } from '../engine/metas.js';
+import { total, r2, diagnosticoEsenciales } from '../engine/reparto.js';
+import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { recomendar } from '../engine/consejo.js';
-import { money } from '../format.js';
+import { money, plain } from '../format.js';
 
-function svgBar(items) {
-  const t = total(items);
-  const sc = Math.max(100, t);
-  let x = 0;
-  const segs = items.map((it) => {
-    const w = ((Number(it.p) || 0) / sc) * 100;
-    const cl = Math.min(100, claimedAll(store.active().goals, it.id));
-    const seg = `<rect x="${x}%" y="0" width="${w}%" height="100%" fill="${it.c}"/>` +
-      (cl > 0 ? `<rect x="${x}%" y="0" width="${(w * cl) / 100}%" height="100%" fill="rgba(255,255,255,.35)"/>` : '');
-    x += w;
-    return seg;
-  }).join('');
-  const gap = t < 99.99 ? `<rect x="${x}%" y="0" width="${((100 - t) / sc) * 100}%" height="100%" fill="var(--amber)" opacity=".3"/>` : '';
-  return `<svg class="repartobar" viewBox="0 0 100 100" preserveAspectRatio="none">${segs}${gap}</svg>`;
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+function mesCorto(periodo) {
+  const m = Number(String(periodo).split('-')[1]);
+  return MESES_CORTOS[m - 1] || periodo;
 }
 
-function svgRing(pct, color) {
-  const r = 26, c = 2 * Math.PI * r;
-  const off = c * (1 - Math.min(1, pct));
-  return `<svg width="64" height="64" viewBox="0 0 64 64">
-    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--card-2)" stroke-width="6"/>
-    <circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="6"
-      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"
-      transform="rotate(-90 32 32)"/>
-    <text x="32" y="37" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">${Math.round(pct * 100)}%</text>
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function digits(v) {
+  const c = String(v).replace(/[^\d]/g, '');
+  return c ? Number(c) : 0;
+}
+
+// tasa de ahorro del mes vivo: corto plazo + largo plazo
+function tasaAhorro(p) {
+  const cor = p.items.find((it) => it.r === 'cor')?.p || 0;
+  const lar = p.items.find((it) => it.r === 'lar')?.p || 0;
+  return r2(cor + lar);
+}
+
+function sparkline(rates, w = 280, h = 90, pad = 6) {
+  const min = Math.min(...rates);
+  const max = Math.max(...rates);
+  const range = max - min || 1;
+  const pts = rates.map((v, i) => ({
+    x: pad + (i / Math.max(1, rates.length - 1)) * (w - 2 * pad),
+    y: h - pad - ((v - min) / range) * (h - 2 * pad),
+  }));
+  const line = pts.map((pt) => `${pt.x},${pt.y}`).join(' ');
+  const area = `M${pts[0].x},${h} L${pts.map((pt) => `${pt.x},${pt.y}`).join(' L')} L${pts[pts.length - 1].x},${h} Z`;
+  return `<svg width="100%" height="110" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block">
+    <path d="${area}" fill="var(--pink-lighter)" opacity="0.55"></path>
+    <polyline points="${line}" fill="none" stroke="var(--pink-dark)" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round"></polyline>
   </svg>`;
 }
 
-export function renderDashboard(root) {
+function ringSvg(pct, color) {
+  const r = 32;
+  const c = Math.round(2 * Math.PI * r * 100) / 100;
+  const offset = Math.round(c * (1 - pct) * 100) / 100;
+  return `<svg viewBox="0 0 80 80">
+    <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--pink-wash)" stroke-width="7"></circle>
+    <circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${offset}" transform="rotate(-90 40 40)"></circle>
+  </svg>`;
+}
+
+export async function renderDashboard(root) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
   const incEse = store.incomeEsenciales(p);
   const t = total(p.items);
-  const diff = Math.round((100 - t) * 100) / 100;
+  const diff = r2(100 - t);
 
   const ese = p.items.find((it) => it.r === 'ese');
   const diag = ese ? diagnosticoEsenciales(ese, incEse) : null;
 
-  const { oneMonth, target } = emergencyTarget(p.items.filter((it) => it.r === 'ese'), p.fondoMeses);
-  const fondoGoal = p.goals.find((g) => g.special === 'emergencia');
-  const fondoSaved = fondoGoal ? fondoGoal.s || 0 : 0;
-  const fondoEstado = emergencyStatus(fondoSaved, oneMonth, target);
+  const { target, saved: fondoSaved, estado: fondoEstado } = store.ensureFondoGoal(p);
 
   const escalon = escalonActual({
     minimosDeudaCubiertos: (p.items.find((it) => it.r === 'deu')?.p || 0) > 0,
@@ -54,81 +74,170 @@ export function renderDashboard(root) {
   });
 
   const rec = recomendar({ fondoEstado, essentialsShare: diag ? diag.share : 0 });
+  const ahorroHoy = tasaAhorro(p);
+
+  const estadoMes = Math.abs(diff) < 0.01
+    ? 'Cuadrado. Repartiste el 100%.'
+    : diff > 0
+      ? `Quedan ${diff}% libres, ${money(inc * diff / 100, p.cur)} sin asignar.`
+      : `Te pasaste ${Math.abs(diff)}%, son ${money(inc * Math.abs(diff) / 100, p.cur)} que no tienes.`;
+
+  const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
   root.innerHTML = `
-    <div class="grid" style="margin-bottom:var(--sp-4)">
-      <div class="card">
+    <div class="grid-3">
+      <div class="card card-pink">
         <div class="income-head">
           <span class="label">Ingreso neto del mes</span>
-          <select id="dCurrency">
+          <select id="dCurrency" aria-label="Moneda">
             ${['COP', 'MXN', 'USD', 'ARS', 'CLP', 'PEN', 'EUR'].map((c) => `<option ${c === p.cur ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
         </div>
-        <input id="dIncome" class="income-input num" type="text" inputmode="numeric" value="${p.inc}">
-        ${p.ingresoTipo === 'variable' ? `<div class="sub" style="margin-top:6px">Repartes sobre el promedio: <b class="num">${money(inc, p.cur)}</b></div>` : ''}
-        ${svgBar(p.items)}
+        <input id="dIncome" class="income-input num" type="text" inputmode="numeric"
+          value="${plain(p.inc, p.cur)}" aria-label="Ingreso neto mensual">
+        <div class="sub">${p.ingresoTipo === 'variable'
+          ? `Repartes sobre el promedio: <b class="num">${money(inc, p.cur)}</b>`
+          : `${p.cur} · ingreso fijo`}</div>
       </div>
-      <div class="card">
+
+      <div class="card card-ink">
         <span class="label">Tu mes</span>
-        <div class="kpi ${Math.abs(diff) < 0.01 ? '' : diff > 0 ? '' : ''}">${t}%</div>
-        <div class="sub">${Math.abs(diff) < 0.01 ? 'Cuadrado. Repartiste el 100%.' : diff > 0 ? `Quedan ${diff}% libres, ${money(inc * diff / 100, p.cur)} sin asignar.` : `Te pasaste ${Math.abs(diff)}%, son ${money(inc * Math.abs(diff) / 100, p.cur)} que no tienes.`}</div>
+        <div class="kpi num">${t}%</div>
+        <div class="sub">${estadoMes}</div>
       </div>
+
       <div class="card">
         <span class="label">Fondo de emergencia</span>
-        <div class="kpi">${money(fondoSaved, p.cur)}</div>
-        <span class="badge ${fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad'}">${fondoEstado}</span>
-        <div class="sub">Objetivo ${money(target, p.cur)} (${p.fondoMeses} meses)</div>
+        <div class="kpi num">${money(fondoSaved, p.cur)}</div>
+        <span class="badge ${badgeClass}">${fondoEstado}</span>
+        <div class="sub">Objetivo ${money(target, p.cur)} (${plazo(p.fondoMeses)})</div>
       </div>
     </div>
 
-    ${diag && diag.nivel === 'rojo' ? `
-    <div class="card" style="border-color:var(--red);margin-bottom:var(--sp-4)">
+    ${diag && diag.nivel !== 'verde' ? `
+    <div class="card" style="border-color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'})">
       <span class="label">Esenciales</span>
-      <div class="sub" style="color:var(--red);font-weight:700;margin-top:4px">Esenciales al ${diag.share}% del ingreso, es demasiado.</div>
-      <div class="sub" style="margin-top:6px">${diag.top3.map((l) => `${l.n}: ${money(l.v, p.cur)} (${Math.round(l.pct * 10) / 10}% del ingreso)`).join(' · ')}</div>
+      <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
+        Tus esenciales suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
+        ${diag.nivel === 'rojo' ? 'Es demasiado.' : 'Está en el límite.'}
+      </div>
+      ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}
     </div>` : ''}
 
-    <div class="grid" style="margin-bottom:var(--sp-4)">
-      <div class="card">
-        <span class="label">Recomendado de ahorro</span>
-        <div class="sub" style="margin-top:6px">Corto plazo <b class="num">${rec.corto}%</b> · Largo plazo <b class="num">${rec.largo}%</b></div>
-        <div class="sub" style="margin-top:6px">${rec.motivo}.</div>
-      </div>
+    <div class="grid-2a">
       <div class="card">
         <span class="label">Orden de prioridad</span>
         <div class="escalera">
-          ${ESCALERA.map((s, i) => `<div class="peldano ${i + 1 < escalon ? 'done' : ''} ${i + 1 === escalon ? 'on' : ''}">${i + 1 < escalon ? '✓' : i + 1}. ${s}</div>`).join('')}
+          ${ESCALERA.map((s, i) => {
+            const n = i + 1;
+            const state = n < escalon ? 'done' : n === escalon ? 'on' : '';
+            return `<div class="peldano ${state}">
+              <span class="bub">${n < escalon ? '✓' : n}</span>
+              <span class="txt">${s}</span>
+            </div>`;
+          }).join('')}
         </div>
+      </div>
+
+      <div class="card">
+        <div class="spark-head">
+          <span class="label">Tasa de ahorro</span>
+          <span class="spark-val num">${ahorroHoy}%</span>
+        </div>
+        <div id="dSpark"><div class="sub">Cargando historial…</div></div>
       </div>
     </div>
 
-    <h2 class="section-h">Metas</h2>
-    <div class="grid" id="dGoals"></div>`;
+    <div class="grid-2b">
+      <div class="card">
+        <span class="label">Reparto del ingreso</span>
+        ${p.items.length ? p.items.map((it) => `
+          <div class="repline">
+            <span class="dot" style="background:${it.c}"></span>
+            <span class="nm" title="${esc(it.n)}">${esc(it.n)}</span>
+            <span class="track"><i style="width:${Math.min(100, it.p)}%;background:${it.c}"></i></span>
+            <span class="pv num">${it.p}%</span>
+          </div>`).join('') : '<div class="empty">Sin categorías.</div>'}
+      </div>
 
-  const goalsBox = root.querySelector('#dGoals');
-  if (!p.goals.length) {
-    goalsBox.innerHTML = '<div class="empty">Sin metas todavía.</div>';
-  } else {
-    goalsBox.innerHTML = p.goals.map((g) => {
-      const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
-      const n = monthsToGoal(g, p.items, inc);
-      return `<div class="card goalcard">
-        <div style="display:flex;align-items:center;gap:12px">
-          ${svgRing(pct, g.special === 'emergencia' ? 'var(--amber)' : 'var(--blue)')}
-          <div style="min-width:0">
-            <div style="font-weight:700">${g.n}</div>
-            <div class="sub">${money(g.s || 0, p.cur)} de ${money(g.t || 0, p.cur)}</div>
-          </div>
-        </div>
-        <div class="sub" style="margin-top:8px">${n ? `Plazo: ${n} meses` : 'Sin aporte mensual todavía'}</div>
-      </div>`;
-    }).join('');
+      <div class="card" style="display:flex;flex-direction:column">
+        <span class="label">Metas</span>
+        ${p.goals.length ? `<div class="rings">
+          ${p.goals.map((g) => {
+            const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
+            const n = monthsToGoal(g, p.items, inc);
+            const title = n ? `${money(g.s || 0, p.cur)} de ${money(g.t, p.cur)} · ${plazo(n)}, hacia ${whenText(n)}` : `${money(g.s || 0, p.cur)} de ${money(g.t, p.cur)} · sin aporte mensual`;
+            return `<div class="ring" title="${esc(title)}">
+              <div class="wrap">
+                ${ringSvg(pct, g.special === 'emergencia' ? 'var(--warning)' : 'var(--pink)')}
+                <div class="pct num">${Math.round(pct * 100)}%</div>
+              </div>
+              <div class="lbl">${esc(g.n)}</div>
+            </div>`;
+          }).join('')}
+        </div>` : '<div class="empty">Sin metas todavía.</div>'}
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--pink-wash);border-color:var(--pink-lighter)">
+      <span class="label">Recomendado de ahorro</span>
+      <div class="sub" style="font-size:var(--text-sm);color:var(--ink)">
+        Corto plazo <b class="num">${rec.corto}%</b> · Largo plazo <b class="num">${rec.largo}%</b>
+      </div>
+      <div class="sub">${rec.motivo}.</div>
+    </div>`;
+
+  root.querySelector('#dIncome').onchange = (e) => {
+    p.inc = digits(e.target.value);
+    store.save();
+    renderDashboard(root);
+  };
+  root.querySelector('#dCurrency').onchange = (e) => {
+    p.cur = e.target.value;
+    store.save();
+    renderDashboard(root);
+  };
+
+  // el historial viene de Supabase: la UI ya se pintó, esto solo rellena la tarjeta
+  paintSpark(root, p, ahorroHoy);
+}
+
+async function paintSpark(root, p, ahorroHoy) {
+  const box = root.querySelector('#dSpark');
+  if (!box) return;
+  let cierres = [];
+  try {
+    cierres = await store.listarCierres();
+  } catch {
+    box.innerHTML = '<div class="sub">No pude leer el historial.</div>';
+    return;
+  }
+  if (!root.querySelector('#dSpark')) return; // el usuario cambió de vista
+
+  if (cierres.length < 2) {
+    const cor = p.items.find((it) => it.r === 'cor');
+    const lar = p.items.find((it) => it.r === 'lar');
+    const inc = store.incomeRepartir(p);
+    const filas = [
+      cor && { n: cor.n, p: cor.p, c: cor.c },
+      lar && { n: lar.n, p: lar.p, c: lar.c },
+    ].filter(Boolean);
+    box.innerHTML = `
+      ${filas.map((f) => `
+        <div class="repline">
+          <span class="dot" style="background:${f.c}"></span>
+          <span class="nm" title="${esc(f.n)}">${esc(f.n)}</span>
+          <span class="track"><i style="width:${Math.min(100, f.p)}%;background:${f.c}"></i></span>
+          <span class="pv num">${money(inc * f.p / 100, p.cur)}</span>
+        </div>`).join('')}
+      <div class="sub">Para ver la tendencia mes a mes necesito al menos dos meses cerrados; llevas ${cierres.length}.</div>`;
+    return;
   }
 
-  root.querySelector('#dIncome').oninput = (e) => {
-    p.inc = Number(String(e.target.value).replace(/\D/g, '')) || 0;
-    store.save();
-  };
-  root.querySelector('#dIncome').onblur = (e) => { e.target.value = p.inc; };
-  root.querySelector('#dCurrency').onchange = (e) => { p.cur = e.target.value; store.save(); renderDashboard(root); };
+  const ultimos = cierres.slice(-6);
+  const rates = ultimos.map((c) => Number(c.snapshot.ahorroRate) || 0);
+  box.innerHTML = `
+    <div class="sub" style="margin-top:0">Últimos ${ultimos.length} meses cerrados</div>
+    ${sparkline(rates)}
+    <div class="spark-months">${ultimos.map((c) => `<span>${mesCorto(c.periodo)}</span>`).join('')}</div>`;
 }

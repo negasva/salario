@@ -17,7 +17,7 @@ export function renderLogin(root, onDone) {
           <div class="fld"><label>Correo</label><input id="authEmail" type="email" required autocomplete="email"></div>
           ${mode !== 'recuperar' ? '<div class="fld"><label>Contraseña</label><input id="authPass" type="password" required autocomplete="current-password" minlength="6"></div>' : ''}
           <div id="authErr" class="auth-err"></div>
-          <button type="submit" class="wide">${mode === 'login' ? 'Entrar' : mode === 'registro' ? 'Crear cuenta' : 'Enviar enlace'}</button>
+          <button type="submit" class="wide btn-primary">${mode === 'login' ? 'Entrar' : mode === 'registro' ? 'Crear cuenta' : 'Enviar enlace'}</button>
         </form>
       </div>
     </div>`;

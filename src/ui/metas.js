@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { amount, freeFor, clamp, r2 } from '../engine/reparto.js';
 import {
-  monthlyToward, monthsToGoal, whenText, emergencyTarget, emergencyStatus, escalonActual,
+  monthlyToward, monthsToGoal, whenText, plazo, escalonActual,
   cuotaPorFecha, planRecorte, escenarios, costoOportunidad, conflictosDeMetas, secuenciaPlazos, aplicarAporte,
 } from '../engine/metas.js';
 import { money, plain } from '../format.js';
@@ -11,29 +11,15 @@ import { toast } from './shell.js';
 function digits(v) { const c = String(v).replace(/[^\d]/g, ''); return c ? Number(c) : 0; }
 function id() { return Math.random().toString(36).slice(2, 9); }
 
-function estadoFondo(p) {
-  const essentials = p.items.filter((it) => it.r === 'ese');
-  const { oneMonth, target } = emergencyTarget(essentials, p.fondoMeses);
-  const g = p.goals.find((x) => x.special === 'emergencia');
-  const saved = g ? g.s || 0 : 0;
-  return { oneMonth, target, saved, estado: emergencyStatus(saved, oneMonth, target), goal: g };
-}
+const estadoFondo = (p) => store.ensureFondoGoal(p);
 
 export function renderMetas(root) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
-  const ef = estadoFondo(p);
-
-  if (!ef.goal) {
-    p.goals.unshift({ id: 'g' + id(), n: 'Fondo de emergencia', t: ef.target, s: 0, a: {}, priority: 'alta', dateMode: false, aportes: [], special: 'emergencia' });
-    store.save();
-  } else if (ef.goal.t !== ef.target) {
-    ef.goal.t = ef.target;
-    store.save();
-  }
+  estadoFondo(p);
 
   root.innerHTML = `
-    <button id="metaAdd" class="wide" style="margin-bottom:var(--sp-4)">+ Nueva meta</button>
+    <button id="metaAdd" class="wide btn-primary" style="margin-bottom:var(--sp-4)">+ Nueva meta</button>
     <div id="metaList" class="grid"></div>`;
 
   root.querySelector('#metaAdd').onclick = () => {
@@ -71,7 +57,7 @@ function paint(root) {
         <button class="mini goal-edit">Editar</button>
       </div>
       <div class="pbar"><i style="width:${pct}%"></i></div>
-      <div class="sub">${n ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, inc), p.cur)}</b> al mes, la tienes en ${n} meses, hacia ${whenText(n)}.` : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`}</div>
+      <div class="sub">${n ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, inc), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.` : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`}</div>
       ${enConflicto ? '<div class="sub" style="color:var(--amber);margin-top:6px">Compite por bloque con otra meta.</div>' : ''}
     </div>`;
   }).join('');
@@ -128,7 +114,7 @@ function openGoalSheet(root, g, warnEscalon) {
         ${conflictos ? (() => {
           const { paralelo, secuencia } = secuenciaPlazos(conflictos.goals, p.items, inc);
           return `<div class="sub" style="color:var(--amber);margin-bottom:12px">Esta meta compite por el mismo bloque con ${conflictos.goals.length - 1} otra(s).
-          En paralelo: ${paralelo.map((m) => m ? m + ' meses' : 'sin aporte').join(' / ')}.
+          En paralelo: ${paralelo.map((m) => m ? plazo(m) : 'sin aporte').join(' / ')}.
           En secuencia (por prioridad): ${secuencia.join(' → ')} meses.</div>`;
         })() : ''}
 
@@ -145,7 +131,7 @@ function openGoalSheet(root, g, warnEscalon) {
 
         <div id="gPlan"></div>
 
-        <button class="wide" id="gDone" style="margin-top:16px">Listo</button>
+        <button class="wide btn-primary" id="gDone" style="margin-top:16px">Listo</button>
         ${!g.special ? `<button class="wide" id="gDel" style="margin-top:8px">Eliminar esta meta</button>` : ''}
       </div>`;
 
@@ -229,7 +215,7 @@ function openGoalSheet(root, g, warnEscalon) {
         el.style.padding = '10px';
         el.innerHTML = `<b style="text-transform:capitalize">${e.nombre}</b>
           <div class="sub num" style="margin-top:4px">${money(e.cuota, p.cur)} al mes</div>
-          <div class="sub" style="margin-top:4px">${e.meses ? `${e.meses} meses, hacia ${e.fecha}` : 'no alcanza'}</div>
+          <div class="sub" style="margin-top:4px">${e.meses ? `${plazo(e.meses)}, hacia ${e.fecha}` : 'no alcanza'}</div>
           <div class="sub" style="margin-top:4px">Sacrificas: ${e.sacrificio}</div>`;
         escBox.appendChild(el);
       });
@@ -249,7 +235,7 @@ function openGoalSheet(root, g, warnEscalon) {
         const f = Math.max(0, (g.t || 0) - (g.s || 0));
         const n = m > 0 ? Math.ceil(f / m) : null;
         return `<div class="opt" data-t="${pr.title}"><b>${pr.title}</b><p>${pr.desc}</p>
-          <div class="r"><span class="num">${money(m, p.cur)} al mes</span><span class="num" style="color:var(--text);font-weight:800">${n ? n + ' meses' : 'sin aporte'}</span></div></div>`;
+          <div class="r"><span class="num">${money(m, p.cur)} al mes</span><span class="num" style="color:var(--text);font-weight:800">${n ? plazo(n) : 'sin aporte'}</span></div></div>`;
       }).join('');
       box.querySelectorAll('.opt').forEach((el, i) => {
         el.onclick = () => {

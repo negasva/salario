@@ -53,7 +53,7 @@ export async function renderHistorial(root) {
     <div class="card" style="margin-bottom:var(--sp-4)">
       <span class="label">Este mes</span>
       <div class="sub" style="margin-top:6px">Ahorro ${ahorroRate(p)}% del ingreso · Esenciales ${essentialsShare(p)}%</div>
-      <button id="cerrarMes" class="wide" style="margin-top:12px">Cerrar mes (${periodoActual()})</button>
+      <button id="cerrarMes" class="wide btn-primary" style="margin-top:12px">Cerrar mes (${periodoActual()})</button>
     </div>
     <div id="histBody"></div>`;
 

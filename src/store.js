@@ -1,16 +1,17 @@
 import { supabase } from './auth.js';
 import { r2, clamp } from './engine/reparto.js';
 import { ingresoEfectivo } from './engine/consejo.js';
+import { emergencyTarget, emergencyStatus } from './engine/metas.js';
 
 const KEY = 'reparto:v7';
 const OLD_KEYS = ['reparto:v6', 'reparto:v5'];
 
 export const BASE_ITEMS = [
-  { n: 'Esenciales', p: 55, r: 'ese', c: 'var(--blue)', d: 'Renta, servicios, comida, transporte. Es el techo, no la meta.' },
-  { n: 'Gasto libre', p: 5, r: 'lib', c: 'var(--violet)', d: 'Tuyo para gastarlo sin sentir culpa.' },
-  { n: 'Deudas', p: 10, r: 'deu', c: '#FF9F6E', d: 'Abono extra cada mes. Sin deudas, este bloque se va a inversión.' },
-  { n: 'Ahorro corto plazo', p: 15, r: 'cor', c: 'var(--mint)', d: 'Enganche, viaje, imprevistos.' },
-  { n: 'Inversión largo plazo', p: 15, r: 'lar', c: 'var(--green)', d: 'Dinero que trabaja y no tocas.' },
+  { n: 'Esenciales', p: 55, r: 'ese', c: 'var(--ink)', d: 'Renta, servicios, comida, transporte. Es el techo, no la meta.' },
+  { n: 'Gasto libre', p: 5, r: 'lib', c: 'var(--pink)', d: 'Tuyo para gastarlo sin sentir culpa.' },
+  { n: 'Deudas', p: 10, r: 'deu', c: 'var(--danger)', d: 'Abono extra cada mes. Sin deudas, este bloque se va a inversión.' },
+  { n: 'Ahorro corto plazo', p: 15, r: 'cor', c: 'var(--success)', d: 'Enganche, viaje, imprevistos.' },
+  { n: 'Inversión largo plazo', p: 15, r: 'lar', c: 'var(--warning)', d: 'Dinero que trabaja y no tocas.' },
 ];
 
 export const PLANTILLAS = {
@@ -73,6 +74,25 @@ export function incomeEsenciales(p) {
   if (p.ingresoTipo !== 'variable') return p.inc;
   const { minimo } = ingresoEfectivo(p.ingresoHistorial || []);
   return minimo || p.inc;
+}
+
+/* El fondo de emergencia es una meta fija. Se crea y se recalcula desde
+   cualquier vista, no solo al abrir Metas, para que el dashboard no muestre
+   un fondo que todavia no existe como meta. */
+export function ensureFondoGoal(p) {
+  const { oneMonth, target } = emergencyTarget(p.items.filter((it) => it.r === 'ese'), p.fondoMeses);
+  let goal = p.goals.find((g) => g.special === 'emergencia');
+  if (!goal) {
+    goal = { id: nid('g'), n: 'Fondo de emergencia', t: target, s: 0, a: {},
+      priority: 'alta', dateMode: false, aportes: [], special: 'emergencia' };
+    p.goals.unshift(goal);
+    save();
+  } else if (goal.t !== target) {
+    goal.t = target;
+    save();
+  }
+  return { goal, oneMonth, target, saved: goal.s || 0,
+    estado: emergencyStatus(goal.s || 0, oneMonth, target) };
 }
 
 export function active() {

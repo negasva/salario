@@ -16,6 +16,10 @@ export function monthsToGoal(goal, items, income) {
   return Math.ceil(faltante / m);
 }
 
+export function plazo(n) {
+  return `${n} ${n === 1 ? 'mes' : 'meses'}`;
+}
+
 export function whenText(months, from = new Date()) {
   const d = new Date(from);
   d.setMonth(d.getMonth() + months);

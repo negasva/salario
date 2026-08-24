@@ -11,6 +11,7 @@ import {
   aplicarAporte,
   plazo,
   secuenciaPlazos,
+  metasEnItem,
 } from './metas.js';
 import { recomendar } from './consejo.js';
 
@@ -98,6 +99,27 @@ describe('F6 plan de recorte', () => {
 describe('F8 costo de oportunidad', () => {
   it('valor futuro compuesto anual', () => {
     expect(valorFuturo(1000, 10, 1)).toBe(1100);
+  });
+});
+
+describe('F2.2 metas que reclaman un bloque', () => {
+  const item = { id: 'i1', p: 20 };   // 20% de 5.000.000 = 1.000.000 al mes
+
+  it('devuelve una fila por meta, con su monto mensual', () => {
+    const moto = { id: 'g1', n: 'Moto', a: { i1: 88 } };
+    const fondo = { id: 'g2', n: 'Fondo', special: 'emergencia', a: { i1: 12 } };
+    expect(metasEnItem([moto, fondo], item, 5000000)).toEqual([
+      { goal: moto, pct: 88, monto: 880000 },
+      { goal: fondo, pct: 12, monto: 120000 },
+    ]);
+  });
+
+  it('un bloque sin metas devuelve vacío', () => {
+    expect(metasEnItem([{ id: 'g1', a: { otro: 50 } }], item, 5000000)).toEqual([]);
+  });
+
+  it('un pct de 0 no aparece', () => {
+    expect(metasEnItem([{ id: 'g1', a: { i1: 0 } }, { id: 'g2', a: {} }], item, 5000000)).toEqual([]);
   });
 });
 

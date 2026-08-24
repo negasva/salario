@@ -3,7 +3,7 @@ import { renderLogin } from './ui/login.js';
 import { renderShell, toast } from './ui/shell.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderCategorias } from './ui/categorias.js';
-import { renderMetas } from './ui/metas.js';
+import { renderMetas, abrirMeta } from './ui/metas.js';
 import { renderMovimientos } from './ui/movimientos.js';
 import { renderHistorial } from './ui/historial.js';
 import { renderAjustes } from './ui/ajustes.js';
@@ -29,6 +29,13 @@ function paintRoute() {
   const content = renderShell(app, route, (r) => { route = r; paintRoute(); });
   ROUTES[route](content);
 }
+
+// Categorías enlaza a una meta: se navega a Metas y allí se abre la hoja
+window.addEventListener('ir-a-meta', (e) => {
+  abrirMeta(e.detail.goalId);
+  route = 'metas';
+  paintRoute();
+});
 
 async function boot() {
   const session = await getSession();

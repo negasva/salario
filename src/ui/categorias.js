@@ -1,6 +1,7 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porItem } from '../engine/movimientos.js';
+import { metasEnItem, aplicarAporte } from '../engine/metas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -47,6 +48,11 @@ function catCard(it, p, gastado) {
   const real = gastado[it.id] || 0;
   const sp = spentInItem(it);
   const { fixed, variable } = fixedVariableSplit(it);
+  const metas = metasEnItem(p.goals, it, store.incomeRepartir(p));
+  // lo ya aportado este mes vive en `real` como gasto: contarlo otra vez como
+  // compromiso restaría dos veces el mismo dinero
+  const comprometido = metas.reduce((t, m) => t + (aporteDelMes(p, m.goal.id) ? 0 : m.monto), 0);
+  const libre = r2(budget - real - comprometido);
   return `
   <div class="card cat-card" data-id="${it.id}">
     <div class="cat-top">
@@ -65,10 +71,49 @@ function catCard(it, p, gastado) {
     <div class="cat-detail">
       <div class="detail-head"><span class="label">Detalle</span><button class="btn-plus cat-plus">+</button></div>
       <div class="lines">${lines(it, p)}</div>
-      <div class="sub" style="margin-top:8px">Suma <b class="num">${money(sp, p.cur)}</b> · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}</div>
-      <div class="sub">Gastado este mes <b class="num${real > budget ? ' over' : ''}">${money(real, p.cur)}</b> de ${money(budget, p.cur)}</div>
+      ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
+        <span class="label">Comprometido por metas</span></div>
+        <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
+      <div class="sub cat-cuenta" style="margin-top:10px">
+        Presupuesto <b class="num">${money(budget, p.cur)}</b> ·
+        gastos <b class="num">${money(real, p.cur)}</b> ·
+        metas <b class="num">${money(comprometido, p.cur)}</b> ·
+        libre <b class="num${libre < 0 ? ' over' : ''}">${money(libre, p.cur)}</b>
+        ${libre < 0 ? '<b class="over"> Te pasaste del bloque.</b>' : ''}
+      </div>
+      ${it.L.length ? `<div class="sub">Planeado ${money(sp, p.cur)} · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}</div>` : ''}
     </div>
   </div>`;
+}
+
+// El dinero de una meta no se edita desde aquí: texto plano, sin borrar,
+// sin toggle fijo/variable.
+function lineasMeta(metas, it, p) {
+  return metas.map(({ goal, pct, monto }) => {
+    const ap = aporteDelMes(p, goal.id);
+    return `<div class="line line-meta ${goal.special ? 'line-fondo' : ''}" data-gid="${goal.id}">
+      <span class="lm-n">${esc(goal.n)}${goal.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
+      <span class="badge lm-p">${r2(pct)}%</span>
+      <span class="num lm-v">${money(monto, p.cur)}</span>
+      ${ap
+        ? `<button class="mini lm-ok" title="Deshacer el aporte">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
+        : '<button class="mini lm-pagar">Ya lo guardé</button>'}
+    </div>`;
+  }).join('');
+}
+
+// Un aporte del mes en curso a esta meta, si existe
+function aporteDelMes(p, goalId) {
+  const per = periodoDe(hoyISO());
+  return p.movs.find((m) => m.goalId === goalId && periodoDe(m.fecha) === per);
+}
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function diaCorto(fecha) {
+  const [, m, d] = fecha.split('-').map(Number);
+  return `${d} de ${MESES[m - 1]}`;
 }
 
 function lines(it, p) {
@@ -142,7 +187,53 @@ function wireCard(root, it, p) {
     renderCategorias(root);
   };
 
-  card.querySelectorAll('.line').forEach((lineEl) => {
+  // El aporte se escribe en dos sitios: el libro de movimientos y goal.aportes.
+  // Deshacer tiene que revertir los dos.
+  function anotarAporte(goal, monto) {
+    const fecha = hoyISO();
+    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha, tipo: 'gasto',
+      monto, itemId: it.id, lineId: null, goalId: goal.id, nota: `Aporte a ${goal.n}`, extra: false });
+    aplicarAporte(goal, monto, new Date(`${fecha}T12:00:00`));
+  }
+
+  function borrarAporte(goal, mov) {
+    p.movs.splice(p.movs.indexOf(mov), 1);
+    const i = (goal.aportes || []).findLastIndex((a) => a.monto === mov.monto && a.fecha.slice(0, 10) === mov.fecha);
+    // sin aporte pareado el movimiento vino del libro y nunca tocó goal.s
+    if (i >= 0) { goal.aportes.splice(i, 1); goal.s = Math.max(0, (goal.s || 0) - mov.monto); }
+  }
+
+  card.querySelectorAll('.line-meta').forEach((el) => {
+    const goal = p.goals.find((g) => g.id === el.dataset.gid);
+    if (!goal) return;
+    const { monto } = metasEnItem([goal], it, store.incomeRepartir(p))[0] || {};
+
+    el.querySelector('.lm-pagar')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!monto) { toast('Esta meta no reclama nada de este bloque'); return; }
+      anotarAporte(goal, monto);
+      store.save();
+      renderCategorias(root);
+      toast(`${money(monto, p.cur)} a ${goal.n}`, () => {
+        borrarAporte(goal, aporteDelMes(p, goal.id));
+        store.save();
+        renderCategorias(root);
+      });
+    });
+
+    el.querySelector('.lm-ok')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      borrarAporte(goal, aporteDelMes(p, goal.id));
+      store.save();
+      renderCategorias(root);
+      toast('Aporte deshecho');
+    });
+
+    // la fila entera, fuera del botón, lleva a la hoja de la meta
+    el.onclick = () => window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: goal.id } }));
+  });
+
+  card.querySelectorAll('.line:not(.line-meta)').forEach((lineEl) => {
     const lid = lineEl.dataset.lid;
     const l = it.L.find((x) => x.id === lid);
     if (!l) return;

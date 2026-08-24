@@ -13,6 +13,7 @@ const PATHS = {
   check: 'M4 12l6 6L20 6',
   'flecha-arriba': 'M12 19V5M5 12l7-7l7 7',
   'flecha-abajo': 'M12 5v14M5 12l7 7l7-7',
+  buscar: 'M11 19a8 8 0 1 0 0-16a8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
 };
 
 let mounted = false;

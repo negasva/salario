@@ -15,4 +15,5 @@ input,select{background:var(--card-2);border:1px solid var(--line);border-radius
   padding:8px 10px;font-size:15px}
 input:focus,select:focus{outline:none;border-color:var(--blue)}
 a{color:var(--blue)}
+svg{width:20px;height:20px;flex:none;display:block}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

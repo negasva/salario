@@ -89,13 +89,14 @@ function pintarCuerpo(root, p, cierres) {
 
   const tendencia = cierres.length >= 2 ? (() => {
     const rates = cierres.map((c) => Number(c.snapshot.ahorroRate) || 0);
+    const extras = cierres.map((c) => c.snapshot.ingresoExtra > 0);
     const last3 = cierres.slice(-4, -1);
     const avgPrev = last3.length ? last3.reduce((s, c) => s + (Number(c.snapshot.ahorroRate) || 0), 0) / last3.length : null;
     const hoy = rates[rates.length - 1];
     return `
       <div class="card" style="margin-bottom:var(--sp-4)">
         <span class="label">Tasa de ahorro, últimos ${cierres.length} meses</span>
-        ${sparkline(rates)}
+        ${sparkline(rates, extras)}
       </div>
       <div class="card" style="margin-bottom:var(--sp-4)">
         <span class="label">Esenciales como % del ingreso</span>

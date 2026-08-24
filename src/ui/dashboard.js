@@ -20,7 +20,7 @@ function tasaAhorro(p) {
   return r2(cor + lar);
 }
 
-export function sparkline(rates, w = 280, h = 90, pad = 6) {
+export function sparkline(rates, extras = [], w = 280, h = 90, pad = 6) {
   const min = Math.min(...rates);
   const max = Math.max(...rates);
   const range = max - min || 1;
@@ -30,10 +30,12 @@ export function sparkline(rates, w = 280, h = 90, pad = 6) {
   }));
   const line = pts.map((pt) => `${pt.x},${pt.y}`).join(' ');
   const area = `M${pts[0].x},${h} L${pts.map((pt) => `${pt.x},${pt.y}`).join(' L')} L${pts[pts.length - 1].x},${h} Z`;
+  const extraMarkers = pts.map((pt, i) => extras[i] ? `<circle cx="${pt.x}" cy="${pt.y}" r="4" fill="var(--success)"></circle>` : '').join('');
   return `<svg width="100%" height="110" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block">
     <path d="${area}" fill="var(--pink-lighter)" opacity="0.55"></path>
     <polyline points="${line}" fill="none" stroke="var(--pink-dark)" stroke-width="2.5"
       stroke-linecap="round" stroke-linejoin="round"></polyline>
+    ${extraMarkers}
   </svg>`;
 }
 
@@ -232,9 +234,10 @@ async function paintSpark(root, p, ahorroHoy) {
 
   const ultimos = cierres.slice(-6);
   const rates = ultimos.map((c) => Number(c.snapshot.ahorroRate) || 0);
+  const extras = ultimos.map((c) => c.snapshot.ingresoExtra > 0);
   box.innerHTML = `
     <div class="sub" style="margin-top:0">Últimos ${ultimos.length} meses cerrados</div>
-    ${sparkline(rates)}
+    ${sparkline(rates, extras)}
     <div class="spark-months">${ultimos.map((c) => `<span>${mesCorto(c.periodo)}</span>`).join('')}</div>`;
 
   const dAlertas = root.querySelector('#dAlertas');

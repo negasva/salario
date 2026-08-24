@@ -2,6 +2,9 @@ import * as store from '../store.js';
 import { amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
 import { money, plain, esc, digits } from '../format.js';
+import { excedente } from '../engine/consejo.js';
+import { ordenadas } from '../engine/fila.js';
+import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
@@ -122,6 +125,65 @@ export function renderMovimientos(root, args = {}) {
     periodo = periodoDe(datos.fecha);
     limpiar();
     pintarCuerpo();
+
+    if (datos.extra && !previo) {
+      const exc = excedente(monto, 0);
+      anuncio({
+        titulo: 'Ingreso extra registrado',
+        cuerpo: `Entraron ${money(monto, p.cur)} de prima o ingreso extra. Sugerido: ${money(exc.metasYFondo, p.cur)} a metas y fondo, ${money(exc.libre, p.cur)} libre.`,
+        urgente: false,
+        acciones: [
+          {
+            label: 'Aplicar sugerencia',
+            onClick: () => {
+              let plata = exc.metasYFondo;
+              const activas = ordenadas(p.goals).filter(g => (g.estado || 'activa') === 'activa');
+              for (const g of activas) {
+                if (plata <= 0) break;
+                if (g.t && (g.s || 0) < g.t) {
+                  const falta = g.t - (g.s || 0);
+                  const m = Math.min(plata, falta);
+                  p.movs.push({
+                    id: 'm' + Math.random().toString(36).slice(2, 9),
+                    fecha: datos.fecha,
+                    tipo: 'gasto',
+                    monto: m,
+                    itemId: null, // No bloque para no afectar Categorías
+                    goalId: g.id,
+                    nota: 'Sugerencia de ingreso extra'
+                  });
+                  g.s = (g.s || 0) + m;
+                  plata -= m;
+                } else if (!g.t) {
+                  p.movs.push({
+                    id: 'm' + Math.random().toString(36).slice(2, 9),
+                    fecha: datos.fecha,
+                    tipo: 'gasto',
+                    monto: plata,
+                    itemId: null,
+                    goalId: g.id,
+                    nota: 'Sugerencia de ingreso extra'
+                  });
+                  g.s = (g.s || 0) + plata;
+                  plata = 0;
+                }
+              }
+              store.save();
+              pintarCuerpo();
+              toast('Sugerencia aplicada a las metas en orden.');
+            }
+          },
+          {
+            label: 'Repartir a mano',
+            onClick: () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'metas' } })) // El usuario puede ir a Metas a mover sus ahorros
+          },
+          {
+            label: 'Dejarlo sin asignar',
+            onClick: () => {}
+          }
+        ]
+      });
+    }
   }
 
   function editar(m) {
@@ -150,7 +212,7 @@ export function renderMovimientos(root, args = {}) {
         <span class="label">Gastado este mes</span>
         <div class="kpi num">${money(total, p.cur)}</div>
         <div class="sub">${ing.total > 0
-          ? `Entraron ${money(ing.total, p.cur)}${ing.extra > 0 ? `, ${money(ing.extra, p.cur)} de extras` : ''}.`
+          ? `Nómina: <b class="num">${money(ing.nomina, p.cur)}</b>${ing.extra > 0 ? ` · Extra: <b class="num">${money(ing.extra, p.cur)}</b>` : ''}`
           : 'Sin ingresos registrados todavía este mes.'}</div>
       </div>
       <div class="card" style="margin-bottom:var(--sp-4)">

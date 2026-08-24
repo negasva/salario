@@ -36,6 +36,7 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
   items, goals, movs,
   traspaso,                        // F5: el traspaso de fila esperando respuesta
   avisosVistos, avisosEnviados,    // F6: qué aviso se descartó y cuál se notificó, por día
+  alertasSilenciadas,              // F7: qué alertas de renglón se silenciaron
   updated,
 }
 ```
@@ -195,5 +196,3 @@ Vale la pena decirlo en voz alta, porque el código no lo dice.
 **El botón "Aplicar" del plan de recorte no aplica nada.** Mueve un contador visual y opaca la tarjeta, pero no toca los porcentajes.
 
 **`digits()` se come los decimales.** Todo campo de dinero parsea con `digits()`, que descarta lo que no sea dígito. En COP, CLP y ARS da igual porque no se usan decimales, pero en USD o EUR un `85,000.50` se lee como `8500050`. Es consistente en toda la app, y por eso mismo es un solo arreglo cuando toque hacerlo.
-
-**Las alertas de renglón que creció todavía no existen.** El motor ya agrupa por `lineId` y los cierres ya guardan el gasto real por renglón, así que los datos están; falta la vista que los compare mes contra mes.

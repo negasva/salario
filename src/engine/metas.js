@@ -146,6 +146,7 @@ export function costoOportunidad(monto, tasaAnualPct = 10) {
 export function metasEnItem(goals, item, income) {
   const bloque = amount(item, income);
   return goals
+    .filter((g) => g.estado !== 'en_fila' && g.estado !== 'completa')
     .map((g) => ({ goal: g, pct: Number(g.a?.[item.id]) || 0 }))
     .filter((x) => x.pct > 0)
     .map((x) => ({ ...x, monto: r2((bloque * x.pct) / 100) }));
@@ -154,7 +155,7 @@ export function metasEnItem(goals, item, income) {
 // F9 — metas en competencia
 export function conflictosDeMetas(goals) {
   const map = {};
-  goals.filter((g) => !g.special).forEach((g) => {
+  goals.filter((g) => !g.special && (g.estado || 'activa') === 'activa').forEach((g) => {
     Object.entries(g.a || {}).forEach(([itemId, pct]) => {
       if (pct > 0) (map[itemId] = map[itemId] || []).push(g);
     });

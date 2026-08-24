@@ -5,6 +5,7 @@ import {
   cuotaPorFecha, cuotaPorMeses, planRecorte, escenarios, costoOportunidad,
   conflictosDeMetas, secuenciaPlazos, aplicarAporte,
 } from '../engine/metas.js';
+import { estadoDe, ordenadas, proyeccion } from '../engine/fila.js';
 import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
@@ -18,7 +19,7 @@ const escalonDe = (p) => escalonActual({
   minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items),
     p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, store.incomeRepartir(p)), 0)),
   fondoEstado: estadoFondo(p).estado,
-  tieneMetasActivas: p.goals.some((g) => !g.special),
+  tieneMetasActivas: p.goals.some((g) => !g.special && estadoDe(g) === 'activa'),
 });
 
 // Categorías pide abrir una meta; se guarda aquí y renderMetas la destapa
@@ -36,7 +37,8 @@ export function renderMetas(root) {
 
   root.querySelector('#metaAdd').onclick = () => {
     const escalon = escalonDe(p);
-    const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto', aportes: [] };
+    const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto',
+      aportes: [], estado: 'activa', orden: p.goals.length + 1 };
     p.goals.push(g);
     store.save();
     openGoalSheet(root, g, escalon < 4);
@@ -56,29 +58,99 @@ function paint(root) {
   const inc = store.incomeRepartir(p);
   const box = root.querySelector('#metaList');
   const conflictos = conflictosDeMetas(p.goals);
+  const lista = ordenadas(p.goals);
+  const proy = proyeccion(p.goals, p.items, inc);
+  const movibles = lista.filter((g) => !g.special);
 
-  box.innerHTML = p.goals.map((g) => {
+  box.innerHTML = lista.map((g) => {
+    const est = estadoDe(g);
     const pct = g.t > 0 ? Math.round(clamp((g.s || 0) / g.t * 100, 0, 100)) : 0;
     const n = monthsToGoal(g, p.items, inc);
     const enConflicto = conflictos.some((c) => c.goals.includes(g));
+    const i = movibles.indexOf(g);
+    const arrastrable = !g.special && est !== 'completa';
     return `
-    <div class="card goal ${g.special ? 'goal-esp' : ''}" data-id="${g.id}">
+    <div class="card goal ${g.special ? 'goal-esp' : ''} ${est === 'en_fila' ? 'goal-fila' : ''} ${est === 'completa' ? 'goal-hecha' : ''}"
+      data-id="${g.id}" ${arrastrable ? 'draggable="true"' : ''}>
       <div class="goal-top">
         <div>
-          <div class="goal-name">${esc(g.n)} ${g.special ? '<span class="badge warn">fondo</span>' : ''} <span class="badge ${g.priority === 'alta' ? 'bad' : g.priority === 'media' ? 'warn' : 'ok'}">${g.priority}</span></div>
+          <div class="goal-name">${esc(g.n)} ${g.special ? '<span class="badge warn">fondo</span>' : ''} ${badgeEstado(est)} <span class="badge ${g.priority === 'alta' ? 'bad' : g.priority === 'media' ? 'warn' : 'ok'}">${g.priority}</span></div>
           <div class="sub num">${money(g.t, p.cur)}</div>
         </div>
-        <button class="mini goal-edit">Editar</button>
+        <div class="goal-acts">
+          ${arrastrable ? `<div class="goal-move">
+            <button class="mini goal-up" title="Subir en la fila" aria-label="Subir ${esc(g.n)}" ${i <= 0 ? 'disabled' : ''}>${icon('flecha-arriba', 'ic-sm')}</button>
+            <button class="mini goal-down" title="Bajar en la fila" aria-label="Bajar ${esc(g.n)}" ${i < 0 || i >= movibles.length - 1 ? 'disabled' : ''}>${icon('flecha-abajo', 'ic-sm')}</button>
+          </div>` : ''}
+          <button class="mini goal-edit">Editar</button>
+        </div>
       </div>
       <div class="pbar"><i style="width:${pct}%"></i></div>
-      <div class="sub">${n ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, inc), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.` : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`}</div>
-      ${enConflicto ? '<div class="sub" style="color:var(--amber);margin-top:6px">Compite por bloque con otra meta.</div>' : ''}
+      <div class="sub">${textoPlazo(g, est, n, proy[g.id], p, inc)}</div>
+      ${enConflicto ? '<div class="sub" style="color:var(--amber);margin-top:6px">Compite por bloque con otra meta. Ponla en fila y arranca cuando la otra termine.</div>' : ''}
     </div>`;
   }).join('');
 
-  p.goals.forEach((g) => {
+  lista.forEach((g) => {
     const card = box.querySelector(`.goal[data-id="${g.id}"]`);
-    card?.querySelector('.goal-edit')?.addEventListener('click', () => openGoalSheet(root, g, false));
+    if (!card) return;
+    card.querySelector('.goal-edit')?.addEventListener('click', () => openGoalSheet(root, g, false));
+    card.querySelector('.goal-up')?.addEventListener('click', () => { store.moverMeta(g.id, -1); paint(root); });
+    card.querySelector('.goal-down')?.addEventListener('click', () => { store.moverMeta(g.id, 1); paint(root); });
+  });
+
+  cablearArrastre(root, box);
+}
+
+function badgeEstado(est) {
+  if (est === 'en_fila') return '<span class="badge">en fila</span>';
+  if (est === 'completa') return '<span class="badge ok">completa</span>';
+  return '';
+}
+
+// La meta en fila no dice un plazo suyo: dice cuándo le toca el turno.
+function textoPlazo(g, est, n, pr, p, inc) {
+  if (est === 'completa') return `Terminaste esta meta con ${money(g.s || 0, p.cur)}. Su bloque quedó libre.`;
+  if (est === 'en_fila') {
+    const antes = pr?.predecesor;
+    const cuando = pr && pr.empieza !== null ? `, hacia ${whenText(pr.empieza)}` : '';
+    return antes
+      ? `Empieza cuando termines la meta ${esc(antes.n)}${cuando}.`
+      : 'En fila. Empieza cuando la pongas activa.';
+  }
+  return n
+    ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, inc), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.`
+    : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`;
+}
+
+/* Arrastrar para reordenar con lo que trae el navegador. El fondo de
+   emergencia no es arrastrable ni recibe: vive en el primer puesto. */
+function cablearArrastre(root, box) {
+  let origen = null;
+  box.querySelectorAll('.goal[draggable=true]').forEach((card) => {
+    card.addEventListener('dragstart', (e) => {
+      origen = card.dataset.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', origen);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => {
+      origen = null;
+      box.querySelectorAll('.goal').forEach((c) => c.classList.remove('dragging', 'drag-over'));
+    });
+    card.addEventListener('dragover', (e) => {
+      if (!origen || origen === card.dataset.id) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const id = origen || e.dataTransfer.getData('text/plain');
+      card.classList.remove('drag-over');
+      if (id && store.soltarMeta(id, card.dataset.id)) paint(root);
+    });
   });
 }
 
@@ -111,6 +183,15 @@ function openGoalSheet(root, g, warnEscalon) {
         <div class="fld"><label>Qué quieres comprar</label><input id="gName" value="${esc(g.n)}" ${g.special ? 'disabled' : ''}></div>
         <div class="fld"><label>Cuánto cuesta</label><input id="gCost" value="${plain(g.t, p.cur)}" inputmode="numeric"></div>
         <div class="fld"><label>Cuánto llevas ahorrado</label><input id="gSaved" value="${plain(g.s, p.cur)}" inputmode="numeric"></div>
+        <div class="fld"><label>Estado en la fila</label>
+          <div class="chips">
+            <button class="chip ${estadoDe(g) === 'activa' ? 'on' : ''}" data-estado="activa">Activa</button>
+            <button class="chip ${estadoDe(g) === 'en_fila' ? 'on' : ''}" data-estado="en_fila">En fila</button>
+          </div>
+          <div class="hint">${estadoDe(g) === 'en_fila'
+            ? 'En fila no consume nada de tus bloques. Su reparto se guarda y arranca cuando termine la meta de adelante.'
+            : 'Activa reclama su porcentaje de los bloques cada mes.'}</div>
+        </div>
         <div class="fld"><label>Prioridad</label>
           <select id="gPriority">
             ${['alta', 'media', 'baja'].map((v) => `<option value="${v}" ${g.priority === v ? 'selected' : ''}>${v}</option>`).join('')}
@@ -167,6 +248,10 @@ function openGoalSheet(root, g, warnEscalon) {
     overlay.querySelector('#gCost').onchange = (e) => { g.t = digits(e.target.value); g.manual = true; store.save(); paintSheet(); };
     overlay.querySelector('#gSaved').onchange = (e) => { g.s = digits(e.target.value); store.save(); paintSheet(); };
     overlay.querySelector('#gPriority').onchange = (e) => { g.priority = e.target.value; store.save(); };
+
+    overlay.querySelectorAll('.chip[data-estado]').forEach((b) => {
+      b.onclick = () => { store.cambiarEstadoMeta(g, b.dataset.estado); paintSheet(); };
+    });
 
     overlay.querySelector('#gAporteBtn').onclick = () => {
       const monto = digits(overlay.querySelector('#gAporte').value);

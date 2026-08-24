@@ -215,6 +215,26 @@
 .goal-esp{border-color:var(--warning)}
 .goal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3)}
 .goal-name{font-size:var(--text-base);font-weight:var(--fw-bold);line-height:1.3}
+.goal-acts{display:flex;align-items:flex-start;gap:var(--space-2);flex:none}
+.goal-move{display:flex;flex-direction:column;gap:2px}
+.goal-move .mini{padding:3px 6px;line-height:0}
+.goal-move .mini svg{width:14px;height:14px}
+.goal[draggable=true]{cursor:grab}
+.goal.dragging{opacity:.4;cursor:grabbing}
+.goal.drag-over{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-wash)}
+/* F5 — la meta en fila se pinta atenuada: está ahí, pero todavía no cuenta */
+.goal-fila{opacity:.6;border-style:dashed}
+.goal-hecha .pbar i{background:var(--success)}
+
+/* ── anuncio ──────────────────────────────────────────────────────────── */
+.anuncio{max-width:420px;margin-top:12vh;text-align:center}
+.anuncio-ic{width:56px;height:56px;margin:0 auto var(--space-4);border-radius:var(--radius-pill);
+  background:var(--pink-wash);color:var(--pink-dark);display:flex;align-items:center;justify-content:center}
+.anuncio-ic svg{width:28px;height:28px;stroke-width:2}
+.anuncio h2{font-size:var(--text-h2);font-weight:var(--fw-black);letter-spacing:var(--tracking-tight);
+  line-height:1.15;margin-bottom:var(--space-3)}
+.anuncio p{font-size:var(--text-base);color:var(--ink-lighter);line-height:1.5;margin-bottom:var(--space-5)}
+
 .pbar{height:8px;border-radius:var(--radius-pill);background:var(--pink-wash);overflow:hidden;
   margin:var(--space-3) 0 var(--space-2)}
 .pbar i{display:block;height:100%;background:var(--pink);border-radius:var(--radius-pill)}

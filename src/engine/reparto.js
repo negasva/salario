@@ -34,8 +34,10 @@ export function fixedVariableSplit(item) {
   return { fixed, variable };
 }
 
+// F5.2 — una meta en fila guarda su `a` pero no consume el bloque: no le baja
+// el tope a las que sí están corriendo.
 export function claimedBy(goals, itemId, skip) {
-  return goals.reduce((s, g) => (g !== skip ? s + (Number(g.a?.[itemId]) || 0) : s), 0);
+  return goals.reduce((s, g) => (g !== skip && g.estado !== 'en_fila' ? s + (Number(g.a?.[itemId]) || 0) : s), 0);
 }
 
 export function claimedAll(goals, itemId) {

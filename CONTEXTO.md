@@ -34,6 +34,7 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
   tasaInteres, fondoMeses,         // costo de oportunidad y meses del fondo
   metodoDeuda,                     // 'avalancha' | 'bolaDeNieve'
   items, goals, movs,
+  traspaso,                        // F5: el traspaso de fila esperando respuesta
   updated,
 }
 ```
@@ -45,6 +46,8 @@ Las **categorías** (`items`) son los bloques del reparto. Vienen cinco por defe
 Los renglones de un bloque con rol `deu` llevan además `saldo`, `tasa` y `minimo`. Vacíos, el renglón se comporta como cualquier otro.
 
 Las **metas** (`goals`) son las cosas que quieres comprar. Cada meta guarda un mapa `a` que dice qué porcentaje de cada bloque reclama. Si la Moto tiene `a = { ahorroCorto: 88 }`, se lleva el 88% de lo que caiga en ese bloque cada mes. Ese mapa es el corazón del cálculo y también la fuente del conflicto: si dos metas suman más de 100% del mismo bloque, la app lo detecta y baja el tope del slider de la segunda.
+
+Cada meta lleva además un `orden` y un `estado` (`activa`, `en_fila` o `completa`), que son los que arman la fila. El fondo de emergencia siempre tiene `orden: 0` y no se mueve de ahí.
 
 El **fondo de emergencia** es una meta especial (`special: 'emergencia'`) que la app crea sola y no te deja borrar. Su objetivo se recalcula desde tus esenciales por el número de meses que elijas, entre tres y seis. Si lo editas a mano queda marcado `manual` y la app deja de recalcularlo: el número que escribiste gana.
 
@@ -68,11 +71,13 @@ Al arrancar se podan los movimientos de más de 24 meses. El perfil entero viaja
 
 ### El motor de cálculo
 
-Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 72 pruebas en seis archivos.
+Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 91 pruebas en siete archivos.
 
 `reparto.js` hace la aritmética base. Suma porcentajes, convierte porcentaje a monto, separa fijos de variables, y calcula cuánto queda libre de un bloque después de que las otras metas lo reclamaron.
 
 `metas.js` hace lo interesante. Calcula cuánto va hacia una meta al mes, en cuántos meses la alcanzas, la cuota necesaria para una fecha objetivo, el plan de recorte cuando no alcanza, tres escenarios comparables (conservador, equilibrado, agresivo), el costo de oportunidad de ese dinero invertido a cinco y diez años, la detección de metas en competencia, y cuánto se lleva cada meta de un bloque dado.
+
+`fila.js` maneja la fila: el orden de las metas, quién sigue, el traspaso de una asignación a la siguiente, y la proyección de cuándo le toca el turno a cada una.
 
 `consejo.js` tiene la parte opinada. Recomienda el reparto entre corto y largo plazo según el estado de tu fondo, y maneja el ingreso variable.
 
@@ -89,6 +94,16 @@ Hay una regla de prioridad que atraviesa todo, la escalera de cinco peldaños qu
 Cuando le pides una meta para una fecha y no te alcanza, la app no dice "ahorra más". Busca de dónde sacarlo, en este orden y con estas restricciones: baja el gasto libre hasta un piso del 2% del ingreso, recorta el 20% de los renglones variables de esenciales, pausa la inversión de largo plazo, y solo si tu fondo ya está completo toca el ahorro de corto plazo.
 
 Nunca toca renglones fijos ni mínimos de deuda. Y cada recorte viene con su precio escrito al lado, en lenguaje normal: "pausas la inversión 14 meses", no "ajuste del bloque 5".
+
+### La fila de metas
+
+Dos metas que quieren el mismo bloque ya no pelean para siempre. Una se pone `en_fila` y espera: su reparto se guarda, pero no consume nada, así que no le baja el tope a la que está corriendo. `claimedBy()` la ignora, y por eso el slider de la meta activa vuelve a llegar hasta donde debería.
+
+Cuando la meta activa llega a su objetivo, su asignación entera pasa a la siguiente de la fila, que se vuelve activa. Eso no pasa en silencio: sale un anuncio que tapa la pantalla y dice `Terminaste la meta Moto. Los $1.813.064 al mes pasan ahora a Fondo de emergencia.`, con un botón para aceptar y otro para repartirlo a mano. El de a mano libera el porcentaje sin asignárselo a nadie y abre la meta que sigue para que lo acomodes tú.
+
+Si nadie contesta, a las 24 horas se aplica solo. El dinero no se queda sin dueño. Como no hay cron ni servidor, el reloj se mira cuando la app está abierta, igual que el cierre de mes: el traspaso pendiente vive en el perfil (`p.traspaso`) y sobrevive a que cierres la pestaña.
+
+Si no hay nadie esperando en la fila, no pasa nada. La meta cumplida sigue como estaba y el anuncio sale el día que pongas otra meta detrás; así una meta que ya alcanzaste no se queda sin su bloque sin que lo hayas pedido.
 
 ### El cierre de mes
 
@@ -118,7 +133,7 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 
 **Categorías** es donde vive el detalle. Cada bloque con su slider, su porcentaje, su monto en pesos, y la lista de conceptos. Debajo de los conceptos, lo que las metas ya reclaman de ese bloque, con un botón `Ya lo guardé` que registra el aporte del mes. Al pie, la cuenta completa: presupuesto, gastos reales, comprometido por metas, y el libre. En un bloque de deudas, cada renglón muestra en cuánto se liquida y cuántos intereses cuesta, y al final el comparativo entre avalancha y bola de nieve.
 
-**Metas** es la vista con más lógica. Cada meta se puede calcular por monto, en N meses, o para una fecha. Hay tres rutas sugeridas de un clic (con tus ahorros, sin tocar la inversión, acelerado) y debajo el ajuste bloque por bloque con sliders. Ahí aparece el plan de recorte, los escenarios, y el costo de oportunidad.
+**Metas** es la vista con más lógica. Las metas se reordenan arrastrando la tarjeta —`draggable` del navegador, sin librería— y con un par de flechas arriba/abajo, que es lo que se usa en el celular. Las que están en fila se pintan atenuadas y dicen `Empieza cuando termines la meta Moto, hacia septiembre de 2027`. Cada meta se puede calcular por monto, en N meses, o para una fecha. Hay tres rutas sugeridas de un clic (con tus ahorros, sin tocar la inversión, acelerado) y debajo el ajuste bloque por bloque con sliders. Ahí aparece el plan de recorte, los escenarios, y el costo de oportunidad.
 
 **Movimientos** es el libro. Una fila fija arriba para meter un gasto en tres toques: el foco arranca en el monto y `Enter` guarda y limpia sin soltarlo, para cargar varios seguidos. Un toggle cambia a ingreso y saca la casilla de ingreso extra. Debajo, el resumen del mes con presupuesto contra real por bloque, y la lista agrupada por día. Selector de mes con flechas.
 

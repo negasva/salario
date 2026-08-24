@@ -1,6 +1,10 @@
 import { supabase } from './auth.js';
 import { ingresoEfectivo } from './engine/consejo.js';
-import { emergencyTarget, emergencyStatus } from './engine/metas.js';
+import { emergencyTarget, emergencyStatus, monthlyToward } from './engine/metas.js';
+import {
+  ordenadas, reasignar, metaCumplida, siguienteEnFila, mover, soltar,
+  aplicarTraspaso as traspasar, traspasoVencido,
+} from './engine/fila.js';
 import { podar } from './engine/movimientos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 
@@ -88,7 +92,8 @@ export function ensureFondoGoal(p) {
   let creado = false;
   if (!goal) {
     goal = { id: nid('g'), n: 'Fondo de emergencia', t: target, s: 0, a: {},
-      priority: 'alta', modo: 'monto', aportes: [], special: 'emergencia' };
+      priority: 'alta', modo: 'monto', aportes: [], special: 'emergencia',
+      orden: 0, estado: 'activa' };
     p.goals.unshift(goal);
     creado = true;
   } else if (!goal.manual && target > 0 && goal.t !== target) {
@@ -117,13 +122,17 @@ function normalizeProfile(p) {
     if (it.locked === undefined) it.locked = false;
   });
   p.goals = p.goals || [];
-  p.goals.forEach((g) => {
+  p.goals.forEach((g, i) => {
     g.a = g.a || {};
     if (!g.priority) g.priority = 'media';
     // dateMode era booleano; ahora el modo tiene tres estados
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
     if (!g.aportes) g.aportes = [];
+    // F5 — las metas de antes de la fila entran todas activas y en el orden en que estaban
+    if (!g.estado) g.estado = 'activa';
+    if (typeof g.orden !== 'number') g.orden = g.special ? 0 : i + 1;
   });
+  reasignar(ordenadas(p.goals));
   // al arrancar se podan los movimientos viejos: el blob de perfiles no crece sin techo
   p.movs = podar(p.movs ?? []);
   p.metodoDeuda ??= 'avalancha';
@@ -184,7 +193,7 @@ async function flushPush() {
       data: {
         inc: p.inc, cur: p.cur, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
-        items: p.items, goals: p.goals,
+        items: p.items, goals: p.goals, traspaso: p.traspaso || null,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -259,7 +268,7 @@ export async function bootAuth(uid) {
       inc: row.data.inc, cur: row.data.cur, ingresoTipo: row.data.ingresoTipo,
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
-      movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda,
+      movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda, traspaso: row.data.traspaso || null,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
@@ -312,6 +321,79 @@ export async function listarCierres() {
   if (!userId || !p?.remoteId) return [];
   const { data } = await supabase.from('cierres').select('*').eq('perfil_id', p.remoteId).order('periodo', { ascending: true });
   return data || [];
+}
+
+/* ---------- F5 — la fila de metas ---------- */
+
+/* La fila se revisa en cada guardado. Si una meta activa llegó a su objetivo se
+   arma el traspaso, se anuncia y ahí se queda esperando. Si nadie lo acepta en
+   24 horas se aplica solo: el dinero no se queda sin dueño. Como no hay cron,
+   el reloj se mira cuando la app está abierta, igual que el cierre de mes. */
+export function revisarFila(ahora = Date.now()) {
+  const p = active();
+  if (!p) return null;
+
+  if (!p.traspaso) {
+    const desde = metaCumplida(p.goals);
+    if (!desde) return null;
+    // sin nadie esperando no hay nada que traspasar: la meta sigue como está
+    // y el anuncio saldrá el día que pongas otra meta en la fila
+    const hacia = siguienteEnFila(p.goals);
+    if (!hacia) return null;
+    p.traspaso = {
+      desdeId: desde.id,
+      haciaId: hacia.id,
+      monto: monthlyToward(desde, p.items, incomeRepartir(p)),
+      creado: ahora,
+    };
+    save();
+  }
+
+  if (traspasoVencido(p.traspaso, ahora)) {
+    aplicarTraspasoPendiente();
+    return null;
+  }
+  return traspasoPendiente();
+}
+
+export function traspasoPendiente() {
+  const p = active();
+  const t = p?.traspaso;
+  if (!t) return null;
+  const desde = p.goals.find((g) => g.id === t.desdeId);
+  const hacia = p.goals.find((g) => g.id === t.haciaId);
+  if (!desde || !hacia) { p.traspaso = null; return null; }
+  return { ...t, desde, hacia };
+}
+
+export function aplicarTraspasoPendiente(aMano = false) {
+  const p = active();
+  const t = traspasoPendiente();
+  p.traspaso = null;
+  if (!t) { save(); return null; }
+  traspasar(t.desde, t.hacia, aMano);
+  save();
+  return t;
+}
+
+export function moverMeta(id, delta) {
+  const p = active();
+  if (!mover(p.goals, id, delta)) return false;
+  save();
+  return true;
+}
+
+export function soltarMeta(id, sobreId) {
+  const p = active();
+  if (!soltar(p.goals, id, sobreId)) return false;
+  save();
+  return true;
+}
+
+export function cambiarEstadoMeta(goal, estado) {
+  goal.estado = estado;
+  // una meta que vuelve a la fila deja de reclamar, pero su reparto se guarda
+  save();
 }
 
 /* ---------- borrado con deshacer, F15 ---------- */

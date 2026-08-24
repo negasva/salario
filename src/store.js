@@ -5,7 +5,8 @@ import {
   ordenadas, reasignar, metaCumplida, siguienteEnFila, mover, soltar,
   aplicarTraspaso as traspasar, traspasoVencido,
 } from './engine/fila.js';
-import { podar } from './engine/movimientos.js';
+import { podar, hoyISO } from './engine/movimientos.js';
+import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 
 const KEY = 'reparto:v8';
@@ -140,6 +141,8 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
+  p.avisosVistos ??= {};
+  p.avisosEnviados ??= {};
   return p;
 }
 
@@ -194,6 +197,7 @@ async function flushPush() {
         inc: p.inc, cur: p.cur, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
         items: p.items, goals: p.goals, traspaso: p.traspaso || null,
+        avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -269,6 +273,7 @@ export async function bootAuth(uid) {
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
       movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda, traspaso: row.data.traspaso || null,
+      avisosVistos: row.data.avisosVistos, avisosEnviados: row.data.avisosEnviados,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
@@ -393,6 +398,33 @@ export function soltarMeta(id, sobreId) {
 export function cambiarEstadoMeta(goal, estado) {
   goal.estado = estado;
   // una meta que vuelve a la fila deja de reclamar, pero su reparto se guarda
+  save();
+}
+
+/* ---------- F6 — marcas de los avisos ---------- */
+
+/* Una marca solo sirve el día que se puso, así que al escribirla se botan las
+   viejas: el blob del perfil no se llena de claves muertas. */
+function marcar(mapa, clave) {
+  const hoy = hoyISO();
+  const limpio = Object.fromEntries(Object.entries(mapa || {}).filter(([, f]) => f === hoy));
+  limpio[clave] = hoy;
+  return limpio;
+}
+
+export function descartarAviso(clave) {
+  const p = active();
+  p.avisosVistos = marcar(p.avisosVistos, clave);
+  save();
+}
+
+export function avisoEnviado(clave) {
+  return fueVisto(active()?.avisosEnviados, clave);
+}
+
+export function marcarAvisoEnviado(clave) {
+  const p = active();
+  p.avisosEnviados = marcar(p.avisosEnviados, clave);
   save();
 }
 

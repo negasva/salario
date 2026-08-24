@@ -1,0 +1,121 @@
+import * as store from '../store.js';
+import { avisosPendientes, fueVisto } from '../engine/avisos.js';
+import { anuncio } from './anuncio.js';
+import { money } from '../format.js';
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function nombreMes(periodo) {
+  const [a, m] = String(periodo).split('-');
+  return `${MESES[Number(m) - 1] || periodo} de ${a}`;
+}
+
+function irA(route) {
+  window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route } }));
+}
+
+/* Todo lo que la app tiene que decir hoy, en un solo sitio. Cada aviso dice en
+   qué vistas aparece: en el dashboard y en la que le toca, no en las cinco. */
+function avisosDeHoy() {
+  const p = store.active();
+  if (!p) return [];
+  const lista = [];
+
+  // F3 — la app cerró meses al arrancar
+  const auto = store.cierresAutomaticos();
+  if (auto.length) {
+    lista.push({
+      clave: `cierres-${auto.join('_')}`,
+      titulo: auto.length === 1 ? `Cerré ${nombreMes(auto[0])} por ti` : `Cerré ${auto.length} meses por ti`,
+      cuerpo: `${auto.map(nombreMes).join(', ')}. Revisa que el cierre esté completo antes de darlo por bueno.`,
+      vistas: ['dashboard', 'historial'],
+      acciones: [{ label: 'Ver en Historial', onClick: () => irA('historial') }],
+    });
+  }
+
+  // F5 — una meta terminó y su plata espera dueño
+  const t = store.revisarFila();
+  if (t) {
+    lista.push({
+      clave: `traspaso-${t.desde.id}`,
+      titulo: `Terminaste la meta ${t.desde.n}`,
+      cuerpo: `Los ${money(t.monto, p.cur)} al mes pasan ahora a ${t.hacia.n}. Si no dices nada, en 24 horas se aplica solo.`,
+      vistas: ['dashboard', 'metas'],
+      acciones: [
+        { label: 'Aceptar', onClick: () => store.aplicarTraspasoPendiente() },
+        {
+          label: 'Repartirlo a mano',
+          onClick: () => {
+            // se libera el bloque sin repartirlo y se abre la meta que sigue
+            store.aplicarTraspasoPendiente(true);
+            window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: t.hacia.id } }));
+          },
+        },
+      ],
+    });
+  }
+
+  // F6 — fin de mes y metas con fecha encima
+  avisosPendientes(p, store.incomeRepartir(p)).forEach((av) => {
+    lista.push({
+      ...av,
+      acciones: av.accion ? [{
+        label: av.accion.label,
+        onClick: () => (av.accion.goalId
+          ? window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: av.accion.goalId } }))
+          : irA(av.accion.ruta)),
+      }] : [],
+    });
+  });
+
+  return lista.filter((av) => !fueVisto(p.avisosVistos, av.clave));
+}
+
+let pintando = false;
+
+export function pintarAvisos(route) {
+  const cont = document.getElementById('content');
+  if (!cont || pintando) return;
+  pintando = true;
+  try {
+    cont.querySelectorAll(':scope > .anuncio').forEach((el) => el.remove());
+    // se pintan al revés porque cada uno se cuelga arriba del anterior
+    avisosDeHoy()
+      .filter((av) => av.vistas.includes(route))
+      .reverse()
+      .forEach((av) => anuncio({ ...av, onDescartar: () => store.descartarAviso(av.clave) }));
+  } finally {
+    pintando = false;
+  }
+}
+
+/* ---------- F6.3 — notificación del navegador ---------- */
+
+export function estadoNotificaciones() {
+  if (typeof Notification === 'undefined') return 'no-soportado';
+  return Notification.permission;
+}
+
+// El permiso se pide desde un botón en Ajustes, nunca al cargar la página:
+// pedirlo de entrada es cómo se consigue que lo nieguen para siempre.
+export async function pedirPermisoNotificaciones() {
+  if (typeof Notification === 'undefined') return 'no-soportado';
+  return Notification.requestPermission();
+}
+
+/* Al arrancar, si hay avisos y el permiso ya está concedido. Si está negado o
+   la API no existe, el anuncio en pantalla es el plan B y la app va igual. */
+export function notificarPendientes() {
+  if (estadoNotificaciones() !== 'granted') return 0;
+  let enviados = 0;
+  avisosDeHoy().forEach((av) => {
+    if (store.avisoEnviado(av.clave)) return;
+    try {
+      new Notification(av.titulo, { body: av.cuerpo, tag: av.clave });
+      store.marcarAvisoEnviado(av.clave);
+      enviados++;
+    } catch { /* el navegador puede negarse sin avisar, no es motivo de nada */ }
+  });
+  return enviados;
+}

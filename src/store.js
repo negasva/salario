@@ -2,6 +2,7 @@ import { supabase } from './auth.js';
 import { ingresoEfectivo } from './engine/consejo.js';
 import { emergencyTarget, emergencyStatus } from './engine/metas.js';
 import { podar } from './engine/movimientos.js';
+import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 
 const KEY = 'reparto:v8';
 const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
@@ -282,6 +283,25 @@ export async function cerrarMes(periodo, snapshot) {
   return supabase.from('cierres').upsert({
     user_id: userId, perfil_id: p.remoteId, periodo, snapshot,
   }, { onConflict: 'perfil_id,periodo' });
+}
+
+/* Cierre automático: no hay cron ni servidor, la app cierra los meses
+   pendientes la primera vez que se abre después del día 1. */
+let cerradosAuto = [];
+export function cierresAutomaticos() { return cerradosAuto; }
+
+export async function autoCerrar() {
+  cerradosAuto = [];
+  const p = active();
+  if (!userId || !p?.remoteId) return cerradosAuto;
+  const cierres = await listarCierres();
+  const pendientes = periodosPendientes(cierres.map((c) => c.periodo), p.movs);
+  for (const periodo of pendientes) {
+    const { error } = await cerrarMes(periodo, construirSnapshot(p, periodo, incomeRepartir(p)));
+    if (error) break;
+    cerradosAuto.push(periodo);
+  }
+  return cerradosAuto;
 }
 
 export async function listarCierres() {

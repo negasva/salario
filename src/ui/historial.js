@@ -1,7 +1,6 @@
 import * as store from '../store.js';
-import { amount } from '../engine/reparto.js';
-import { money } from '../format.js';
 import { toast } from './shell.js';
+import { sparkline } from './dashboard.js';
 
 function periodoActual() {
   const d = new Date();
@@ -18,30 +17,14 @@ function essentialsShare(p) {
   return p.items.find((it) => it.r === 'ese')?.p || 0;
 }
 
-function sparkline(values, w = 280, h = 60) {
-  if (values.length < 2) return '';
-  const min = Math.min(...values), max = Math.max(...values);
-  const range = max - min || 1;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = h - ((v - min) / range) * h;
-    return `${x},${y}`;
-  });
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
-    <polyline points="${pts.join(' ')}" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg>`;
-}
-
-function barsEssentials(cierres, w = 280) {
-  const h = 24 * cierres.length;
-  const rows = cierres.map((c, i) => {
+function barsEssentials(cierres) {
+  return cierres.map((c) => {
     const pct = Math.min(100, c.snapshot.essentialsShare);
     const color = pct <= 50 ? 'var(--green)' : pct <= 65 ? 'var(--amber)' : 'var(--red)';
     return `<div class="hist-row"><span class="sub">${c.periodo}</span>
       <div class="hist-track"><i style="width:${pct}%;background:${color}"></i></div>
       <span class="num sub">${Math.round(pct)}%</span></div>`;
   }).join('');
-  return rows;
 }
 
 export async function renderHistorial(root) {

@@ -1,11 +1,7 @@
 import * as store from '../store.js';
 import { toast } from './shell.js';
-import { plain, money } from '../format.js';
+import { plain, money, esc, digits } from '../format.js';
 import { ingresoEfectivo, excedente } from '../engine/consejo.js';
-
-function digits(v) { const c = String(v).replace(/[^\d]/g, ''); return c ? Number(c) : 0; }
-
-function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 export function renderAjustes(root) {
   const p = store.active();

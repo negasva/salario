@@ -1,16 +1,11 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
-import { money, plain } from '../format.js';
+import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
 const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
   'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
-
-function digits(v) {
-  const c = String(v).replace(/[^\d]/g, '');
-  return c ? Number(c) : 0;
-}
 
 export function renderCategorias(root) {
   const p = store.active();
@@ -83,10 +78,6 @@ function lines(it, p) {
     </div>`).join('');
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
-
 function wireCard(root, it, p) {
   const card = root.querySelector(`.cat-card[data-id="${it.id}"]`);
   if (!card) return;
@@ -132,9 +123,10 @@ function wireCard(root, it, p) {
     if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
     if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
     const idx = p.items.indexOf(it);
+    const reclamos = p.goals.filter((g) => g.a[it.id] !== undefined).map((g) => ({ g, pct: g.a[it.id] }));
     const { undo } = store.stageDelete(
       () => { p.items.splice(idx, 1); p.goals.forEach((g) => { delete g.a[it.id]; }); },
-      () => { p.items.splice(idx, 0, it); }
+      () => { p.items.splice(idx, 0, it); reclamos.forEach(({ g, pct }) => { g.a[it.id] = pct; }); }
     );
     renderCategorias(root);
     toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });

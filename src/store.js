@@ -1,5 +1,4 @@
 import { supabase } from './auth.js';
-import { r2, clamp } from './engine/reparto.js';
 import { ingresoEfectivo } from './engine/consejo.js';
 import { emergencyTarget, emergencyStatus } from './engine/metas.js';
 
@@ -82,17 +81,18 @@ export function incomeEsenciales(p) {
 export function ensureFondoGoal(p) {
   const { oneMonth, target } = emergencyTarget(p.items.filter((it) => it.r === 'ese'), p.fondoMeses);
   let goal = p.goals.find((g) => g.special === 'emergencia');
+  let creado = false;
   if (!goal) {
     goal = { id: nid('g'), n: 'Fondo de emergencia', t: target, s: 0, a: {},
       priority: 'alta', modo: 'monto', aportes: [], special: 'emergencia' };
     p.goals.unshift(goal);
-    save();
-  } else if (goal.t !== target) {
+    creado = true;
+  } else if (!goal.manual && target > 0 && goal.t !== target) {
     goal.t = target;
-    save();
+    creado = true;
   }
-  return { goal, oneMonth, target, saved: goal.s || 0,
-    estado: emergencyStatus(goal.s || 0, oneMonth, target) };
+  return { goal, oneMonth, target: goal.t, saved: goal.s || 0, creado,
+    estado: emergencyStatus(goal.s || 0, oneMonth, goal.t) };
 }
 
 export function active() {
@@ -120,10 +120,10 @@ function normalizeProfile(p) {
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
     if (!g.aportes) g.aportes = [];
   });
-  if (!p.ingresoTipo) p.ingresoTipo = 'fijo';
-  if (!p.ingresoHistorial) p.ingresoHistorial = [];
-  if (!p.tasaInteres) p.tasaInteres = 10;
-  if (!p.fondoMeses) p.fondoMeses = 4;
+  p.ingresoTipo ??= 'fijo';
+  p.ingresoHistorial ??= [];
+  p.tasaInteres ??= 10;
+  p.fondoMeses ??= 4;
   return p;
 }
 
@@ -169,20 +169,23 @@ async function flushPush() {
   for (const id of ids) {
     const p = db.profiles.find((x) => x.id === id);
     if (!p) continue;
-    const { error } = await supabase.from('perfiles').upsert({
+    const { data, error } = await supabase.from('perfiles').upsert({
       id: p.remoteId || undefined,
       user_id: userId,
       nombre: p.name,
+      updated_at: new Date().toISOString(),
       data: {
         inc: p.inc, cur: p.cur, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, items: p.items, goals: p.goals, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
     if (error) { pendingPush.add(id); clearTimeout(pushTimer); pushTimer = setTimeout(flushPush, 4000); return; }
+    // sin esto cada push insertaria una fila nueva en vez de actualizar la suya
+    if (data?.id && p.remoteId !== data.id) { p.remoteId = data.id; writeLocal(); }
   }
 }
 
-window.addEventListener?.('online', () => { if (pendingPush.size) flushPush(); });
+window.addEventListener('online', () => { if (pendingPush.size) flushPush(); });
 
 export function save() {
   const p = active();
@@ -248,7 +251,7 @@ export async function bootAuth(uid) {
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
       updated: new Date(row.updated_at).getTime(),
     }));
-    db.active = db.profiles[0].id;
+    if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
     writeLocal();
     notify();
     return { migrated: false };

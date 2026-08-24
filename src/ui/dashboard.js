@@ -2,22 +2,13 @@ import * as store from '../store.js';
 import { total, r2, diagnosticoEsenciales } from '../engine/reparto.js';
 import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { recomendar } from '../engine/consejo.js';
-import { money, plain } from '../format.js';
+import { money, plain, esc, digits } from '../format.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 function mesCorto(periodo) {
   const m = Number(String(periodo).split('-')[1]);
   return MESES_CORTOS[m - 1] || periodo;
-}
-
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
-
-function digits(v) {
-  const c = String(v).replace(/[^\d]/g, '');
-  return c ? Number(c) : 0;
 }
 
 // tasa de ahorro del mes vivo: corto plazo + largo plazo
@@ -27,7 +18,7 @@ function tasaAhorro(p) {
   return r2(cor + lar);
 }
 
-function sparkline(rates, w = 280, h = 90, pad = 6) {
+export function sparkline(rates, w = 280, h = 90, pad = 6) {
   const min = Math.min(...rates);
   const max = Math.max(...rates);
   const range = max - min || 1;
@@ -65,7 +56,8 @@ export async function renderDashboard(root) {
   const ese = p.items.find((it) => it.r === 'ese');
   const diag = ese ? diagnosticoEsenciales(ese, incEse) : null;
 
-  const { target, saved: fondoSaved, estado: fondoEstado } = store.ensureFondoGoal(p);
+  const { target, saved: fondoSaved, estado: fondoEstado, creado } = store.ensureFondoGoal(p);
+  if (creado) store.save();
 
   const escalon = escalonActual({
     minimosDeudaCubiertos: (p.items.find((it) => it.r === 'deu')?.p || 0) > 0,

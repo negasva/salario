@@ -267,14 +267,21 @@ function openGoalSheet(root, g, warnEscalon) {
         const free = freeFor(p.goals, g, it.id);
         const v = g.a[it.id] || 0;
         return `<div class="alloc" data-id="${it.id}">
-          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num" style="color:var(--blue)">${money(amount(it, inc) * v / 100, p.cur)}</span></div>
-          <input type="range" min="0" max="100" step="1" value="${v}" ${free < v ? '' : ''} max="${free}">
+          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num alloc-amt" style="color:var(--blue)">${money(amount(it, inc) * v / 100, p.cur)}</span></div>
+          <input type="range" min="0" max="100" step="1" value="${v}" max="${free}">
           ${free < 100 ? `<div class="hint">Otras metas ya usan ${r2(100 - free)}% de este bloque. Tope aquí: ${r2(free)}%.</div>` : ''}
         </div>`;
       }).join('');
       box.querySelectorAll('.alloc').forEach((el) => {
         const itemId = el.dataset.id;
+        const it = p.items.find((x) => x.id === itemId);
+        const amtEl = el.querySelector('.alloc-amt');
+        // el arrastre solo actualiza el monto mostrado, sin re-render en cada tick
         el.querySelector('input').oninput = (e) => {
+          const v = r2(clamp(Number(e.target.value), 0, freeFor(p.goals, g, itemId)));
+          amtEl.textContent = money(amount(it, inc) * v / 100, p.cur);
+        };
+        el.querySelector('input').onchange = (e) => {
           g.a[itemId] = r2(clamp(Number(e.target.value), 0, freeFor(p.goals, g, itemId)));
           store.save();
           paintAlloc();

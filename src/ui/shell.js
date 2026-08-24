@@ -6,6 +6,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
   { id: 'categorias', label: 'Categorías', ic: 'categorias' },
   { id: 'metas', label: 'Metas', ic: 'metas' },
+  { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
   { id: 'historial', label: 'Historial', ic: 'historial' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
 ];

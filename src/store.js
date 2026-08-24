@@ -1,9 +1,10 @@
 import { supabase } from './auth.js';
 import { ingresoEfectivo } from './engine/consejo.js';
 import { emergencyTarget, emergencyStatus } from './engine/metas.js';
+import { podar } from './engine/movimientos.js';
 
-const KEY = 'reparto:v7';
-const OLD_KEYS = ['reparto:v6', 'reparto:v5'];
+const KEY = 'reparto:v8';
+const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
 
 export const BASE_ITEMS = [
   { n: 'Esenciales', p: 55, r: 'ese', c: 'var(--ink)', d: 'Renta, servicios, comida, transporte. Es el techo, no la meta.' },
@@ -58,6 +59,7 @@ export function freshProfile(name) {
     fondoMeses: 4,
     items: freshItems(),
     goals: [],
+    movs: [],
     updated: Date.now(),
   };
 }
@@ -120,6 +122,8 @@ function normalizeProfile(p) {
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
     if (!g.aportes) g.aportes = [];
   });
+  // al arrancar se podan los movimientos viejos: el blob de perfiles no crece sin techo
+  p.movs = podar(p.movs ?? []);
   p.ingresoTipo ??= 'fijo';
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
@@ -176,7 +180,8 @@ async function flushPush() {
       updated_at: new Date().toISOString(),
       data: {
         inc: p.inc, cur: p.cur, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
-        tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, items: p.items, goals: p.goals, localId: p.id,
+        tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, items: p.items, goals: p.goals,
+        movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
     if (error) { pendingPush.add(id); clearTimeout(pushTimer); pushTimer = setTimeout(flushPush, 4000); return; }
@@ -207,7 +212,8 @@ export function addProfile(name, copyCurrent) {
     const cur = active();
     p = { ...freshProfile(name), inc: cur.inc, cur: cur.cur, ingresoTipo: cur.ingresoTipo,
       ingresoHistorial: [...cur.ingresoHistorial], tasaInteres: cur.tasaInteres, fondoMeses: cur.fondoMeses,
-      items: JSON.parse(JSON.stringify(cur.items)), goals: JSON.parse(JSON.stringify(cur.goals)) };
+      items: JSON.parse(JSON.stringify(cur.items)), goals: JSON.parse(JSON.stringify(cur.goals)),
+      movs: JSON.parse(JSON.stringify(cur.movs)) };
   } else {
     p = freshProfile(name);
   }
@@ -249,6 +255,7 @@ export async function bootAuth(uid) {
       inc: row.data.inc, cur: row.data.cur, ingresoTipo: row.data.ingresoTipo,
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
+      movs: row.data.movs || [],
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;

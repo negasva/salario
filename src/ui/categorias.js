@@ -1,5 +1,6 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
+import { periodoDe, hoyISO, porItem } from '../engine/movimientos.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -35,13 +36,15 @@ export function renderCategorias(root) {
 function paintList(root) {
   const p = store.active();
   const box = root.querySelector('#catList');
-  box.innerHTML = p.items.map((it) => catCard(it, p)).join('');
+  const gastado = porItem(p.movs, periodoDe(hoyISO()));
+  box.innerHTML = p.items.map((it) => catCard(it, p, gastado)).join('');
 
   p.items.forEach((it) => wireCard(root, it, p));
 }
 
-function catCard(it, p) {
+function catCard(it, p, gastado) {
   const budget = amount(it, store.incomeRepartir(p));
+  const real = gastado[it.id] || 0;
   const sp = spentInItem(it);
   const { fixed, variable } = fixedVariableSplit(it);
   return `
@@ -63,6 +66,7 @@ function catCard(it, p) {
       <div class="detail-head"><span class="label">Detalle</span><button class="btn-plus cat-plus">+</button></div>
       <div class="lines">${lines(it, p)}</div>
       <div class="sub" style="margin-top:8px">Suma <b class="num">${money(sp, p.cur)}</b> · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}</div>
+      <div class="sub">Gastado este mes <b class="num${real > budget ? ' over' : ''}">${money(real, p.cur)}</b> de ${money(budget, p.cur)}</div>
     </div>
   </div>`;
 }

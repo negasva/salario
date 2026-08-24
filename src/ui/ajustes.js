@@ -1,0 +1,130 @@
+import * as store from '../store.js';
+import { toast } from './shell.js';
+import { plain } from '../format.js';
+
+function digits(v) { const c = String(v).replace(/[^\d]/g, ''); return c ? Number(c) : 0; }
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+export function renderAjustes(root) {
+  const p = store.active();
+
+  root.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <span class="label">Perfiles</span>
+        <div class="chips" id="ajChips" style="margin-top:10px">
+          ${store.profiles().map((pr) => `<button class="chip ${pr.id === store.activeId() ? 'on' : ''}" data-id="${pr.id}">${esc(pr.name)}</button>`).join('')}
+        </div>
+        <div class="prow" style="display:flex;gap:8px;margin-top:12px">
+          <button id="ajNew">+ Nuevo perfil</button>
+          <button id="ajDup">Duplicar</button>
+          <button id="ajDel">Eliminar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="label">Ingreso</span>
+        <div class="chips" style="margin-top:10px">
+          <button class="chip ${p.ingresoTipo === 'fijo' ? 'on' : ''}" id="ajFijo">Fijo</button>
+          <button class="chip ${p.ingresoTipo === 'variable' ? 'on' : ''}" id="ajVariable">Variable</button>
+        </div>
+        <div id="ajHistorial" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Fondo de emergencia</span>
+        <div class="fld" style="margin-top:10px"><label>Meses objetivo (3 a 6)</label>
+          <input type="number" id="ajFondoMeses" min="3" max="6" value="${p.fondoMeses}"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Costo de oportunidad</span>
+        <div class="fld" style="margin-top:10px"><label>Tasa anual nominal (%)</label>
+          <input type="number" id="ajTasa" min="0" max="100" step="0.5" value="${p.tasaInteres}"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Datos</span>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button id="ajExport">Exportar</button>
+          <label class="mini" style="display:inline-flex;align-items:center;cursor:pointer">Importar<input type="file" id="ajImport" accept="application/json" style="display:none"></label>
+        </div>
+      </div>
+    </div>`;
+
+  root.querySelectorAll('#ajChips .chip').forEach((b) => {
+    b.onclick = () => { store.setActive(b.dataset.id); renderAjustes(root); };
+  });
+  root.querySelector('#ajNew').onclick = () => {
+    const name = prompt('Nombre del perfil nuevo') || `Perfil ${store.profiles().length + 1}`;
+    store.addProfile(name, false);
+    renderAjustes(root);
+  };
+  root.querySelector('#ajDup').onclick = () => {
+    store.addProfile(`${p.name} (copia)`, true);
+    renderAjustes(root);
+    toast('Perfil duplicado');
+  };
+  root.querySelector('#ajDel').onclick = () => {
+    if (store.profiles().length < 2) { toast('Deja al menos un perfil'); return; }
+    if (store.removeProfile(p.id)) { renderAjustes(root); toast('Perfil eliminado'); }
+  };
+
+  root.querySelector('#ajFijo').onclick = () => { p.ingresoTipo = 'fijo'; store.save(); renderAjustes(root); };
+  root.querySelector('#ajVariable').onclick = () => { p.ingresoTipo = 'variable'; store.save(); renderAjustes(root); };
+
+  const histBox = root.querySelector('#ajHistorial');
+  if (p.ingresoTipo === 'variable') {
+    while (p.ingresoHistorial.length < 3) p.ingresoHistorial.push(0);
+    histBox.innerHTML = `<div class="label" style="margin-bottom:8px">Últimos 3 meses</div>
+      ${[0, 1, 2].map((i) => `<div class="fld"><input class="ajMes" data-i="${i}" value="${plain(p.ingresoHistorial[i], p.cur)}" inputmode="numeric"></div>`).join('')}
+      <div class="sub" id="ajResumen"></div>`;
+    const paintResumen = () => {
+      const vals = p.ingresoHistorial.filter((v) => v > 0);
+      const prom = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+      const min = vals.length ? Math.min(...vals) : 0;
+      histBox.querySelector('#ajResumen').innerHTML = `Promedio para repartir: <b class="num">${plain(prom, p.cur)}</b> · Mínimo para esenciales: <b class="num">${plain(min, p.cur)}</b>`;
+    };
+    histBox.querySelectorAll('.ajMes').forEach((inp) => {
+      inp.onchange = (e) => { p.ingresoHistorial[Number(e.target.dataset.i)] = digits(e.target.value); store.save(); paintResumen(); };
+    });
+    paintResumen();
+  } else {
+    histBox.innerHTML = '';
+  }
+
+  root.querySelector('#ajFondoMeses').onchange = (e) => {
+    p.fondoMeses = Math.min(6, Math.max(3, Number(e.target.value) || 4));
+    store.save();
+  };
+  root.querySelector('#ajTasa').onchange = (e) => { p.tasaInteres = Number(e.target.value) || 0; store.save(); };
+
+  root.querySelector('#ajExport').onclick = () => {
+    const blob = new Blob([JSON.stringify({ profiles: store.profiles() }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = new Date();
+    a.href = url;
+    a.download = `reparto-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  root.querySelector('#ajImport').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try { parsed = JSON.parse(reader.result); } catch { toast('Archivo inválido'); return; }
+      if (!parsed.profiles?.length) { toast('El archivo no tiene perfiles'); return; }
+      const nombres = parsed.profiles.map((pr) => pr.name).join(', ');
+      const reemplazar = confirm(`Contiene ${parsed.profiles.length} perfil(es): ${nombres}.\nAceptar = reemplazar todo. Cancelar = fusionar.`);
+      store.importProfiles(parsed.profiles, reemplazar);
+      renderAjustes(root);
+      toast('Importación completa');
+    };
+    reader.readAsText(file);
+  };
+}

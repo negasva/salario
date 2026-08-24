@@ -11,6 +11,8 @@ button{cursor:pointer;background:var(--card-2);color:var(--text);border:1px soli
 button:hover{border-color:var(--muted)}
 button:active{transform:translateY(1px)}
 button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+button.mini{padding:6px 10px;font-size:12px}
 input,select{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-sm);
   padding:8px 10px;font-size:15px}
 input:focus,select:focus{outline:none;border-color:var(--blue)}

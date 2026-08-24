@@ -80,6 +80,7 @@
 .fieldw input:focus{outline:none}
 .fieldw.pcent{flex:0 0 96px}
 .cat-range{width:100%;margin-top:10px}
+.cat-fix{margin-top:10px;color:var(--text)}
 .ic-sm{width:16px;height:16px}
 .cat-detail{margin-top:12px;border-top:1px solid var(--line);padding-top:11px}
 .detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}

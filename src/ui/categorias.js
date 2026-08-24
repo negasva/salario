@@ -62,6 +62,7 @@ function catCard(it, p) {
       <label class="fieldw pcent"><input class="cat-pct num" type="text" inputmode="decimal" value="${it.p}" ${it.locked ? 'disabled' : ''}><span>%</span></label>
     </div>
     <input type="range" class="cat-range" min="0" max="100" step="0.5" value="${it.p}" ${it.locked ? 'disabled' : ''}>
+    <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
       <div class="detail-head"><span class="label">Detalle</span><button class="btn-plus cat-plus">+</button></div>
       <div class="lines">${lines(it, p)}</div>
@@ -113,6 +114,16 @@ function wireCard(root, it, p) {
     const inc = store.incomeRepartir(p);
     setPct(inc > 0 ? (digits(e.target.value) / inc) * 100 : 0);
   };
+
+  const fixBtn = card.querySelector('.cat-fix');
+  const diff = r2(100 - total(p.items));
+  if (!it.locked && Math.abs(diff) >= 0.01) {
+    fixBtn.textContent = diff > 0 ? `Sumar ${diff}% aquí` : `Quitar ${Math.abs(diff)}% de aquí`;
+    fixBtn.onclick = () => setPct(it.p + diff);
+  } else {
+    fixBtn.textContent = 'Cuadrado';
+    fixBtn.disabled = true;
+  }
 
   card.querySelector('.cat-lock').onclick = () => { it.locked = !it.locked; store.save(); renderCategorias(root); };
 

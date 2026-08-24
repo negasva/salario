@@ -34,11 +34,13 @@ function svgRing(pct, color) {
 
 export function renderDashboard(root) {
   const p = store.active();
+  const inc = store.incomeRepartir(p);
+  const incEse = store.incomeEsenciales(p);
   const t = total(p.items);
   const diff = Math.round((100 - t) * 100) / 100;
 
   const ese = p.items.find((it) => it.r === 'ese');
-  const diag = ese ? diagnosticoEsenciales(ese, p.inc) : null;
+  const diag = ese ? diagnosticoEsenciales(ese, incEse) : null;
 
   const { oneMonth, target } = emergencyTarget(p.items.filter((it) => it.r === 'ese'), p.fondoMeses);
   const fondoGoal = p.goals.find((g) => g.special === 'emergencia');
@@ -63,12 +65,13 @@ export function renderDashboard(root) {
           </select>
         </div>
         <input id="dIncome" class="income-input num" type="text" inputmode="numeric" value="${p.inc}">
+        ${p.ingresoTipo === 'variable' ? `<div class="sub" style="margin-top:6px">Repartes sobre el promedio: <b class="num">${money(inc, p.cur)}</b></div>` : ''}
         ${svgBar(p.items, p.cur)}
       </div>
       <div class="card">
         <span class="label">Tu mes</span>
         <div class="kpi ${Math.abs(diff) < 0.01 ? '' : diff > 0 ? '' : ''}">${t}%</div>
-        <div class="sub">${Math.abs(diff) < 0.01 ? 'Cuadrado. Repartiste el 100%.' : diff > 0 ? `Quedan ${diff}% libres, ${money(p.inc * diff / 100, p.cur)} sin asignar.` : `Te pasaste ${Math.abs(diff)}%, son ${money(p.inc * Math.abs(diff) / 100, p.cur)} que no tienes.`}</div>
+        <div class="sub">${Math.abs(diff) < 0.01 ? 'Cuadrado. Repartiste el 100%.' : diff > 0 ? `Quedan ${diff}% libres, ${money(inc * diff / 100, p.cur)} sin asignar.` : `Te pasaste ${Math.abs(diff)}%, son ${money(inc * Math.abs(diff) / 100, p.cur)} que no tienes.`}</div>
       </div>
       <div class="card">
         <span class="label">Fondo de emergencia</span>
@@ -108,7 +111,7 @@ export function renderDashboard(root) {
   } else {
     goalsBox.innerHTML = p.goals.map((g) => {
       const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
-      const n = monthsToGoal(g, p.items, p.inc);
+      const n = monthsToGoal(g, p.items, inc);
       return `<div class="card goalcard">
         <div style="display:flex;align-items:center;gap:12px">
           ${svgRing(pct, g.special === 'emergencia' ? 'var(--amber)' : 'var(--blue)')}

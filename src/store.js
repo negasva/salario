@@ -61,6 +61,19 @@ export function freshProfile(name) {
   };
 }
 
+// F18 — ingreso variable: promedio para repartir, minimo para calcular esenciales
+export function incomeRepartir(p) {
+  if (p.ingresoTipo !== 'variable') return p.inc;
+  const vals = (p.ingresoHistorial || []).filter((v) => v > 0);
+  return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : p.inc;
+}
+
+export function incomeEsenciales(p) {
+  if (p.ingresoTipo !== 'variable') return p.inc;
+  const vals = (p.ingresoHistorial || []).filter((v) => v > 0);
+  return vals.length ? Math.min(...vals) : p.inc;
+}
+
 export function active() {
   return db.profiles.find((p) => p.id === db.active) || db.profiles[0];
 }

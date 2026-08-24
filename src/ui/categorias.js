@@ -45,7 +45,7 @@ function paintList(root) {
 }
 
 function catCard(it, p) {
-  const budget = amount(it, p.inc);
+  const budget = amount(it, store.incomeRepartir(p));
   const sp = spentInItem(it);
   const { fixed, variable } = fixedVariableSplit(it);
   return `
@@ -99,7 +99,10 @@ function wireCard(root, it, p) {
   card.querySelector('.cat-desc').oninput = (e) => { it.d = e.target.textContent; store.save(); };
   card.querySelector('.cat-range').oninput = (e) => setPct(Number(e.target.value));
   card.querySelector('.cat-pct').onchange = (e) => setPct(Number(String(e.target.value).replace(',', '.')) || 0);
-  card.querySelector('.cat-monto').onchange = (e) => setPct(p.inc > 0 ? (digits(e.target.value) / p.inc) * 100 : 0);
+  card.querySelector('.cat-monto').onchange = (e) => {
+    const inc = store.incomeRepartir(p);
+    setPct(inc > 0 ? (digits(e.target.value) / inc) * 100 : 0);
+  };
 
   card.querySelector('.cat-lock').onclick = () => { it.locked = !it.locked; store.save(); renderCategorias(root); };
 

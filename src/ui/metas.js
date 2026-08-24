@@ -21,6 +21,7 @@ function estadoFondo(p) {
 
 export function renderMetas(root) {
   const p = store.active();
+  const inc = store.incomeRepartir(p);
   const ef = estadoFondo(p);
 
   if (!ef.goal) {
@@ -52,12 +53,13 @@ export function renderMetas(root) {
 
 function paint(root) {
   const p = store.active();
+  const inc = store.incomeRepartir(p);
   const box = root.querySelector('#metaList');
   const conflictos = conflictosDeMetas(p.goals);
 
   box.innerHTML = p.goals.map((g) => {
     const pct = g.t > 0 ? Math.round(clamp((g.s || 0) / g.t * 100, 0, 100)) : 0;
-    const n = monthsToGoal(g, p.items, p.inc);
+    const n = monthsToGoal(g, p.items, inc);
     const enConflicto = conflictos.some((c) => c.goals.includes(g));
     return `
     <div class="card goal ${g.special ? 'goal-esp' : ''}" data-id="${g.id}">
@@ -69,7 +71,7 @@ function paint(root) {
         <button class="mini goal-edit">Editar</button>
       </div>
       <div class="pbar"><i style="width:${pct}%"></i></div>
-      <div class="sub">${n ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, p.inc), p.cur)}</b> al mes, la tienes en ${n} meses, hacia ${whenText(n)}.` : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`}</div>
+      <div class="sub">${n ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, inc), p.cur)}</b> al mes, la tienes en ${n} meses, hacia ${whenText(n)}.` : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`}</div>
       ${enConflicto ? '<div class="sub" style="color:var(--amber);margin-top:6px">Compite por bloque con otra meta.</div>' : ''}
     </div>`;
   }).join('');
@@ -84,6 +86,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 function openGoalSheet(root, g, warnEscalon) {
   const p = store.active();
+  const inc = store.incomeRepartir(p);
   const overlay = document.createElement('div');
   overlay.className = 'overlay on';
   document.body.appendChild(overlay);
@@ -93,7 +96,7 @@ function openGoalSheet(root, g, warnEscalon) {
 
   function paintSheet() {
     const conflictos = conflictosDeMetas(p.goals).find((c) => c.goals.includes(g));
-    const m = monthlyToward(g, p.items, p.inc);
+    const m = monthlyToward(g, p.items, inc);
     const co = costoOportunidad(m * 12, p.tasaInteres);
 
     overlay.innerHTML = `
@@ -165,7 +168,7 @@ function openGoalSheet(root, g, warnEscalon) {
       const paintCuota = () => {
         if (!dateInput.value) return;
         const r = cuotaPorFecha(g.t, g.s, new Date(dateInput.value));
-        const disp = monthlyToward(g, p.items, p.inc);
+        const disp = monthlyToward(g, p.items, inc);
         overlay.querySelector('#gCuota').innerHTML = disp >= r.cuota
           ? `Necesitas <b class="num">${money(r.cuota, p.cur)}</b> al mes, ya la tienes.`
           : `Necesitas <b class="num">${money(r.cuota, p.cur)}</b> al mes. Hoy destinas ${money(disp, p.cur)}. Falta ${money(r.cuota - disp, p.cur)}.`;
@@ -181,7 +184,7 @@ function openGoalSheet(root, g, warnEscalon) {
       const planBox = overlay.querySelector('#gPlan');
       if (!faltante || faltante <= 0) { planBox.innerHTML = ''; return; }
       const ef = estadoFondo(p);
-      const recortes = planRecorte(faltante, { items: p.items, income: p.inc, fondoCompleto: ef.estado === 'completo' });
+      const recortes = planRecorte(faltante, { items: p.items, income: inc, fondoCompleto: ef.estado === 'completo' });
       let cubierto = 0;
       planBox.innerHTML = `
         <div class="label" style="margin:14px 0 8px">Plan de recorte</div>
@@ -220,7 +223,7 @@ function openGoalSheet(root, g, warnEscalon) {
       ];
       box.innerHTML = presets.map((pr) => {
         let m = 0;
-        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += amount(it, p.inc) * Math.min(pr.map[it.r], freeFor(p.goals, g, it.id)) / 100; });
+        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += amount(it, inc) * Math.min(pr.map[it.r], freeFor(p.goals, g, it.id)) / 100; });
         const f = Math.max(0, (g.t || 0) - (g.s || 0));
         const n = m > 0 ? Math.ceil(f / m) : null;
         return `<div class="opt" data-t="${pr.title}"><b>${pr.title}</b><p>${pr.desc}</p>
@@ -242,7 +245,7 @@ function openGoalSheet(root, g, warnEscalon) {
         const free = freeFor(p.goals, g, it.id);
         const v = g.a[it.id] || 0;
         return `<div class="alloc" data-id="${it.id}">
-          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num" style="color:var(--blue)">${money(amount(it, p.inc) * v / 100, p.cur)}</span></div>
+          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num" style="color:var(--blue)">${money(amount(it, inc) * v / 100, p.cur)}</span></div>
           <input type="range" min="0" max="100" step="1" value="${v}" ${free < v ? '' : ''} max="${free}">
           ${free < 100 ? `<div class="hint">Otras metas ya usan ${r2(100 - free)}% de este bloque. Tope aquí: ${r2(free)}%.</div>` : ''}
         </div>`;

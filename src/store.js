@@ -84,7 +84,7 @@ export function ensureFondoGoal(p) {
   let goal = p.goals.find((g) => g.special === 'emergencia');
   if (!goal) {
     goal = { id: nid('g'), n: 'Fondo de emergencia', t: target, s: 0, a: {},
-      priority: 'alta', dateMode: false, aportes: [], special: 'emergencia' };
+      priority: 'alta', modo: 'monto', aportes: [], special: 'emergencia' };
     p.goals.unshift(goal);
     save();
   } else if (goal.t !== target) {
@@ -116,7 +116,8 @@ function normalizeProfile(p) {
   p.goals.forEach((g) => {
     g.a = g.a || {};
     if (!g.priority) g.priority = 'media';
-    if (g.dateMode === undefined) g.dateMode = false;
+    // dateMode era booleano; ahora el modo tiene tres estados
+    if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
     if (!g.aportes) g.aportes = [];
   });
   if (!p.ingresoTipo) p.ingresoTipo = 'fijo';

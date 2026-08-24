@@ -30,6 +30,7 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
 {
   id, name, remoteId,
   inc, cur,                        // ingreso y moneda
+  paleta,                          // tema visual elegido para este perfil
   ingresoTipo, ingresoHistorial,   // 'fijo' | 'variable'
   tasaInteres, fondoMeses,         // costo de oportunidad y meses del fondo
   metodoDeuda,                     // 'avalancha' | 'bolaDeNieve'
@@ -166,6 +167,8 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 **Historial** cierra el mes y guarda el snapshot. Muestra la tasa de ahorro mes a mes, los esenciales como porcentaje del ingreso con semáforo, la comparación contra el promedio de los tres meses anteriores, y por cada cierre las barras enfrentadas de plan contra real con la brecha dicha en una frase.
 
 **Ajustes** tiene los perfiles, el tipo de ingreso, los meses objetivo del fondo, la tasa anual para el costo de oportunidad, el botón que pide permiso para las notificaciones, y exportar/importar en JSON.
+
+La paleta visual se cambia desde el botón de colores del menú lateral. Se conserva por perfil en el blob local y en Supabase (`paleta`), por lo que al volver a entrar a la cuenta se recupera el tema elegido. La paleta rosa chicle actual sigue siendo la predeterminada; también están Coral & azul, Pizarra y Vivo. Los colores de acento se combinan con texto oscuro o blanco según el contraste, y no se usan colores claros como texto principal.
 
 ## El stack y por qué
 

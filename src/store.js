@@ -8,6 +8,7 @@ import {
 import { podar, hoyISO } from './engine/movimientos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
+import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 
 const KEY = 'reparto:v8';
 const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
@@ -59,6 +60,7 @@ export function freshProfile(name) {
     name,
     inc: 5500000,
     cur: 'COP',
+    paleta: DEFAULT_PALETA,
     ingresoTipo: 'fijo',
     ingresoHistorial: [],
     tasaInteres: 10,
@@ -137,6 +139,7 @@ function normalizeProfile(p) {
   // al arrancar se podan los movimientos viejos: el blob de perfiles no crece sin techo
   p.movs = podar(p.movs ?? []);
   p.metodoDeuda ??= 'avalancha';
+  p.paleta = normalizarPaleta(p.paleta);
   p.ingresoTipo ??= 'fijo';
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
@@ -165,9 +168,11 @@ export function load() {
     db = { active: v.active, profiles: v.profiles.map(normalizeProfile) };
     seq = v.seq || 100;
     if (!active()) db.active = db.profiles[0].id;
+    aplicarPaleta(active()?.paleta);
   } else {
     const p = freshProfile('Mi presupuesto');
     db = { active: p.id, profiles: [p] };
+    aplicarPaleta(p.paleta);
   }
 }
 
@@ -195,7 +200,7 @@ async function flushPush() {
       nombre: p.name,
       updated_at: new Date().toISOString(),
       data: {
-        inc: p.inc, cur: p.cur, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
+        inc: p.inc, cur: p.cur, paleta: p.paleta, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
         items: p.items, goals: p.goals, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
@@ -220,15 +225,24 @@ export function save() {
 
 export function setActive(id) {
   db.active = id;
+  aplicarPaleta(active()?.paleta);
   writeLocal();
   notify();
+}
+
+export function setPalette(id) {
+  const p = active();
+  if (!p) return;
+  p.paleta = normalizarPaleta(id);
+  aplicarPaleta(p.paleta);
+  save();
 }
 
 export function addProfile(name, copyCurrent) {
   let p;
   if (copyCurrent) {
     const cur = active();
-    p = { ...freshProfile(name), inc: cur.inc, cur: cur.cur, ingresoTipo: cur.ingresoTipo,
+    p = { ...freshProfile(name), inc: cur.inc, cur: cur.cur, paleta: cur.paleta, ingresoTipo: cur.ingresoTipo,
       ingresoHistorial: [...cur.ingresoHistorial], tasaInteres: cur.tasaInteres, fondoMeses: cur.fondoMeses,
       items: JSON.parse(JSON.stringify(cur.items)), goals: JSON.parse(JSON.stringify(cur.goals)),
       movs: JSON.parse(JSON.stringify(cur.movs)) };
@@ -270,7 +284,7 @@ export async function bootAuth(uid) {
   if (data && data.length) {
     db.profiles = data.map((row) => normalizeProfile({
       id: row.data.localId || row.id, remoteId: row.id, name: row.nombre,
-      inc: row.data.inc, cur: row.data.cur, ingresoTipo: row.data.ingresoTipo,
+      inc: row.data.inc, cur: row.data.cur, paleta: row.data.paleta, ingresoTipo: row.data.ingresoTipo,
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
       movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda, traspaso: row.data.traspaso || null,
@@ -279,6 +293,7 @@ export async function bootAuth(uid) {
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
+    aplicarPaleta(active()?.paleta);
     writeLocal();
     notify();
     return { migrated: false };

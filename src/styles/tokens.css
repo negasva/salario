@@ -18,6 +18,15 @@
   --success: #1FA971;
   --warning: #F5A623;
   --danger:  #E5484D;
+  --success-soft: rgba(31,169,113,.15);
+  --warning-soft: rgba(245,166,35,.15);
+  --danger-soft: rgba(229,72,77,.12);
+  --on-pink: var(--ink);
+  --on-ink: var(--white);
+  --on-success: var(--white);
+  --on-warning: var(--ink);
+  --on-danger: var(--white);
+  --text-on-ink-accent: var(--pink-light);
 
   --text-on-ink-muted: rgba(255,255,255,.70);
   --border-card:     var(--pink-lighter);
@@ -56,4 +65,42 @@
   --ease-out:cubic-bezier(.16,1,.3,1);
   --dur-fast:.15s;
   --t-fast:var(--dur-fast) var(--ease-out);
+}
+
+/* Temas alternativos: los acentos conservan los colores entregados, pero los
+   textos usan un par oscuro o blanco cuando el color puro no alcanza AA. */
+:root[data-paleta="coral"]{
+  --pink:#EA5455; --pink-dark:#C63C43; --pink-light:#F07B3F;
+  --pink-lighter:#F3D3C3; --pink-wash:#F9F5EB;
+  --ink:#002B5B; --ink-light:#2D4059; --ink-lighter:#304B69;
+  --white:#FFFFFF; --line:#E6DCCB;
+  --success:#2D4059; --warning:#B45309; --danger:#C63C43;
+  --success-soft:rgba(45,64,89,.15); --warning-soft:rgba(180,83,9,.14); --danger-soft:rgba(198,60,67,.13);
+  --on-pink:#111827; --on-ink:#FFFFFF; --on-success:#FFFFFF; --on-warning:#111827; --on-danger:#FFFFFF;
+  --text-on-ink-accent:#F9F5EB;
+  --blue:#002B5B; --mint:#2D4059; --green:#2D4059; --amber:#B45309; --red:#C63C43;
+}
+
+:root[data-paleta="pizarra"]{
+  --pink:#4B5563; --pink-dark:#1F2937; --pink-light:#9CA3AF;
+  --pink-lighter:#D1D5DB; --pink-wash:#EDEDED;
+  --ink:#111827; --ink-light:#1F2937; --ink-lighter:#4B5563;
+  --white:#FFFFFF; --line:#D1D5DB;
+  --success:#374151; --warning:#4B5563; --danger:#1F2937;
+  --success-soft:rgba(55,65,81,.15); --warning-soft:rgba(75,85,99,.15); --danger-soft:rgba(31,41,55,.13);
+  --on-pink:#FFFFFF; --on-ink:#FFFFFF; --on-success:#FFFFFF; --on-warning:#FFFFFF; --on-danger:#FFFFFF;
+  --text-on-ink-accent:#EDEDED;
+  --blue:#374151; --mint:#374151; --green:#374151; --amber:#4B5563; --red:#1F2937;
+}
+
+:root[data-paleta="vivo"]{
+  --pink:#FF5A5F; --pink-dark:#D9474D; --pink-light:#FFB400;
+  --pink-lighter:#FFE7A3; --pink-wash:#FFF7E5;
+  --ink:#111827; --ink-light:#1F2937; --ink-lighter:#4B5563;
+  --white:#FFFFFF; --line:#E5E7EB;
+  --success:#16803C; --warning:#7C5A00; --danger:#C24147;
+  --success-soft:rgba(22,128,60,.14); --warning-soft:rgba(124,90,0,.13); --danger-soft:rgba(194,65,71,.13);
+  --on-pink:#111827; --on-ink:#FFFFFF; --on-success:#FFFFFF; --on-warning:#111827; --on-danger:#FFFFFF;
+  --text-on-ink-accent:#FFB400;
+  --blue:#0077A8; --mint:#16803C; --green:#16803C; --amber:#7C5A00; --red:#C24147;
 }

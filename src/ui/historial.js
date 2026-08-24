@@ -97,6 +97,8 @@ function pintarCuerpo(root, p, cierres) {
       <div class="card" style="margin-bottom:var(--sp-4)">
         <span class="label">Tasa de ahorro, últimos ${cierres.length} meses</span>
         ${sparkline(rates, extras)}
+        <div class="sub historial-leyenda">● Mes con ingreso extra</div>
+        <div class="spark-months">${cierres.map((c, i) => `<span class="${extras[i] ? 'spark-extra' : ''}" title="${extras[i] ? 'Tuvo ingreso extra' : 'Sin ingreso extra'}">${extras[i] ? '● ' : ''}${c.periodo}</span>`).join('')}</div>
       </div>
       <div class="card" style="margin-bottom:var(--sp-4)">
         <span class="label">Esenciales como % del ingreso</span>

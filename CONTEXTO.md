@@ -85,7 +85,7 @@ Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único c
 
 `consejo.js` tiene la parte opinada. Recomienda el reparto entre corto y largo plazo según el estado de tu fondo, y maneja el ingreso variable.
 
-`movimientos.js` agrega el libro: por periodo, por bloque, por renglón, ingreso real contra extra, y lo aportado a cada meta. También `hoyISO()`, que construye la fecha en local a propósito — `toISOString()` convierte a UTC y al este de Greenwich el día 1 del mes cae en el periodo anterior.
+`movimientos.js` agrega el libro: por periodo, por bloque, por renglón, ingreso real contra extra, y lo aportado a cada meta. Un ingreso extra se registra como `tipo: 'ingreso'` con `extra: true`; sus aportes sugeridos o manuales quedan como movimientos de gasto con `goalId` y también actualizan `goal.aportes`/`goal.s`. También `hoyISO()`, que construye la fecha en local a propósito — `toISOString()` convierte a UTC y al este de Greenwich el día 1 del mes cae en el periodo anterior.
 
 `cierre.js` arma el snapshot del mes, calcula qué meses quedaron sin cerrar, y saca la brecha entre lo planeado y lo gastado.
 
@@ -143,6 +143,8 @@ Si trabajas por tu cuenta y el ingreso no es el mismo cada mes, cambias el perfi
 
 Si el último mes fue mejor que el promedio, la app calcula el excedente y sugiere 70% a metas y fondo, 30% libre.
 
+Cuando se registra un ingreso extra (por ejemplo, una prima), Movimientos muestra un anuncio grande con ese mismo reparto 70/30. `Aplicar sugerencia` recorre las metas activas en el orden de la fila y crea sus aportes; `Repartir a mano` abre un selector con montos y `Dejarlo sin asignar` no crea movimientos adicionales. El resumen mensual separa nómina e ingreso extra. El cierre guarda el total extra en `snapshot.ingresoExtra`, y Historial marca con un punto verde los meses que lo tuvieron para que los picos de la tasa de ahorro se puedan explicar.
+
 ### Persistencia
 
 Dos capas. `localStorage` bajo la llave `reparto:v8` es caché, y Supabase es la fuente de verdad. La UI escribe local de inmediato y empuja al servidor con dos segundos de retraso, así que nunca te quedas esperando a la red. Si el push falla, reintenta a los cuatro segundos y vuelve a intentar cuando el navegador avisa que hay conexión. `OLD_KEYS` lee las llaves viejas para no perder el caché de nadie al subir de versión.
@@ -196,3 +198,5 @@ Vale la pena decirlo en voz alta, porque el código no lo dice.
 **El botón "Aplicar" del plan de recorte no aplica nada.** Mueve un contador visual y opaca la tarjeta, pero no toca los porcentajes.
 
 **`digits()` se come los decimales.** Todo campo de dinero parsea con `digits()`, que descarta lo que no sea dígito. En COP, CLP y ARS da igual porque no se usan decimales, pero en USD o EUR un `85,000.50` se lee como `8500050`. Es consistente en toda la app, y por eso mismo es un solo arreglo cuando toque hacerlo.
+
+**Los aportes manuales desde el libro todavía no actualizan el progreso de la meta.** Los aportes de ingreso extra y `Ya lo guardé` sí mantienen sincronizados `goal.s`, `goal.aportes` y el movimiento con `goalId`; un aporte creado directamente desde Movimientos sigue siendo la excepción histórica descrita arriba.

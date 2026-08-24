@@ -103,6 +103,8 @@
 .spark-val{font-size:var(--text-h3);font-weight:var(--fw-black);color:var(--ink)}
 .spark-months{display:flex;justify-content:space-between;margin-top:var(--space-2)}
 .spark-months span{font-size:11px;color:var(--ink-lighter)}
+.spark-months .spark-extra,.historial-leyenda{color:var(--success)}
+.historial-leyenda{margin-top:var(--space-2)}
 
 .repline{display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-3)}
 .repline .dot{width:8px;height:8px;border-radius:var(--radius-pill);flex:none}

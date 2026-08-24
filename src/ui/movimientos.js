@@ -4,6 +4,7 @@ import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '
 import { money, plain, esc, digits } from '../format.js';
 import { excedente } from '../engine/consejo.js';
 import { ordenadas } from '../engine/fila.js';
+import { aplicarAporte } from '../engine/metas.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -25,6 +26,93 @@ function correrMes(per, delta) {
 function diaLargo(fecha) {
   const [a, m, d] = fecha.split('-').map(Number);
   return `${d} de ${MESES[m - 1]} de ${a}`;
+}
+
+function nuevoId() {
+  return 'm' + Math.random().toString(36).slice(2, 9);
+}
+
+function registrarAporteExtra(p, goal, monto, fecha) {
+  if (!(monto > 0)) return;
+  p.movs.push({
+    id: nuevoId(), fecha, tipo: 'gasto', monto,
+    itemId: null, lineId: null, goalId: goal.id,
+    nota: `Aporte de ingreso extra a ${goal.n}`, extra: false,
+  });
+  aplicarAporte(goal, monto, new Date(`${fecha}T12:00:00`));
+}
+
+function metasActivas(p) {
+  return ordenadas(p.goals).filter((g) => (g.estado || 'activa') === 'activa');
+}
+
+function abrirSelectorExtra(p, monto, fecha, alTerminar) {
+  const metas = metasActivas(p);
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay on';
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  const cerrar = () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  };
+
+  overlay.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-head">
+        <h3>Repartir ingreso extra</h3>
+        <button class="btn-del" id="extraClose" aria-label="Cerrar">${icon('cerrar')}</button>
+      </div>
+      <p class="sub">Puedes repartir hasta <b class="num">${money(monto, p.cur)}</b> entre tus metas activas. La lista respeta el orden de la fila.</p>
+      <div id="extraAlloc" style="margin-top:var(--space-5)">
+        ${metas.length ? metas.map((g) => {
+          const restante = g.t > 0 ? Math.max(0, g.t - (g.s || 0)) : monto;
+          return `<label class="alloc">
+            <span class="alloc-head"><span>${esc(g.n)}</span><span class="sub">${g.t > 0 ? `faltan ${money(restante, p.cur)}` : 'sin tope'}</span></span>
+            <input class="extra-amount" data-goal="${g.id}" type="text" inputmode="numeric" placeholder="0" data-max="${restante}" aria-label="Monto para ${esc(g.n)}">
+          </label>`;
+        }).join('') : '<div class="empty">No hay metas activas para repartir este ingreso.</div>'}
+      </div>
+      <div id="extraRestante" class="hint"></div>
+      <button class="wide btn-primary" id="extraApply" style="margin-top:var(--space-4)" ${metas.length ? '' : 'disabled'}>Aplicar reparto</button>
+      <button class="wide" id="extraCancel" style="margin-top:var(--space-2)">Cancelar</button>
+    </div>`;
+
+  const inputs = [...overlay.querySelectorAll('.extra-amount')];
+  const restante = overlay.querySelector('#extraRestante');
+  const actualizarRestante = () => {
+    const usado = inputs.reduce((s, input) => s + digits(input.value), 0);
+    const libre = monto - usado;
+    restante.textContent = libre >= 0
+      ? `Quedan ${money(libre, p.cur)} sin repartir.`
+      : `Te pasaste ${money(-libre, p.cur)} del monto disponible.`;
+    restante.style.color = libre < 0 ? 'var(--danger)' : '';
+  };
+
+  inputs.forEach((input) => { input.oninput = actualizarRestante; });
+  actualizarRestante();
+  overlay.querySelector('#extraClose').onclick = cerrar;
+  overlay.querySelector('#extraCancel').onclick = cerrar;
+  overlay.querySelector('#extraApply').onclick = () => {
+    const repartido = inputs.map((input) => {
+      const maximo = Number(input.dataset.max);
+      return {
+        goal: p.goals.find((g) => g.id === input.dataset.goal),
+        monto: Math.min(digits(input.value), Number.isFinite(maximo) ? maximo : monto),
+      };
+    }).filter((x) => x.goal && x.monto > 0);
+    const total = repartido.reduce((s, x) => s + x.monto, 0);
+    if (total > monto) {
+      restante.textContent = `Te pasaste ${money(total - monto, p.cur)} del monto disponible.`;
+      restante.style.color = 'var(--danger)';
+      return;
+    }
+    repartido.forEach(({ goal, monto: cantidad }) => registrarAporteExtra(p, goal, cantidad, fecha));
+    store.save();
+    cerrar();
+    alTerminar(total);
+  };
 }
 
 export function renderMovimientos(root, args = {}) {
@@ -137,45 +225,32 @@ export function renderMovimientos(root, args = {}) {
             label: 'Aplicar sugerencia',
             onClick: () => {
               let plata = exc.metasYFondo;
-              const activas = ordenadas(p.goals).filter(g => (g.estado || 'activa') === 'activa');
+              const activas = metasActivas(p);
               for (const g of activas) {
                 if (plata <= 0) break;
                 if (g.t && (g.s || 0) < g.t) {
                   const falta = g.t - (g.s || 0);
                   const m = Math.min(plata, falta);
-                  p.movs.push({
-                    id: 'm' + Math.random().toString(36).slice(2, 9),
-                    fecha: datos.fecha,
-                    tipo: 'gasto',
-                    monto: m,
-                    itemId: null, // No bloque para no afectar Categorías
-                    goalId: g.id,
-                    nota: 'Sugerencia de ingreso extra'
-                  });
-                  g.s = (g.s || 0) + m;
+                  registrarAporteExtra(p, g, m, datos.fecha);
                   plata -= m;
                 } else if (!g.t) {
-                  p.movs.push({
-                    id: 'm' + Math.random().toString(36).slice(2, 9),
-                    fecha: datos.fecha,
-                    tipo: 'gasto',
-                    monto: plata,
-                    itemId: null,
-                    goalId: g.id,
-                    nota: 'Sugerencia de ingreso extra'
-                  });
-                  g.s = (g.s || 0) + plata;
+                  registrarAporteExtra(p, g, plata, datos.fecha);
                   plata = 0;
                 }
               }
               store.save();
               pintarCuerpo();
-              toast('Sugerencia aplicada a las metas en orden.');
+              toast(plata > 0
+                ? `Sugerencia aplicada; quedaron ${money(plata, p.cur)} sin asignar.`
+                : 'Sugerencia aplicada a las metas en orden.');
             }
           },
           {
             label: 'Repartir a mano',
-            onClick: () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'metas' } })) // El usuario puede ir a Metas a mover sus ahorros
+            onClick: () => abrirSelectorExtra(p, exc.metasYFondo, datos.fecha, (total) => {
+              pintarCuerpo();
+              toast(total > 0 ? `Repartiste ${money(total, p.cur)} entre tus metas.` : 'El ingreso extra quedó sin asignar.');
+            }),
           },
           {
             label: 'Dejarlo sin asignar',
@@ -212,7 +287,8 @@ export function renderMovimientos(root, args = {}) {
         <span class="label">Gastado este mes</span>
         <div class="kpi num">${money(total, p.cur)}</div>
         <div class="sub">${ing.total > 0
-          ? `Nómina: <b class="num">${money(ing.nomina, p.cur)}</b>${ing.extra > 0 ? ` · Extra: <b class="num">${money(ing.extra, p.cur)}</b>` : ''}`
+          ? `<div>Nómina: <b class="num">${money(ing.nomina, p.cur)}</b></div>
+             ${ing.extra > 0 ? `<div style="margin-top:4px">Ingreso extra: <b class="num">${money(ing.extra, p.cur)}</b></div>` : ''}`
           : 'Sin ingresos registrados todavía este mes.'}</div>
       </div>
       <div class="card" style="margin-bottom:var(--sp-4)">

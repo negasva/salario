@@ -8,6 +8,7 @@ import {
   valorFuturo,
   conflictosDeMetas,
   aplicarAporte,
+  plazo,
 } from './metas.js';
 import { recomendar } from './consejo.js';
 
@@ -36,6 +37,15 @@ describe('F4 escalera', () => {
   });
   it('escalon 4 si el fondo esta completo pero no hay metas', () => {
     expect(escalonActual({ minimosDeudaCubiertos: true, fondoEstado: 'completo', tieneMetasActivas: false })).toBe(4);
+  });
+});
+
+describe('plazo en singular y plural', () => {
+  it('un mes va en singular', () => {
+    expect(plazo(1)).toBe('1 mes');
+  });
+  it('el resto en plural', () => {
+    expect(plazo(4)).toBe('4 meses');
   });
 });
 

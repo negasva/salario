@@ -17,7 +17,7 @@ export function renderAjustes(root) {
         <div class="chips" id="ajChips" style="margin-top:10px">
           ${store.profiles().map((pr) => `<button class="chip ${pr.id === store.activeId() ? 'on' : ''}" data-id="${pr.id}">${esc(pr.name)}</button>`).join('')}
         </div>
-        <div class="prow" style="display:flex;gap:8px;margin-top:12px">
+        <div class="prow">
           <button id="ajNew">+ Nuevo perfil</button>
           <button id="ajDup">Duplicar</button>
           <button id="ajDel">Eliminar</button>
@@ -47,9 +47,9 @@ export function renderAjustes(root) {
 
       <div class="card">
         <span class="label">Datos</span>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <div class="prow">
           <button id="ajExport">Exportar</button>
-          <label class="mini" style="display:inline-flex;align-items:center;cursor:pointer">Importar<input type="file" id="ajImport" accept="application/json" style="display:none"></label>
+          <label class="btn-file">Importar<input type="file" id="ajImport" accept="application/json" hidden></label>
         </div>
       </div>
     </div>`;

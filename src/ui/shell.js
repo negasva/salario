@@ -10,22 +10,35 @@ const NAV = [
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
 ];
 
+// iniciales del perfil activo, no un logo inventado
+function initials(name) {
+  return (name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('') || '·';
+}
+
 export function renderShell(root, currentRoute, onNavigate) {
+  const p = store.active();
   root.innerHTML = `
     <div class="shell">
-      <aside class="sidebar">
-        <div class="brand">R</div>
-        <nav>
-          ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
-        </nav>
-        <button class="navlink logout" id="btnLogout" title="Salir" aria-label="Salir">${icon('salir')}</button>
-      </aside>
-      <div class="main">
-        <div class="topbar">
-          <label class="search">${icon('buscar', 'ic-sm')}<input id="chipSearch" placeholder="Buscar perfil…" aria-label="Buscar perfil"></label>
-          <div class="user" id="userLabel"></div>
+      <div class="shell-panel">
+        <aside class="sidebar">
+          <div class="brand" title="${p ? p.name : ''}">${initials(p && p.name)}</div>
+          <nav>
+            ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
+          </nav>
+          <button class="navlink logout" id="btnLogout" title="Salir" aria-label="Salir">${icon('salir')}</button>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <label class="search">${icon('buscar', 'ic-sm')}<input id="chipSearch" placeholder="Buscar perfil…" aria-label="Buscar perfil"></label>
+            <div class="user" id="userLabel"></div>
+          </div>
+          <div class="content" id="content"></div>
         </div>
-        <div class="content" id="content"></div>
       </div>
     </div>
     <div class="toast" id="toast"><span id="toastMsg"></span></div>`;
@@ -35,7 +48,6 @@ export function renderShell(root, currentRoute, onNavigate) {
   });
   root.querySelector('#btnLogout').onclick = async () => { await signOut(); location.reload(); };
 
-  const p = store.active();
   root.querySelector('#userLabel').textContent = p ? `Hola, ${p.name}` : '';
 
   root.querySelector('#chipSearch').onkeydown = (e) => {

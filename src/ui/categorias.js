@@ -4,7 +4,8 @@ import { money, plain } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
-const PALETTE = ['var(--blue)', 'var(--violet)', '#FF9F6E', 'var(--mint)', 'var(--green)', '#F78FB3', '#7DD3FC', '#E8C468'];
+const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
+  'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
 
 function digits(v) {
   const c = String(v).replace(/[^\d]/g, '');
@@ -16,7 +17,7 @@ export function renderCategorias(root) {
 
   root.innerHTML = `
     <div class="cats-head">
-      <button id="catAdd" class="wide">+ Agregar categoría</button>
+      <button id="catAdd" class="wide btn-primary">+ Agregar categoría</button>
       <button id="catEqual">Repartir lo que falta en partes iguales</button>
     </div>
     <div id="catList"></div>`;

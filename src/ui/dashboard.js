@@ -1,7 +1,8 @@
 import * as store from '../store.js';
-import { total, r2, diagnosticoEsenciales } from '../engine/reparto.js';
+import { total, r2, amount, diagnosticoEsenciales } from '../engine/reparto.js';
 import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { recomendar } from '../engine/consejo.js';
+import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -67,7 +68,8 @@ export async function renderDashboard(root) {
   if (creado) store.save();
 
   const escalon = escalonActual({
-    minimosDeudaCubiertos: (p.items.find((it) => it.r === 'deu')?.p || 0) > 0,
+    minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items),
+      p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, inc), 0)),
     fondoEstado,
     tieneMetasActivas: p.goals.some((g) => !g.special),
   });

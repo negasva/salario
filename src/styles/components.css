@@ -302,3 +302,14 @@
 .cf-fila>span:not(.cf-n){flex:0 0 110px;text-align:right}
 .cf-n{flex:1;min-width:0;font-size:var(--text-sm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cf-fila input{flex:0 0 110px;text-align:right;font-size:var(--text-sm);padding:8px 10px}
+
+/* ── deudas ───────────────────────────────────────────────────────────── */
+.deu-fila{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;
+  padding:0 0 var(--space-2) calc(var(--space-3) + 3px);border-left:3px solid var(--pink-lighter)}
+.deu-fila .fieldw{flex:1 1 90px;min-width:0}
+.deu-fila input{text-align:right;font-size:var(--text-sm);padding:8px 10px}
+.deu-plazo{flex:1 1 100%;margin-top:0}
+.deu-plazo .over{color:var(--danger)}
+.deu-comp{padding:var(--space-3);margin-top:var(--space-4);border-radius:var(--radius-md)}
+.deu-comp .sub:first-of-type{margin-top:var(--space-2)}
+.deu-comp .over{color:var(--danger)}

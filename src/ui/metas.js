@@ -5,6 +5,7 @@ import {
   cuotaPorFecha, cuotaPorMeses, planRecorte, escenarios, costoOportunidad,
   conflictosDeMetas, secuenciaPlazos, aplicarAporte,
 } from '../engine/metas.js';
+import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -12,6 +13,13 @@ import { toast } from './shell.js';
 function id() { return Math.random().toString(36).slice(2, 9); }
 
 const estadoFondo = (p) => store.ensureFondoGoal(p);
+
+const escalonDe = (p) => escalonActual({
+  minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items),
+    p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, store.incomeRepartir(p)), 0)),
+  fondoEstado: estadoFondo(p).estado,
+  tieneMetasActivas: p.goals.some((g) => !g.special),
+});
 
 // Categorías pide abrir una meta; se guarda aquí y renderMetas la destapa
 // al montar, así la hoja siempre vive dentro de su propia vista.
@@ -27,11 +35,7 @@ export function renderMetas(root) {
     <div id="metaList" class="grid"></div>`;
 
   root.querySelector('#metaAdd').onclick = () => {
-    const escalon = escalonActual({
-      minimosDeudaCubiertos: true,
-      fondoEstado: estadoFondo(p).estado,
-      tieneMetasActivas: p.goals.some((g) => !g.special),
-    });
+    const escalon = escalonDe(p);
     const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto', aportes: [] };
     p.goals.push(g);
     store.save();
@@ -103,7 +107,7 @@ function openGoalSheet(root, g, warnEscalon) {
     overlay.innerHTML = `
       <div class="sheet">
         <div class="sheet-head"><h3>Meta de ahorro</h3><button class="btn-del" id="gClose">${icon('cerrar')}</button></div>
-        ${warnEscalon ? `<div class="sub" style="color:var(--amber);margin-bottom:12px">Estás en el escalón ${escalonActual({ minimosDeudaCubiertos: true, fondoEstado: estadoFondo(p).estado, tieneMetasActivas: p.goals.some((x) => !x.special) })}, esta meta es del escalón 4.</div>` : ''}
+        ${warnEscalon ? `<div class="sub" style="color:var(--amber);margin-bottom:12px">Estás en el escalón ${escalonDe(p)}, esta meta es del escalón 4.</div>` : ''}
         <div class="fld"><label>Qué quieres comprar</label><input id="gName" value="${esc(g.n)}" ${g.special ? 'disabled' : ''}></div>
         <div class="fld"><label>Cuánto cuesta</label><input id="gCost" value="${plain(g.t, p.cur)}" inputmode="numeric"></div>
         <div class="fld"><label>Cuánto llevas ahorrado</label><input id="gSaved" value="${plain(g.s, p.cur)}" inputmode="numeric"></div>

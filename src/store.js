@@ -58,6 +58,7 @@ export function freshProfile(name) {
     ingresoHistorial: [],
     tasaInteres: 10,
     fondoMeses: 4,
+    metodoDeuda: 'avalancha',
     items: freshItems(),
     goals: [],
     movs: [],

@@ -4,6 +4,7 @@ import {
   emergencyStatus,
   escalonActual,
   cuotaPorFecha,
+  cuotaPorMeses,
   planRecorte,
   valorFuturo,
   conflictosDeMetas,
@@ -54,6 +55,29 @@ describe('F5 meta por fecha', () => {
     const r = cuotaPorFecha(1200000, 0, new Date(2027, 0, 1), new Date(2026, 8, 1));
     expect(r.meses).toBe(4);
     expect(r.cuota).toBe(300000);
+  });
+  it('una fecha ya pasada deja el faltante completo', () => {
+    const r = cuotaPorFecha(1200000, 200000, new Date(2026, 0, 1), new Date(2026, 8, 1));
+    expect(r.meses).toBe(0);
+    expect(r.cuota).toBe(1000000);
+  });
+});
+
+describe('F5 meta por plazo en meses', () => {
+  it('reparte el faltante, no el costo total', () => {
+    const r = cuotaPorMeses(1200000, 400000, 8);
+    expect(r.meses).toBe(8);
+    expect(r.cuota).toBe(100000);
+  });
+  it('si ya esta cubierta la cuota es cero', () => {
+    expect(cuotaPorMeses(500000, 500000, 6).cuota).toBe(0);
+  });
+  it('cero o negativo no divide por cero', () => {
+    expect(cuotaPorMeses(600000, 0, 0)).toEqual({ meses: 0, cuota: 600000 });
+    expect(cuotaPorMeses(600000, 0, -3)).toEqual({ meses: 0, cuota: 600000 });
+  });
+  it('redondea a dos decimales', () => {
+    expect(cuotaPorMeses(1000, 0, 3).cuota).toBe(333.33);
   });
 });
 

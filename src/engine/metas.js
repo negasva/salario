@@ -58,15 +58,19 @@ export function escalonActual(estado) {
   return 5;
 }
 
-// F5 — meta por fecha objetivo
+// F5 — cuanto hay que guardar al mes para llegar en N meses
+export function cuotaPorMeses(costo, ahorrado, meses) {
+  const faltante = Math.max(0, (costo || 0) - (ahorrado || 0));
+  const n = Math.max(0, Math.floor(meses) || 0);
+  if (n <= 0) return { meses: 0, cuota: faltante };
+  return { meses: n, cuota: r2(faltante / n) };
+}
+
+// F5 — lo mismo, pero el plazo sale de una fecha objetivo
 export function cuotaPorFecha(costo, ahorrado, fechaObjetivo, hoy = new Date()) {
-  const faltante = Math.max(0, costo - ahorrado);
-  const meses = Math.max(
-    0,
-    (fechaObjetivo.getFullYear() - hoy.getFullYear()) * 12 + (fechaObjetivo.getMonth() - hoy.getMonth())
-  );
-  if (meses <= 0) return { meses: 0, cuota: faltante };
-  return { meses, cuota: r2(faltante / meses) };
+  const meses = (fechaObjetivo.getFullYear() - hoy.getFullYear()) * 12
+    + (fechaObjetivo.getMonth() - hoy.getMonth());
+  return cuotaPorMeses(costo, ahorrado, meses);
 }
 
 // F6 — plan de recorte. Nunca toca fijos, mínimos de deuda, ni fondo bajo 1 mes.
@@ -97,7 +101,7 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
     const monto = amount(inv, income);
     if (monto > 0) {
       const meses = faltanteMensual > 0 ? Math.ceil(monto / faltanteMensual) : 1;
-      recortes.push({ id: 'r-inv', bloque: 'Inversión largo plazo', monto: r2(monto), costo: `pausas la inversión ${meses} mes(es)` });
+      recortes.push({ id: 'r-inv', bloque: 'Inversión largo plazo', monto: r2(monto), costo: `pausas la inversión ${plazo(meses)}` });
     }
   }
 

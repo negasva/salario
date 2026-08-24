@@ -2,7 +2,8 @@ import * as store from '../store.js';
 import { amount, freeFor, clamp, r2 } from '../engine/reparto.js';
 import {
   monthlyToward, monthsToGoal, whenText, plazo, escalonActual,
-  cuotaPorFecha, planRecorte, escenarios, costoOportunidad, conflictosDeMetas, secuenciaPlazos, aplicarAporte,
+  cuotaPorFecha, cuotaPorMeses, planRecorte, escenarios, costoOportunidad,
+  conflictosDeMetas, secuenciaPlazos, aplicarAporte,
 } from '../engine/metas.js';
 import { money, plain } from '../format.js';
 import { icon } from './icons.js';
@@ -28,7 +29,7 @@ export function renderMetas(root) {
       fondoEstado: estadoFondo(p).estado,
       tieneMetasActivas: p.goals.some((g) => !g.special),
     });
-    const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', dateMode: false, aportes: [] };
+    const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto', aportes: [] };
     p.goals.push(g);
     store.save();
     openGoalSheet(root, g, escalon < 4);
@@ -105,11 +106,18 @@ function openGoalSheet(root, g, warnEscalon) {
           ${g.aportes?.length ? `<div class="sub" style="margin-top:6px">${g.aportes.slice(-5).reverse().map((a) => `${money(a.monto, p.cur)} · ${new Date(a.fecha).toLocaleDateString('es-CO')}`).join('<br>')}</div>` : ''}
         </div>
 
+        <div class="label" style="margin-bottom:8px">Cómo quieres calcularla</div>
         <div class="chips" style="margin-bottom:12px">
-          <button class="chip ${!g.dateMode ? 'on' : ''}" id="gModeMonto">Por monto</button>
-          <button class="chip ${g.dateMode ? 'on' : ''}" id="gModeFecha">Por fecha</button>
+          <button class="chip ${g.modo === 'monto' ? 'on' : ''}" data-modo="monto">Por monto</button>
+          <button class="chip ${g.modo === 'meses' ? 'on' : ''}" data-modo="meses">En N meses</button>
+          <button class="chip ${g.modo === 'fecha' ? 'on' : ''}" data-modo="fecha">Para una fecha</button>
         </div>
-        ${g.dateMode ? `<div class="fld"><label>Fecha objetivo</label><input type="date" id="gDate" value="${g.dueDate || ''}"></div><div id="gCuota" class="sub"></div>` : ''}
+        ${g.modo === 'meses' ? `<div class="fld"><label>¿En cuántos meses la quieres?</label>
+          <input type="number" id="gMeses" min="1" max="600" inputmode="numeric"
+            placeholder="12" value="${g.plazoMeses || ''}"></div>` : ''}
+        ${g.modo === 'fecha' ? `<div class="fld"><label>Fecha objetivo</label>
+          <input type="date" id="gDate" value="${g.dueDate || ''}"></div>` : ''}
+        ${g.modo !== 'monto' ? '<div id="gCuota" class="sub"></div>' : ''}
 
         ${conflictos ? (() => {
           const { paralelo, secuencia } = secuenciaPlazos(conflictos.goals, p.items, inc);
@@ -151,25 +159,58 @@ function openGoalSheet(root, g, warnEscalon) {
       paintSheet();
     };
 
-    overlay.querySelector('#gModeMonto').onclick = () => { g.dateMode = false; store.save(); paintSheet(); };
-    overlay.querySelector('#gModeFecha').onclick = () => { g.dateMode = true; store.save(); paintSheet(); };
+    overlay.querySelectorAll('.chip[data-modo]').forEach((b) => {
+      b.onclick = () => { g.modo = b.dataset.modo; store.save(); paintSheet(); };
+    });
 
-    if (g.dateMode) {
-      const dateInput = overlay.querySelector('#gDate');
-      const paintCuota = () => {
-        if (!dateInput.value) return;
-        const r = cuotaPorFecha(g.t, g.s, new Date(dateInput.value));
-        const disp = monthlyToward(g, p.items, inc);
-        overlay.querySelector('#gCuota').innerHTML = disp >= r.cuota
-          ? `Necesitas <b class="num">${money(r.cuota, p.cur)}</b> al mes, ya la tienes.`
-          : `Necesitas <b class="num">${money(r.cuota, p.cur)}</b> al mes. Hoy destinas ${money(disp, p.cur)}. Falta ${money(r.cuota - disp, p.cur)}.`;
-        paintPlan(r.cuota - disp);
-      };
-      dateInput.oninput = () => { g.dueDate = dateInput.value; store.save(); paintCuota(); };
-      paintCuota();
-    } else {
-      overlay.querySelector('#gPlan').innerHTML = '';
+    // los dos modos con plazo comparten el mismo calculo: faltante / meses
+    const cuotaBox = overlay.querySelector('#gCuota');
+    const mesesInput = overlay.querySelector('#gMeses');
+    const dateInput = overlay.querySelector('#gDate');
+
+    function paintCuota() {
+      if (!cuotaBox) return;
+      const r = g.modo === 'meses'
+        ? (g.plazoMeses > 0 ? cuotaPorMeses(g.t, g.s, g.plazoMeses) : null)
+        : (g.dueDate ? cuotaPorFecha(g.t, g.s, new Date(g.dueDate)) : null);
+
+      if (!r) {
+        cuotaBox.innerHTML = g.modo === 'meses'
+          ? 'Escribe en cuántos meses la quieres y te digo cuánto guardar al mes.'
+          : 'Elige la fecha y te digo cuánto guardar al mes.';
+        paintPlan(0);
+        return;
+      }
+      if (r.meses <= 0) {
+        cuotaBox.innerHTML = `Ese plazo ya pasó. Te faltan <b class="num">${money(r.cuota, p.cur)}</b> de una vez.`;
+        paintPlan(0);
+        return;
+      }
+
+      const falta = Math.max(0, (g.t || 0) - (g.s || 0));
+      const disp = monthlyToward(g, p.items, inc);
+      const brecha = r.cuota - disp;
+      cuotaBox.innerHTML = `
+        Te faltan ${money(falta, p.cur)}. En ${plazo(r.meses)} son
+        <b class="num">${money(r.cuota, p.cur)}</b> al mes, hacia ${whenText(r.meses)}.<br>
+        ${brecha <= 0
+          ? `Hoy destinas ${money(disp, p.cur)}: ya te alcanza.`
+          : `Hoy destinas ${money(disp, p.cur)}, te falta reunir <b class="num">${money(brecha, p.cur)}</b> más al mes.`}`;
+      paintPlan(brecha);
     }
+
+    if (mesesInput) {
+      mesesInput.oninput = () => {
+        g.plazoMeses = Math.max(0, Math.floor(Number(mesesInput.value)) || 0);
+        store.save();
+        paintCuota();
+      };
+    }
+    if (dateInput) {
+      dateInput.oninput = () => { g.dueDate = dateInput.value; store.save(); paintCuota(); };
+    }
+    if (g.modo === 'monto') overlay.querySelector('#gPlan').innerHTML = '';
+    else paintCuota();
 
     function paintPlan(faltante) {
       const planBox = overlay.querySelector('#gPlan');

@@ -143,6 +143,7 @@ function normalizeProfile(p) {
   p.fondoMeses ??= 4;
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
+  p.alertasSilenciadas ??= {};
   return p;
 }
 
@@ -274,6 +275,7 @@ export async function bootAuth(uid) {
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
       movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda, traspaso: row.data.traspaso || null,
       avisosVistos: row.data.avisosVistos, avisosEnviados: row.data.avisosEnviados,
+      alertasSilenciadas: row.data.alertasSilenciadas,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
@@ -426,6 +428,28 @@ export function marcarAvisoEnviado(clave) {
   const p = active();
   p.avisosEnviados = marcar(p.avisosEnviados, clave);
   save();
+}
+
+/* ---------- alertas silenciadas (F7) ---------- */
+
+export function silenciarAlerta(lineId) {
+  const p = active();
+  if (!p.alertasSilenciadas) p.alertasSilenciadas = {};
+  // 6 meses en milisegundos = 6 * 30 * 24 * 60 * 60 * 1000 = 15552000000
+  p.alertasSilenciadas[lineId] = Date.now() + 15552000000;
+  save();
+}
+
+export function alertaEstaSilenciada(lineId) {
+  const p = active();
+  const v = p?.alertasSilenciadas?.[lineId];
+  if (!v) return false;
+  if (Date.now() > v) {
+    delete p.alertasSilenciadas[lineId];
+    save();
+    return false;
+  }
+  return true;
 }
 
 /* ---------- borrado con deshacer, F15 ---------- */

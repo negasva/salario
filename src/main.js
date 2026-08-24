@@ -17,6 +17,8 @@ store.load();
 const app = document.getElementById('app');
 let route = 'dashboard';
 
+let routeArgs = {};
+
 const ROUTES = {
   dashboard: renderDashboard,
   categorias: renderCategorias,
@@ -27,8 +29,8 @@ const ROUTES = {
 };
 
 function paintRoute() {
-  const content = renderShell(app, route, (r) => { route = r; paintRoute(); });
-  ROUTES[route](content);
+  const content = renderShell(app, route, (r) => { route = r; routeArgs = {}; paintRoute(); });
+  ROUTES[route](content, routeArgs);
   pintarAvisos(route);
 }
 
@@ -36,10 +38,15 @@ function paintRoute() {
 window.addEventListener('ir-a-meta', (e) => {
   abrirMeta(e.detail.goalId);
   route = 'metas';
+  routeArgs = {};
   paintRoute();
 });
 
-window.addEventListener('ir-a-vista', (e) => { route = e.detail.route; paintRoute(); });
+window.addEventListener('ir-a-vista', (e) => {
+  route = e.detail.route;
+  routeArgs = e.detail.args || {};
+  paintRoute();
+});
 
 /* Las vistas se repintan solas al guardar sin pasar por paintRoute, y al
    hacerlo se llevan por delante el anuncio. El microtask deja que la vista

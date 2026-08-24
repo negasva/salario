@@ -3,6 +3,7 @@ import { total, r2, amount, diagnosticoEsenciales } from '../engine/reparto.js';
 import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { recomendar } from '../engine/consejo.js';
 import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
+import { renglonesQueCrecieron } from '../engine/alertas.js';
 import { money, plain, esc, digits } from '../format.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -117,6 +118,7 @@ export async function renderDashboard(root) {
       </div>
       ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}
     </div>` : ''}
+    <div id="dAlertas"></div>
 
     <div class="grid-2a">
       <div class="card">
@@ -234,4 +236,37 @@ async function paintSpark(root, p, ahorroHoy) {
     <div class="sub" style="margin-top:0">Últimos ${ultimos.length} meses cerrados</div>
     ${sparkline(rates)}
     <div class="spark-months">${ultimos.map((c) => `<span>${mesCorto(c.periodo)}</span>`).join('')}</div>`;
+
+  const dAlertas = root.querySelector('#dAlertas');
+  if (dAlertas) {
+    const alertas = renglonesQueCrecieron(cierres, null, 15)
+      .filter((a) => !store.alertaEstaSilenciada(a.lineId));
+      
+    if (alertas.length > 0) {
+      dAlertas.innerHTML = alertas.map((a) => `
+        <div class="card" style="border-color:var(--warning)">
+          <span class="label">Atención</span>
+          <div class="sub" style="color:var(--ink);font-weight:var(--fw-bold);font-size:var(--text-sm)">
+            Tu ${esc(a.nombre)} pasó de ${money(a.promedioAnterior, p.cur)} a ${money(a.actual, p.cur)} en ${a.meses} meses. Es un ${a.deltaPct}% más.
+          </div>
+          <div style="margin-top:var(--sp-4);display:flex;gap:var(--sp-2)">
+            <button class="btn-primary" data-line="${a.lineId}">Ver movimientos</button>
+            <button class="btn-secondary" data-silenciar="${a.lineId}">Está bien, es a propósito</button>
+          </div>
+        </div>
+      `).join('');
+      
+      dAlertas.querySelectorAll('.btn-primary').forEach((btn) => {
+        btn.onclick = () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'movimientos', args: { lineId: btn.dataset.line } } }));
+      });
+      dAlertas.querySelectorAll('.btn-secondary').forEach((btn) => {
+        btn.onclick = () => {
+          store.silenciarAlerta(btn.dataset.silenciar);
+          renderDashboard(root); // re-render para ocultar
+        };
+      });
+    } else {
+      dAlertas.innerHTML = '';
+    }
+  }
 }

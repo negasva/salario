@@ -24,7 +24,7 @@ function diaLargo(fecha) {
   return `${d} de ${MESES[m - 1]} de ${a}`;
 }
 
-export function renderMovimientos(root) {
+export function renderMovimientos(root, args = {}) {
   const p = store.active();
   let periodo = periodoDe(hoyISO());
   let tipo = 'gasto';
@@ -173,10 +173,12 @@ export function renderMovimientos(root) {
         </div>
       </div>`;
 
-    const delMes = enPeriodo(p.movs, periodo).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+    let delMes = enPeriodo(p.movs, periodo).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+    if (args.lineId) delMes = delMes.filter((m) => m.lineId === args.lineId);
+
     const lista = $('#mvLista');
     if (!delMes.length) {
-      lista.innerHTML = '<div class="card"><div class="empty">Sin movimientos en este mes.</div></div>';
+      lista.innerHTML = '<div class="card"><div class="empty">' + (args.lineId ? 'Sin movimientos para este renglón en este mes.' : 'Sin movimientos en este mes.') + '</div></div>';
       return;
     }
 

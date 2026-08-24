@@ -1,7 +1,8 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porItem } from '../engine/movimientos.js';
-import { metasEnItem, aplicarAporte } from '../engine/metas.js';
+import { plazo, whenText, metasEnItem, aplicarAporte } from '../engine/metas.js';
+import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -81,6 +82,7 @@ function catCard(it, p, gastado) {
         libre <b class="num${libre < 0 ? ' over' : ''}">${money(libre, p.cur)}</b>
         ${libre < 0 ? '<b class="over"> Te pasaste del bloque.</b>' : ''}
       </div>
+      ${it.r === 'deu' ? tarjetaDeuda(it, p, budget) : ''}
       ${it.L.length ? `<div class="sub">Planeado ${money(sp, p.cur)} · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}</div>` : ''}
     </div>
   </div>`;
@@ -124,7 +126,54 @@ function lines(it, p) {
       <input class="lv num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0">
       <button class="mini fixedtoggle ${l.fixed ? 'on' : ''}" title="Fijo/variable">${l.fixed ? 'Fijo' : 'Variable'}</button>
       <button class="mini lx">${icon('cerrar', 'ic-sm')}</button>
-    </div>`).join('');
+    </div>
+    ${it.r === 'deu' ? filaDeuda(l, p) : ''}`).join('');
+}
+
+// Un renglón de deuda gana tres campos. Vacíos, se comporta como cualquier otro.
+function filaDeuda(l, p) {
+  const cuota = Number(l.minimo) || 0;
+  const saldo = Number(l.saldo) || 0;
+  const meses = saldo > 0 ? mesesParaLiquidar(saldo, l.tasa, cuota) : null;
+  const intereses = meses ? interesTotal(saldo, l.tasa, cuota) : null;
+  return `<div class="deu-fila" data-lid="${l.id}">
+    <label class="fieldw"><span>Saldo</span><input class="dv num" data-k="saldo" inputmode="numeric" value="${saldo ? plain(saldo, p.cur) : ''}" placeholder="0"></label>
+    <label class="fieldw"><span>Tasa %</span><input class="dv num" data-k="tasa" inputmode="decimal" value="${l.tasa ?? ''}" placeholder="0"></label>
+    <label class="fieldw"><span>Mínimo</span><input class="dv num" data-k="minimo" inputmode="numeric" value="${cuota ? plain(cuota, p.cur) : ''}" placeholder="0"></label>
+    ${saldo > 0 ? `<div class="sub deu-plazo">${meses
+      ? `Se liquida en ${plazo(meses)}, hacia ${whenText(meses)}. Intereses: ${money(intereses, p.cur)}.`
+      : '<b class="over">Esta cuota nunca la paga: no cubre ni los intereses.</b>'}</div>` : ''}
+  </div>`;
+}
+
+// La bola de nieve cuesta más plata y el usuario tiene derecho a elegirla igual
+function tarjetaDeuda(it, p, budget) {
+  const deudas = deudasDelPerfil([it]);
+  if (!deudas.length) return '';
+  const av = plan(deudas, budget, 'avalancha');
+  const bn = plan(deudas, budget, 'bolaDeNieve');
+  if (!av.cubreMinimos) {
+    return `<div class="card-2 deu-comp"><span class="label">Salir de deudas</span>
+      <div class="sub"><b class="over">El bloque no alcanza para los mínimos.</b>
+      Súbelo o renegocia antes de pensar en el orden de ataque.</div></div>`;
+  }
+  const linea = (r) => (r.meses
+    ? `libre en ${plazo(r.meses)}, pagas ${money(r.interes, p.cur)} de intereses`
+    : `con ${money(budget, p.cur)} al mes no se liquida nunca`);
+  return `<div class="card-2 deu-comp">
+    <span class="label">Salir de deudas</span>
+    <div class="sub"><b>Avalancha</b> (mayor tasa primero): ${linea(av)}.</div>
+    <div class="sub"><b>Bola de nieve</b> (menor saldo primero): ${linea(bn)}.</div>
+    ${av.meses && bn.meses && bn.interes > av.interes
+      ? `<div class="sub">La bola de nieve te cuesta ${money(r2(bn.interes - av.interes), p.cur)} más. Se elige por cabeza, no por plata, y eso también cuenta.</div>`
+      : ''}
+    <div class="chips deu-metodo" style="margin-top:10px">
+      <button class="chip ${p.metodoDeuda !== 'bolaDeNieve' ? 'on' : ''}" data-m="avalancha">Avalancha</button>
+      <button class="chip ${p.metodoDeuda === 'bolaDeNieve' ? 'on' : ''}" data-m="bolaDeNieve">Bola de nieve</button>
+    </div>
+    <div class="sub">${(p.metodoDeuda === 'bolaDeNieve' ? bn : av).deudas
+      .map((d) => `${esc(d.n || 'sin nombre')}: ${d.fecha || 'no se liquida'}`).join(' · ')}</div>
+  </div>`;
 }
 
 function wireCard(root, it, p) {
@@ -231,6 +280,27 @@ function wireCard(root, it, p) {
 
     // la fila entera, fuera del botón, lleva a la hoja de la meta
     el.onclick = () => window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: goal.id } }));
+  });
+
+  card.querySelectorAll('.deu-fila').forEach((el) => {
+    const l = it.L.find((x) => x.id === el.dataset.lid);
+    if (!l) return;
+    el.querySelectorAll('.dv').forEach((inp) => {
+      inp.onchange = (e) => {
+        const k = inp.dataset.k;
+        l[k] = k === 'tasa' ? Number(String(e.target.value).replace(',', '.')) || 0 : digits(e.target.value);
+        store.save();
+        renderCategorias(root);
+      };
+    });
+  });
+
+  card.querySelector('.deu-metodo')?.addEventListener('click', (e) => {
+    const b = e.target.closest('.chip');
+    if (!b) return;
+    p.metodoDeuda = b.dataset.m;
+    store.save();
+    renderCategorias(root);
   });
 
   card.querySelectorAll('.line:not(.line-meta)').forEach((lineEl) => {

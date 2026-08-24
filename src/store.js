@@ -125,6 +125,7 @@ function normalizeProfile(p) {
   });
   // al arrancar se podan los movimientos viejos: el blob de perfiles no crece sin techo
   p.movs = podar(p.movs ?? []);
+  p.metodoDeuda ??= 'avalancha';
   p.ingresoTipo ??= 'fijo';
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
@@ -181,7 +182,8 @@ async function flushPush() {
       updated_at: new Date().toISOString(),
       data: {
         inc: p.inc, cur: p.cur, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
-        tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, items: p.items, goals: p.goals,
+        tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
+        items: p.items, goals: p.goals,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -256,7 +258,7 @@ export async function bootAuth(uid) {
       inc: row.data.inc, cur: row.data.cur, ingresoTipo: row.data.ingresoTipo,
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
-      movs: row.data.movs || [],
+      movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;

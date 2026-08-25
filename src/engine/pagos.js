@@ -37,29 +37,31 @@ function nid() {
   return 'm' + Math.random().toString(36).slice(2, 9);
 }
 
-/* Deja el pagado del renglón en `nuevo`. Subir agrega un movimiento; bajar
-   recorta los más recientes, porque un gasto negativo en el libro
-   descuadraría el ingreso y el cierre. Devuelve la diferencia aplicada. */
-export function fijarPagado(movs, it, l, nuevo, fecha) {
-  const periodo = periodoDe(fecha);
-  const propios = movs.filter((m) => m.tipo === 'gasto' && m.lineId === l.id && periodoDe(m.fecha) === periodo);
-  const actual = propios.reduce((s, m) => s + m.monto, 0);
-  const d = r2(Math.max(0, nuevo) - actual);
-  if (Math.abs(d) < 0.01) return 0;
-  if (d > 0) {
-    movs.push({ id: nid(), fecha, tipo: 'gasto', monto: d, itemId: it.id, lineId: l.id,
-      goalId: null, nota: `Pago ${l.n || 'sin nombre'}`, extra: false });
-    return d;
-  }
-  let falta = -d;
-  for (const m of [...propios].reverse()) {
-    const quita = Math.min(m.monto, falta);
-    m.monto = r2(m.monto - quita);
-    falta = r2(falta - quita);
-    if (m.monto <= 0) movs.splice(movs.indexOf(m), 1);
-    if (falta <= 0) break;
-  }
-  return d;
+/* Un renglón como "Mercado" se paga en varias compras y en varios sitios. Cada
+   una entra como su propio movimiento y la suma del mes es lo pagado: por eso
+   no hay un campo total que sobreescribir, solo pagos que se agregan y se
+   borran uno por uno. */
+export function agregarPago(movs, it, l, monto, fecha, nota) {
+  const m = r2(monto);
+  if (!(m > 0)) return null;
+  const mov = { id: nid(), fecha, tipo: 'gasto', monto: m, itemId: it.id, lineId: l.id,
+    goalId: null, nota: nota || `Pago ${l.n || 'sin nombre'}`, extra: false };
+  movs.push(mov);
+  return mov;
+}
+
+// Los pagos de ese renglón en ese mes, del más viejo al más nuevo
+export function pagosDeLinea(movs, lineId, periodo) {
+  return movs
+    .filter((m) => m.tipo === 'gasto' && m.lineId === lineId && periodoDe(m.fecha) === periodo)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+export function quitarPago(movs, id) {
+  const i = movs.findIndex((m) => m.id === id);
+  if (i < 0) return false;
+  movs.splice(i, 1);
+  return true;
 }
 
 /* El ahorro repartido son movimientos normales con goalId o itemId: así el

@@ -5,7 +5,7 @@ import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { renglonesSobreTope } from '../engine/alertas.js';
-import { resumenItem, fijarPagado } from '../engine/pagos.js';
+import { resumenItem, agregarPago, pagosDeLinea, quitarPago } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
@@ -198,6 +198,21 @@ function cabeceraPagos(res, p) {
   </div>`;
 }
 
+
+/* Cada compra queda a la vista y se borra sola: corregir un pago mal tecleado
+   es quitar esa transacción, no recalcular un total a mano. */
+function listaPagos(l, p, periodo) {
+  const pagos = pagosDeLinea(p.movs, l.id, periodo);
+  if (!pagos.length) return '';
+  return `<div class="pagos-lista" data-lid="${l.id}">
+    ${pagos.map((m) => `<span class="pago-chip" data-mid="${m.id}">
+      <b class="num">${money(m.monto, p.cur)}</b>
+      <span class="sub">${diaCorto(m.fecha)}</span>
+      <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
+    </span>`).join('')}
+  </div>`;
+}
+
 const ESTADOS = {
   pendiente: { t: 'pendiente', c: '' },
   parcial: { t: 'parcial', c: 'warn' },
@@ -218,8 +233,10 @@ function lines(it, p, res) {
       <button class="mini lx">${icon('cerrar', 'ic-sm')}</button>
     </div>
     <div class="line-pago" data-lid="${l.id}">
-      <label class="fieldw"><span>Pagado</span>
-        <input class="lpag num" inputmode="numeric" value="${pagado ? plain(pagado, p.cur) : ''}" placeholder="0"></label>
+      <label class="fieldw"><span>Agregar pago</span>
+        <input class="lpag num" inputmode="numeric" placeholder="0"></label>
+      <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
+      <span class="sub ln-tot">Pagado <b class="num">${money(pagado, p.cur)}</b></span>
       <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
         aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
       <span class="badge ${est.c}">${est.t}</span>
@@ -230,6 +247,7 @@ function lines(it, p, res) {
         : ''}
       ${plan > 0 && diferencia === 0 && pagado > 0 ? '<span class="sub ln-dif">clavado al plan</span>' : ''}
     </div>
+    ${listaPagos(l, p, res.periodo)}
     <div class="line-tope" data-lid="${l.id}">
       <label class="fieldw"><span>Tope del mes</span>
         <input class="ltope num" inputmode="numeric" value="${tope ? plain(tope, p.cur) : ''}" placeholder="sin tope"></label>
@@ -452,23 +470,43 @@ function wireCard(root, it, p) {
     const l = it.L.find((x) => x.id === el.dataset.lid);
     if (!l) return;
 
-    el.querySelector('.lpag').onchange = (e) => {
-      fijarPagado(p.movs, it, l, digits(e.target.value), hoyISO());
+    const campo = el.querySelector('.lpag');
+    function sumar() {
+      const monto = digits(campo.value);
+      if (!monto) { campo.focus(); return; }
+      agregarPago(p.movs, it, l, monto, hoyISO());
       store.save();
       renderCategorias(root);
-    };
+    }
+    el.querySelector('.lpag-add').onclick = sumar;
+    // Enter suma sin soltar el teclado: son varias compras seguidas, no una
+    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
 
     el.querySelector('.lcerrar').onclick = () => {
       if (l.pagadoEn === periodo) {
         l.pagadoEn = null;
       } else {
-        // autocompleta solo si no hay nada escrito; con plata puesta, la respeta
-        if (!(porLinea(p.movs, periodo)[l.id] || 0)) fijarPagado(p.movs, it, l, Number(l.v) || 0, hoyISO());
+        // autocompleta solo si todavía no hay ningún pago; con plata puesta, la respeta
+        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, Number(l.v) || 0, hoyISO());
         l.pagadoEn = periodo;
       }
       store.save();
       renderCategorias(root);
     };
+  });
+
+  card.querySelectorAll('.pagos-lista').forEach((el) => {
+    el.querySelectorAll('.pago-chip').forEach((chip) => {
+      chip.querySelector('.pago-x').onclick = () => {
+        const mov = p.movs.find((m) => m.id === chip.dataset.mid);
+        const { undo } = store.stageDelete(
+          () => quitarPago(p.movs, chip.dataset.mid),
+          () => p.movs.push(mov)
+        );
+        renderCategorias(root);
+        toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); renderCategorias(root); });
+      };
+    });
   });
 
   /* Sin cron no hay "al iniciar el mes": un botón deja los fijos al día de un
@@ -478,7 +516,7 @@ function wireCard(root, it, p) {
     const fijos = it.L.filter((l) => l.fixed !== false && Number(l.v) > 0 && !pagados[l.id]);
     if (!fijos.length) { toast('Los fijos de este mes ya están al día'); return; }
     const antes = JSON.parse(JSON.stringify(p.movs));
-    fijos.forEach((l) => { fijarPagado(p.movs, it, l, Number(l.v), hoyISO()); l.pagadoEn = periodo; });
+    fijos.forEach((l) => { agregarPago(p.movs, it, l, Number(l.v), hoyISO()); l.pagadoEn = periodo; });
     store.save();
     renderCategorias(root);
     toast(`${fijos.length} fijo${fijos.length > 1 ? 's' : ''} marcado${fijos.length > 1 ? 's' : ''} como pagado`, () => {

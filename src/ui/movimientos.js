@@ -5,6 +5,8 @@ import { money, plain, esc, digits, MESES } from '../format.js';
 import { excedente } from '../engine/consejo.js';
 import { ordenadas } from '../engine/fila.js';
 import { pendientes, movDesde } from '../engine/recurrentes.js';
+import { CATEGORIAS, CATEGORIA_A_ROL, clasificarLista, nombreCategoria } from '../engine/clasificar.js';
+import { clasificarConIA } from '../ia.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -140,7 +142,11 @@ export function renderMovimientos(root, args = {}) {
         <select id="mvGoal" aria-label="Meta"><option value="">Sin meta</option>
           ${p.goals.map((g) => `<option value="${g.id}">${esc(g.n)}</option>`).join('')}
         </select>
-        <input id="mvNota" placeholder="Nota" aria-label="Nota">
+        <input id="mvNota" placeholder="Nota: qué compraste" aria-label="Nota">
+        <select id="mvCat" aria-label="Categoría del gasto">
+          <option value="">Categoría automática</option>
+          ${CATEGORIAS.map((c) => `<option value="${c.id}">${c.n}</option>`).join('')}
+        </select>
         <label class="mov-check" id="mvRecWrap">
           <input type="checkbox" id="mvRec"> Se repite todos los meses
         </label>
@@ -170,6 +176,8 @@ export function renderMovimientos(root, args = {}) {
   const extraEl = $('#mvExtra');
   const abonoEl = $('#mvAbono');
   const recEl = $('#mvRec');
+  const catEl = $('#mvCat');
+  let itemTocado = false;
   const saveEl = $('#mvSave');
 
   function pintarRenglones() {
@@ -199,6 +207,7 @@ export function renderMovimientos(root, args = {}) {
 
   function limpiar() {
     editId = null;
+    itemTocado = false;
     montoEl.value = '';
     notaEl.value = '';
     goalEl.value = '';
@@ -206,6 +215,7 @@ export function renderMovimientos(root, args = {}) {
     extraEl.checked = false;
     abonoEl.checked = false;
     recEl.checked = false;
+    catEl.value = '';
     $('#mvAbonoWrap').hidden = true;
     saveEl.textContent = 'Guardar';
     montoEl.focus();
@@ -226,13 +236,21 @@ export function renderMovimientos(root, args = {}) {
       nota: notaEl.value.trim(),
       extra: tipo === 'ingreso' && extraEl.checked,
       abono: tipo === 'gasto' && !$('#mvAbonoWrap').hidden && abonoEl.checked,
+      cat: tipo === 'gasto' ? (catEl.value || clasificarLista(notaEl.value).cat) : null,
     };
     const previo = editId && p.movs.find((m) => m.id === editId);
+    const textoOriginal = notaEl.value;
+    const catManual = !!catEl.value;
     const mov = previo || { id: nuevoId(), ...datos };
     if (previo) Object.assign(previo, datos);
     else p.movs.push(mov);
     // el movimiento que estrena el recurrente ya cuenta como el de este mes
     if (esRecurrente) mov.recId = guardarRecurrente(datos);
+    // lo que el diccionario no reconoce se le pregunta a la IA, si está puesta.
+    // Llega después: el movimiento ya quedó guardado y la lista se repinta sola.
+    if (!catManual && datos.tipo === 'gasto' && datos.cat === 'otros' && textoOriginal.trim()) {
+      afinarConIA(mov, textoOriginal);
+    }
     store.save();
     periodo = periodoDe(datos.fecha);
     limpiar();
@@ -362,6 +380,16 @@ export function renderMovimientos(root, args = {}) {
     });
   }
 
+  async function afinarConIA(mov, texto) {
+    const [r] = (await clasificarConIA([texto])) || [];
+    const valida = r && CATEGORIAS.some((c) => c.id === r.cat);
+    if (!valida || r.cat === mov.cat) return;
+    mov.cat = r.cat;
+    store.save();
+    pintarCuerpo();
+    toast(`Lo puse en ${nombreCategoria(r.cat)}`);
+  }
+
   function editar(m) {
     editId = m.id;
     setTipo(m.tipo);
@@ -371,6 +399,7 @@ export function renderMovimientos(root, args = {}) {
     goalEl.value = m.goalId || '';
     notaEl.value = m.nota || '';
     extraEl.checked = !!m.extra;
+    catEl.value = m.cat || '';
     pintarAbono();
     abonoEl.checked = !!m.abono;
     $('#mvDetalle').hidden = false;
@@ -435,7 +464,7 @@ export function renderMovimientos(root, args = {}) {
           return `<div class="mov-line" data-id="${m.id}">
             <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--success)' : (it?.c || 'var(--line)')}"></span>
             <span class="mov-line-txt">
-              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}
+              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}${m.cat && m.cat !== 'otros' ? ` <span class="badge">${icon(CATEGORIAS.find((c) => c.id === m.cat)?.ic || 'etiqueta', 'ic-sm')} ${esc(nombreCategoria(m.cat))}</span>` : ''}
               ${m.nota ? `<span class="sub">${esc(m.nota)}</span>` : ''}
             </span>
             <span class="num mov-line-n ${m.tipo === 'ingreso' ? 'in' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto, p.cur)}</span>
@@ -463,7 +492,20 @@ export function renderMovimientos(root, args = {}) {
     const b = e.target.closest('.chip');
     if (b) setTipo(b.dataset.tipo);
   };
-  itemEl.onchange = pintarRenglones;
+  itemEl.onchange = () => { itemTocado = true; pintarRenglones(); };
+  /* Mientras el usuario escribe la nota se propone el bloque que suele pagar
+     esa categoría. Si él ya eligió uno a mano, no se le mueve nada. */
+  notaEl.oninput = () => {
+    if (itemTocado || tipo !== 'gasto') return;
+    const { cat, confianza } = clasificarLista(notaEl.value);
+    if (!confianza) return;
+    const rol = CATEGORIA_A_ROL[cat];
+    const destino = p.items.find((it) => it.r === rol);
+    if (destino && itemEl.value !== destino.id) {
+      itemEl.value = destino.id;
+      pintarRenglones();
+    }
+  };
   lineEl.onchange = pintarAbono;
   saveEl.onclick = guardar;
   // Enter guarda y limpia sin soltar el foco: sirve para meter varios seguidos

@@ -1,7 +1,11 @@
 import * as store from '../store.js';
 import { total, r2, diagnosticoEsenciales } from '../engine/reparto.js';
 import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
-import { renglonesQueCrecieron } from '../engine/alertas.js';
+import { renglonesQueCrecieron, renglonesSobreTope } from '../engine/alertas.js';
+import { porItem, porLinea } from '../engine/movimientos.js';
+import { pintarResultados } from './buscador.js';
+import { preguntarIA } from '../ia.js';
+import { icon } from './icons.js';
 import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { periodoDe, hoyISO, ingresoReal, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
@@ -71,12 +75,13 @@ function ringSvg(pct, color) {
    basta con guardar orden y ancho: nadie ve un hueco raro y no hay coordenadas
    que mantener. Fuera del modo edición nada se arrastra, para no mover una
    tarjeta sin querer al hacer scroll. */
-const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'tasa', 'ahorro', 'reparto', 'metas'];
-const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2 };
+const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'buscar', 'pregunta', 'tasa', 'ahorro', 'reparto', 'metas'];
+const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2, buscar: 1, pregunta: 1 };
 const NOMBRES = {
   ingreso: 'Ingreso del mes', mes: 'Tu mes', fondo: 'Fondo de emergencia',
   esenciales: 'Aviso de esenciales', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
   ahorro: 'Ahorro acumulado', reparto: 'Reparto del ingreso', metas: 'Metas',
+  buscar: 'Buscador', pregunta: 'Pregúntale a tus números',
 };
 
 let edicion = false;
@@ -244,6 +249,22 @@ export async function renderDashboard(root) {
 
     alertas: '<div id="dAlertas"></div>',
 
+    buscar: `<div class="card">
+        <span class="label">Buscar</span>
+        <label class="search wide" style="margin-top:var(--space-3)">${icon('buscar', 'ic-sm')}
+          <input id="dBuscar" placeholder="Un gasto, una meta, un renglón…" aria-label="Buscar en el perfil"></label>
+        <div id="dBuscarRes"></div>
+      </div>`,
+
+    pregunta: `<div class="card">
+        <span class="label" style="display:inline-flex;align-items:center;gap:6px">${icon('ia', 'ic-sm')} Pregúntale a tus números</span>
+        <div class="sub">Ejemplo: ¿cuánto me queda libre este mes si sigo así?</div>
+        <label class="search wide" style="margin-top:var(--space-3)">
+          <input id="dPregunta" placeholder="Escribe tu pregunta" aria-label="Pregunta sobre tus números"></label>
+        <div class="prow"><button class="mini" id="dPreguntaBtn">Preguntar</button></div>
+        <div id="dRespuesta" class="sub"></div>
+      </div>`,
+
     tasa: `<div class="card">
         <div class="spark-head">
           <span class="label">Tasa de ahorro</span>
@@ -317,6 +338,8 @@ export async function renderDashboard(root) {
     </div>`;
 
   cablearLayout(root, p, orden);
+  cablearBuscador(root, p);
+  cablearPregunta(root, p, { inc, ing, ahorroHoy, fondoSaved, target, diag });
 
   // el widget del ingreso se puede haber quitado del dashboard
   const incomeEl = root.querySelector('#dIncome');
@@ -348,8 +371,51 @@ export async function renderDashboard(root) {
   pintarAhorro(root, p);
 
   pintarTasa(root, p);
+  pintarTopes(root, p);
   // las alertas de renglón sí necesitan los cierres, que viven en Supabase
   paintAlertas(root, p);
+}
+
+function cablearBuscador(root, p) {
+  const input = root.querySelector('#dBuscar');
+  if (!input) return;
+  const res = root.querySelector('#dBuscarRes');
+  input.oninput = () => pintarResultados(res, p, input.value);
+}
+
+/* La IA no calcula: la app le pasa las cifras ya hechas y ella solo las cuenta
+   en español. Sin la función desplegada, lo dice en vez de fingir. */
+function cablearPregunta(root, p, datos) {
+  const btn = root.querySelector('#dPreguntaBtn');
+  if (!btn) return;
+  const input = root.querySelector('#dPregunta');
+  const salida = root.querySelector('#dRespuesta');
+
+  const preguntar = async () => {
+    const q = input.value.trim();
+    if (q.length < 4) return;
+    salida.textContent = 'Pensando…';
+    const contexto = {
+      moneda: p.cur,
+      ingresoDelMes: datos.ing.total,
+      nomina: datos.ing.nomina,
+      extra: datos.ing.extra,
+      planDeIngreso: p.inc,
+      tasaDeAhorro: `${datos.ahorroHoy}%`,
+      fondoDeEmergencia: `${datos.fondoSaved} de ${datos.target}`,
+      esencialesPctDelIngreso: datos.diag ? datos.diag.share : null,
+      bloques: p.items.map((it) => ({
+        nombre: it.n, porcentaje: it.p, presupuesto: Math.round(datos.inc * it.p / 100),
+        gastado: Math.round(porItem(p.movs, periodoDe(hoyISO()))[it.id] || 0),
+      })),
+      metas: p.goals.map((g) => ({ nombre: g.n, objetivo: g.t, llevas: g.s || 0, estado: g.estado })),
+    };
+    const r = await preguntarIA(q, contexto);
+    salida.textContent = r || 'La IA no está configurada en este proyecto todavía, así que esta tarjeta no puede responder.';
+  };
+
+  btn.onclick = preguntar;
+  input.onkeydown = (e) => { if (e.key === 'Enter') preguntar(); };
 }
 
 /* La gráfica se alimenta del libro, no de los cierres: así hay datos desde el
@@ -435,6 +501,24 @@ function pintarTasa(root, p) {
     <div class="spark-months">${serie.map((r) => `<span>${mesCorto(r.periodo)}</span>`).join('')}</div>`;
 }
 
+/* El tope avisa el mismo mes; la alerta de renglón que creció avisa el mes
+   siguiente. Las dos viven en la misma tarjeta. */
+function pintarTopes(root, p) {
+  const box = root.querySelector('#dAlertas');
+  if (!box) return;
+  const sobre = renglonesSobreTope(p.items, porLinea(p.movs, periodoDe(hoyISO())));
+  if (!sobre.length) return;
+  box.innerHTML = sobre.map((t) => `
+    <div class="card" style="border-color:var(--${t.pct >= 100 ? 'danger' : 'warning'})">
+      <span class="label">Tope de ${esc(t.nombre)}</span>
+      <div class="sub" style="color:var(--ink);font-weight:var(--fw-bold);font-size:var(--text-sm)">
+        ${t.pct >= 100
+          ? `Te pasaste del tope: llevas ${money(t.real, p.cur)} de ${money(t.tope, p.cur)}.`
+          : `Vas en el ${t.pct}% del tope: quedan ${money(t.resto, p.cur)} para el resto del mes.`}
+      </div>
+    </div>`).join('') + box.innerHTML;
+}
+
 async function paintAlertas(root, p) {
   let cierres = [];
   try {
@@ -448,7 +532,7 @@ async function paintAlertas(root, p) {
       .filter((a) => !store.alertaEstaSilenciada(a.lineId));
       
     if (alertas.length > 0) {
-      dAlertas.innerHTML = alertas.map((a) => `
+      dAlertas.innerHTML += alertas.map((a) => `
         <div class="card" style="border-color:var(--warning)">
           <span class="label">Atención</span>
           <div class="sub" style="color:var(--ink);font-weight:var(--fw-bold);font-size:var(--text-sm)">
@@ -470,8 +554,6 @@ async function paintAlertas(root, p) {
           renderDashboard(root); // re-render para ocultar
         };
       });
-    } else {
-      dAlertas.innerHTML = '';
     }
   }
 }

@@ -310,6 +310,17 @@
 .hint{font-size:11px;color:var(--ink-lighter);margin-top:5px}
 
 /* ── historial ────────────────────────────────────────────────────────── */
+.line-tope{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;
+  padding:0 0 var(--space-2) 0}
+.line-tope .fieldw{max-width:180px}
+.line-tope .sub{margin-top:0}
+.deu-plazo-tipo{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.busca-list{display:flex;flex-direction:column;gap:4px;margin-top:var(--space-3)}
+.busca-item{display:flex;align-items:center;gap:var(--space-3);width:100%;text-align:left;
+  padding:8px 10px;border-radius:var(--radius-sm);background:transparent;border:1px solid transparent}
+.busca-item:hover{background:var(--pink-wash);border-color:var(--pink-lighter)}
+.busca-item .nm{font-weight:var(--fw-bold);flex:none}
+.busca-item .sub{margin-top:0;flex:1}
 .rec-list{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)}
 .rec-item{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
 .rec-item .nm{display:flex;align-items:center;gap:6px;flex:1;min-width:120px}

@@ -41,3 +41,20 @@ export function renglonesQueCrecieron(cierres, periodoActual, umbral = 15) {
     .sort((a, b) => b.deltaAbs - a.deltaAbs)
     .map(({ deltaAbs, ...rest }) => rest);
 }
+
+/* F11 — tope por renglón. La alerta de arriba avisa el mes siguiente, cuando
+   ya gastaste; el tope avisa el mismo día. `l.tope` es el máximo mensual que
+   el usuario le puso a ese renglón; sin tope, el renglón no dice nada. */
+export function renglonesSobreTope(items, gastadoPorLinea) {
+  return items.flatMap((it) => (it.L || [])
+    .filter((l) => Number(l.tope) > 0)
+    .map((l) => {
+      const real = gastadoPorLinea[l.id] || 0;
+      const tope = Number(l.tope);
+      return {
+        lineId: l.id, itemId: it.id, nombre: l.n || 'sin nombre',
+        tope, real, resto: r2(tope - real), pct: Math.round((real / tope) * 100),
+      };
+    })
+    .filter((x) => x.pct >= 80));
+}

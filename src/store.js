@@ -5,7 +5,7 @@ import {
   ordenadas, reasignar, metaCumplida, siguienteEnFila, mover, soltar,
   aplicarTraspaso as traspasar, traspasoVencido,
 } from './engine/fila.js';
-import { podar, hoyISO, periodoDe, ingresoReal } from './engine/movimientos.js';
+import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta } from './engine/movimientos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -103,7 +103,7 @@ export function ensureFondoGoal(p) {
   let creado = false;
   if (!goal) {
     goal = { id: nid('g'), n: 'Fondo de emergencia', t: target, s: 0, a: {},
-      priority: 'alta', modo: 'monto', aportes: [], special: 'emergencia',
+      priority: 'alta', modo: 'monto', base: 0, special: 'emergencia',
       orden: 0, estado: 'activa' };
     p.goals.unshift(goal);
     creado = true;
@@ -138,20 +138,31 @@ function normalizeProfile(p) {
     if (!g.priority) g.priority = 'media';
     // dateMode era booleano; ahora el modo tiene tres estados
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
-    if (!g.aportes) g.aportes = [];
+
     // F5 — las metas de antes de la fila entran todas activas y en el orden en que estaban
     if (!g.estado) g.estado = 'activa';
     if (typeof g.orden !== 'number') g.orden = g.special ? 0 : i + 1;
   });
   reasignar(ordenadas(p.goals));
-  // al arrancar se podan los movimientos viejos: el blob de perfiles no crece sin techo
-  p.movs = podar(p.movs ?? []);
+  // primero se fija la base con todos los movimientos, y lo que la poda se lleve
+  // se suma a esa base: podar dos años de libro no puede borrar tu progreso
+  sincronizarMetas(p);
+  const antes = p.movs ?? [];
+  p.movs = podar(antes);
+  const podados = antes.filter((m) => !p.movs.includes(m));
+  if (podados.length) {
+    p.goals.forEach((g) => {
+      g.base += podados.filter((m) => m.goalId === g.id).reduce((t, m) => t + m.monto, 0);
+    });
+    sincronizarMetas(p);
+  }
   p.metodoDeuda ??= 'avalancha';
   p.paleta = normalizarPaleta(p.paleta);
   p.ingresoTipo ??= 'fijo';
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
+  p.recurrentes ??= [];
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
   p.alertasSilenciadas ??= {};
@@ -213,6 +224,7 @@ async function flushPush() {
         items: p.items, goals: p.goals, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
+        recurrentes: p.recurrentes || [],
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -224,9 +236,21 @@ async function flushPush() {
 
 window.addEventListener('online', () => { if (pendingPush.size) flushPush(); });
 
+/* El progreso de una meta tiene una sola fuente: los movimientos con su goalId.
+   `g.base` es lo que ya tenías antes de empezar a registrarlos y `g.s` queda
+   como número derivado, para que todas las vistas lo sigan leyendo igual. */
+export function sincronizarMetas(p) {
+  (p?.goals || []).forEach((g) => {
+    const aportado = aportesAMeta(p.movs || [], g.id).total;
+    if (typeof g.base !== 'number') g.base = Math.max(0, (g.s || 0) - aportado);
+    delete g.aportes;
+    g.s = g.base + aportado;
+  });
+}
+
 export function save() {
   const p = active();
-  if (p) p.updated = Date.now();
+  if (p) { p.updated = Date.now(); sincronizarMetas(p); }
   writeLocal();
   if (p && userId) schedulePush(p.id);
   notify();

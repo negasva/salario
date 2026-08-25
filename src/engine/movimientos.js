@@ -86,3 +86,24 @@ export function serieAhorro(movs, destino = null, meses = 12, itemsAhorro = [], 
     return { periodo, monto, acumulado };
   });
 }
+
+/* Tasa de ahorro mes a mes desde el libro, no desde los cierres: así hay
+   tendencia desde el primer mes y no desde el tercero. */
+export function serieTasaAhorro(movs, itemsAhorro = [], meses = 6, hoy = new Date()) {
+  return serieAhorro(movs, null, meses, itemsAhorro, hoy).map(({ periodo, monto }) => {
+    const ing = ingresoReal(movs, periodo).total;
+    return { periodo, tasa: ing > 0 ? Math.round((monto / ing) * 1000) / 10 : 0 };
+  });
+}
+
+/* Ritmo del mes: a día 25 gastarse el 95% del bloque no es lo mismo que a día 5.
+   Compara lo real contra lo que tocaría llevar a estas alturas. */
+export function ritmoDelMes(real, presupuesto, hoy = new Date()) {
+  const dias = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  const esperado = (presupuesto || 0) * (hoy.getDate() / dias);
+  return {
+    esperado,
+    delta: (real || 0) - esperado,
+    pct: esperado > 0 ? Math.round((((real || 0) - esperado) / esperado) * 100) : 0,
+  };
+}

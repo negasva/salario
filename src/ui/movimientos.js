@@ -4,7 +4,7 @@ import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { excedente } from '../engine/consejo.js';
 import { ordenadas } from '../engine/fila.js';
-import { aplicarAporte, revertirAporte } from '../engine/metas.js';
+import { pendientes, movDesde } from '../engine/recurrentes.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -36,7 +36,6 @@ function registrarAporteExtra(p, goal, monto, fecha) {
     itemId: null, lineId: null, goalId: goal.id,
     nota: `Aporte de ingreso extra a ${goal.n}`, extra: false,
   });
-  aplicarAporte(goal, monto, new Date(`${fecha}T12:00:00`));
 }
 
 function metasActivas(p) {
@@ -142,6 +141,9 @@ export function renderMovimientos(root, args = {}) {
           ${p.goals.map((g) => `<option value="${g.id}">${esc(g.n)}</option>`).join('')}
         </select>
         <input id="mvNota" placeholder="Nota" aria-label="Nota">
+        <label class="mov-check" id="mvRecWrap">
+          <input type="checkbox" id="mvRec"> Se repite todos los meses
+        </label>
         <label class="mov-check" id="mvAbonoWrap" hidden>
           <input type="checkbox" id="mvAbono"> Es un abono a la deuda
         </label>
@@ -154,6 +156,7 @@ export function renderMovimientos(root, args = {}) {
       <button class="mini" id="mvNext" aria-label="Mes siguiente">→</button>
     </div>
 
+    <div id="mvRecurrentes"></div>
     <div id="mvResumen"></div>
     <div id="mvLista"></div>`;
 
@@ -166,6 +169,7 @@ export function renderMovimientos(root, args = {}) {
   const fechaEl = $('#mvFecha');
   const extraEl = $('#mvExtra');
   const abonoEl = $('#mvAbono');
+  const recEl = $('#mvRec');
   const saveEl = $('#mvSave');
 
   function pintarRenglones() {
@@ -201,6 +205,7 @@ export function renderMovimientos(root, args = {}) {
     lineEl.value = '';
     extraEl.checked = false;
     abonoEl.checked = false;
+    recEl.checked = false;
     $('#mvAbonoWrap').hidden = true;
     saveEl.textContent = 'Guardar';
     montoEl.focus();
@@ -209,6 +214,8 @@ export function renderMovimientos(root, args = {}) {
   function guardar() {
     const monto = digits(montoEl.value);
     if (monto <= 0) { montoEl.focus(); return; }
+    // se lee antes de limpiar el formulario, que apaga la casilla
+    const esRecurrente = recEl.checked;
     const datos = {
       fecha: fechaEl.value || hoyISO(),
       tipo,
@@ -221,15 +228,11 @@ export function renderMovimientos(root, args = {}) {
       abono: tipo === 'gasto' && !$('#mvAbonoWrap').hidden && abonoEl.checked,
     };
     const previo = editId && p.movs.find((m) => m.id === editId);
-    if (previo) {
-      sincronizarMeta(previo, null);
-      Object.assign(previo, datos);
-      sincronizarMeta(null, previo);
-    } else {
-      const nuevo = { id: nuevoId(), ...datos };
-      p.movs.push(nuevo);
-      sincronizarMeta(null, nuevo);
-    }
+    const mov = previo || { id: nuevoId(), ...datos };
+    if (previo) Object.assign(previo, datos);
+    else p.movs.push(mov);
+    // el movimiento que estrena el recurrente ya cuenta como el de este mes
+    if (esRecurrente) mov.recId = guardarRecurrente(datos);
     store.save();
     periodo = periodoDe(datos.fecha);
     limpiar();
@@ -282,17 +285,81 @@ export function renderMovimientos(root, args = {}) {
     }
   }
 
-  /* El select de meta del libro mueve goal.s igual que "Ya lo guardé" de
-     Categorías: una sola puerta, un solo comportamiento. */
-  function sincronizarMeta(quitar, poner) {
-    if (quitar?.goalId) {
-      const g = p.goals.find((x) => x.id === quitar.goalId);
-      if (g) revertirAporte(g, quitar);
-    }
-    if (poner?.goalId) {
-      const g = p.goals.find((x) => x.id === poner.goalId);
-      if (g) aplicarAporte(g, poner.monto, new Date(`${poner.fecha}T12:00:00`));
-    }
+  /* Un recurrente es la plantilla, no el movimiento: guarda el día del mes y
+     cada mes se agrega con un clic. Nada se crea solo. */
+  function guardarRecurrente(datos) {
+    const id = 'r' + Math.random().toString(36).slice(2, 9);
+    p.recurrentes.push({
+      id,
+      tipo: datos.tipo, monto: datos.monto, itemId: datos.itemId, lineId: datos.lineId,
+      goalId: datos.goalId, nota: datos.nota, abono: datos.abono,
+      dia: Number(datos.fecha.slice(8, 10)),
+    });
+    store.save();
+    toast('Guardado como recurrente. Cada mes lo agregas con un clic.');
+    return id;
+  }
+
+  function nombreRecurrente(r) {
+    if (r.nota) return r.nota;
+    const it = p.items.find((x) => x.id === r.itemId);
+    const l = it?.L?.find((x) => x.id === r.lineId);
+    return l?.n || it?.n || (r.tipo === 'ingreso' ? 'Ingreso' : 'Gasto');
+  }
+
+  function pintarRecurrentes() {
+    const box = $('#mvRecurrentes');
+    if (!p.recurrentes.length) { box.innerHTML = ''; return; }
+    const faltan = pendientes(p.recurrentes, p.movs, periodo);
+    box.innerHTML = `<div class="card" style="margin-bottom:var(--sp-4)">
+      <div class="spark-head">
+        <span class="label">Se repiten cada mes</span>
+        ${faltan.length > 1 ? '<button class="mini" id="mvRecTodos">Agregar los que faltan</button>' : ''}
+      </div>
+      <div class="rec-list">
+        ${p.recurrentes.map((r) => {
+          const falta = faltan.some((x) => x.id === r.id);
+          return `<div class="rec-item">
+            <span class="nm">${icon('recurrente', 'ic-sm')} ${esc(nombreRecurrente(r))}</span>
+            <span class="sub">día ${r.dia}</span>
+            <span class="num">${money(r.monto, p.cur)}</span>
+            ${falta
+              ? `<button class="mini rec-add" data-r="${r.id}">Agregar a ${nombrePeriodo(periodo).split(' de ')[0]}</button>`
+              : '<span class="badge ok">ya está</span>'}
+            <button class="mini rec-del" data-r="${r.id}" aria-label="Quitar recurrente">${icon('cerrar', 'ic-sm')}</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+    const agregar = (rec) => p.movs.push(movDesde(rec, periodo, nuevoId()));
+    box.querySelectorAll('.rec-add').forEach((b) => {
+      b.onclick = () => {
+        agregar(p.recurrentes.find((r) => r.id === b.dataset.r));
+        store.save();
+        pintarCuerpo();
+      };
+    });
+    const todos = box.querySelector('#mvRecTodos');
+    if (todos) todos.onclick = () => {
+      pendientes(p.recurrentes, p.movs, periodo).forEach(agregar);
+      store.save();
+      pintarCuerpo();
+      toast('Listo, los recurrentes del mes quedaron registrados.');
+    };
+    box.querySelectorAll('.rec-del').forEach((b) => {
+      b.onclick = () => {
+        const i = p.recurrentes.findIndex((r) => r.id === b.dataset.r);
+        const [fuera] = p.recurrentes.splice(i, 1);
+        store.save();
+        pintarCuerpo();
+        toast('Recurrente quitado', () => {
+          p.recurrentes.splice(i, 0, fuera);
+          store.save();
+          pintarCuerpo();
+        });
+      };
+    });
   }
 
   function editar(m) {
@@ -313,6 +380,7 @@ export function renderMovimientos(root, args = {}) {
 
   function pintarCuerpo() {
     $('#mvPeriodo').textContent = nombrePeriodo(periodo);
+    pintarRecurrentes();
     const inc = store.incomeRepartir(p);
     const gastado = porItem(p.movs, periodo);
     const ing = ingresoReal(p.movs, periodo);
@@ -367,7 +435,7 @@ export function renderMovimientos(root, args = {}) {
           return `<div class="mov-line" data-id="${m.id}">
             <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--success)' : (it?.c || 'var(--line)')}"></span>
             <span class="mov-line-txt">
-              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}
+              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}
               ${m.nota ? `<span class="sub">${esc(m.nota)}</span>` : ''}
             </span>
             <span class="num mov-line-n ${m.tipo === 'ingreso' ? 'in' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto, p.cur)}</span>
@@ -383,9 +451,7 @@ export function renderMovimientos(root, args = {}) {
       el.querySelector('.mov-ed').onclick = () => editar(m);
       el.querySelector('.mov-del').onclick = () => {
         const idx = p.movs.indexOf(m);
-        const { undo } = store.stageDelete(
-          () => { p.movs.splice(idx, 1); sincronizarMeta(m, null); },
-          () => { p.movs.splice(idx, 0, m); sincronizarMeta(null, m); });
+        const { undo } = store.stageDelete(() => p.movs.splice(idx, 1), () => p.movs.splice(idx, 0, m));
         if (editId === m.id) limpiar();
         pintarCuerpo();
         toast('Movimiento eliminado', () => { undo(); pintarCuerpo(); });

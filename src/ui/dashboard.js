@@ -4,7 +4,7 @@ import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { renglonesQueCrecieron } from '../engine/alertas.js';
 import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
-import { periodoDe, hoyISO, ingresoReal, serieAhorro } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, ingresoReal, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -172,7 +172,6 @@ export async function renderDashboard(root) {
   const { target, saved: fondoSaved, estado: fondoEstado, creado } = store.ensureFondoGoal(p);
   if (creado) store.save();
 
-  const ahorroHoy = tasaAhorro(p);
 
   const estadoMes = Math.abs(diff) < 0.01
     ? 'Cuadrado. Repartiste el 100%.'
@@ -186,6 +185,11 @@ export async function renderDashboard(root) {
   const brecha = p.inc > 0 ? (ing.nomina - p.inc) / p.inc : 0;
   const [anio, mes] = periodo.split('-');
   const tituloIngreso = `Ingreso neto · ${MESES[Number(mes) - 1]} ${anio}`;
+
+  const bloquesAhorro = p.items.filter((it) => it.r === 'cor' || it.r === 'lar').map((it) => it.id);
+  const tasaReal = serieTasaAhorro(p.movs, bloquesAhorro, 1).at(-1)?.tasa ?? 0;
+  const planAhorro = tasaAhorro(p);
+  const ahorroHoy = ing.total > 0 ? tasaReal : planAhorro;
 
   const proy = proyeccion(p.goals, p.items, inc);
 
@@ -245,6 +249,9 @@ export async function renderDashboard(root) {
           <span class="label">Tasa de ahorro</span>
           <span class="spark-val num">${ahorroHoy}%</span>
         </div>
+        <div class="sub" style="margin-top:0">${ing.total > 0
+          ? `De verdad este mes · plan ${planAhorro}%`
+          : `Planeado · aún sin ingresos del mes`}</div>
         <div id="dSpark"><div class="sub">Cargando historial…</div></div>
       </div>`,
 
@@ -340,8 +347,9 @@ export async function renderDashboard(root) {
 
   pintarAhorro(root, p);
 
-  // el historial viene de Supabase: la UI ya se pintó, esto solo rellena la tarjeta
-  paintSpark(root, p, ahorroHoy);
+  pintarTasa(root, p);
+  // las alertas de renglón sí necesitan los cierres, que viven en Supabase
+  paintAlertas(root, p);
 }
 
 /* La gráfica se alimenta del libro, no de los cierres: así hay datos desde el
@@ -410,46 +418,30 @@ function pintarAhorro(root, p, destino = null) {
   filtro.onchange = () => pintarAhorro(root, p, filtro.value || null);
 }
 
-async function paintSpark(root, p, ahorroHoy) {
+/* La tasa sale del libro, igual que la gráfica de ahorro: hay tendencia desde
+   el primer mes registrado y no desde el tercer cierre. */
+function pintarTasa(root, p) {
   const box = root.querySelector('#dSpark');
   if (!box) return;
+  const bloques = p.items.filter((it) => it.r === 'cor' || it.r === 'lar').map((it) => it.id);
+  const serie = serieTasaAhorro(p.movs, bloques, 6);
+  if (!p.movs.length) {
+    box.innerHTML = '<div class="sub">Registra ingresos y ahorro y aquí verás tu tasa mes a mes.</div>';
+    return;
+  }
+  box.innerHTML = `
+    <div class="sub" style="margin-top:0">Últimos ${serie.length} meses, según lo registrado</div>
+    ${sparkline(serie.map((r) => r.tasa))}
+    <div class="spark-months">${serie.map((r) => `<span>${mesCorto(r.periodo)}</span>`).join('')}</div>`;
+}
+
+async function paintAlertas(root, p) {
   let cierres = [];
   try {
     cierres = await store.listarCierres();
   } catch {
-    box.innerHTML = '<div class="sub">No pude leer el historial.</div>';
     return;
   }
-  if (!root.querySelector('#dSpark')) return; // el usuario cambió de vista
-
-  if (cierres.length < 2) {
-    const cor = p.items.find((it) => it.r === 'cor');
-    const lar = p.items.find((it) => it.r === 'lar');
-    const inc = store.incomeRepartir(p);
-    const filas = [
-      cor && { n: cor.n, p: cor.p, c: cor.c },
-      lar && { n: lar.n, p: lar.p, c: lar.c },
-    ].filter(Boolean);
-    box.innerHTML = `
-      ${filas.map((f) => `
-        <div class="repline">
-          <span class="dot" style="background:${f.c}"></span>
-          <span class="nm" title="${esc(f.n)}">${esc(f.n)}</span>
-          <span class="track"><i style="width:${Math.min(100, f.p)}%;background:${f.c}"></i></span>
-          <span class="pv num">${money(inc * f.p / 100, p.cur)}</span>
-        </div>`).join('')}
-      <div class="sub">Para ver la tendencia mes a mes necesito al menos dos meses cerrados; llevas ${cierres.length}.</div>`;
-    return;
-  }
-
-  const ultimos = cierres.slice(-6);
-  const rates = ultimos.map((c) => Number(c.snapshot.ahorroRate) || 0);
-  const extras = ultimos.map((c) => c.snapshot.ingresoExtra > 0);
-  box.innerHTML = `
-    <div class="sub" style="margin-top:0">Últimos ${ultimos.length} meses cerrados</div>
-    ${sparkline(rates, extras)}
-    <div class="spark-months">${ultimos.map((c) => `<span>${mesCorto(c.periodo)}</span>`).join('')}</div>`;
-
   const dAlertas = root.querySelector('#dAlertas');
   if (dAlertas) {
     const alertas = renglonesQueCrecieron(cierres, null, 15)

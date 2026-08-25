@@ -8,7 +8,7 @@ import {
   planRecorte,
   valorFuturo,
   conflictosDeMetas,
-  aplicarAporte,
+  aplicarRecorte,
   plazo,
   secuenciaPlazos,
   metasEnItem,
@@ -155,11 +155,30 @@ describe('F9 orden por prioridad', () => {
   });
 });
 
-describe('F10 aportes extra', () => {
-  it('suma al ahorrado y guarda historial', () => {
-    const g = { s: 100 };
-    aplicarAporte(g, 50, new Date(2026, 0, 1));
-    expect(g.s).toBe(150);
-    expect(g.aportes).toHaveLength(1);
+describe('F7.2 aplicar un recorte', () => {
+  const base = () => [
+    { id: 'lib', r: 'lib', p: 10 },
+    { id: 'cor', r: 'cor', p: 15 },
+    { id: 'lar', r: 'lar', p: 15 },
+  ];
+
+  it('pasa los puntos del bloque de origen al de la meta', () => {
+    const items = base();
+    const ok = aplicarRecorte({ id: 'r-libre', monto: 400000 }, items, 5000000, { a: { cor: 90 } });
+    expect(ok).toBe(true);
+    expect(items[0].p).toBe(2); // 10% menos los 8 puntos de 400.000 sobre 5.000.000
+    expect(items[1].p).toBe(23);
+  });
+
+  it('no baja un bloque por debajo de cero', () => {
+    const items = base();
+    aplicarRecorte({ id: 'r-inv', monto: 99000000 }, items, 5000000, { a: { cor: 100 } });
+    expect(items[2].p).toBe(0);
+    expect(items[1].p).toBe(30);
+  });
+
+  it('no hace nada si el origen es el destino', () => {
+    const items = base();
+    expect(aplicarRecorte({ id: 'r-corto', monto: 100000 }, items, 5000000, { a: { cor: 100 } })).toBe(false);
   });
 });

@@ -109,6 +109,27 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
   return recortes;
 }
 
+/* F7.2 — aplicar un recorte de verdad: baja el porcentaje del bloque de donde
+   sale la plata y se lo suma al bloque desde el que la meta ahorra. El id del
+   recorte dice el origen; el destino es el bloque que la meta más reclama. */
+export function aplicarRecorte(recorte, items, income, goal) {
+  if (!recorte || !(income > 0)) return false;
+  const porRol = (rol) => items.find((it) => it.r === rol);
+  const origen = recorte.id === 'r-libre' ? porRol('lib')
+    : recorte.id === 'r-inv' ? porRol('lar')
+      : recorte.id === 'r-corto' ? porRol('cor')
+        : items.find((it) => recorte.id === `r-var-${it.id}`);
+  const destinoId = Object.entries(goal?.a || {}).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const destino = items.find((it) => it.id === destinoId) || porRol('cor');
+  if (!origen || !destino || origen === destino) return false;
+
+  const puntos = Math.min(origen.p, r2((recorte.monto / income) * 100));
+  if (!(puntos > 0)) return false;
+  origen.p = r2(origen.p - puntos);
+  destino.p = r2(destino.p + puntos);
+  return true;
+}
+
 // F7 — tres escenarios comparables
 export function escenarios(ahorrado, costo, disponibleHoy, recortesDisponibles) {
   const totalRecortes = recortesDisponibles.reduce((s, r) => s + r.monto, 0);
@@ -169,19 +190,3 @@ export function secuenciaPlazos(goalsEnConflicto, items, income) {
   };
 }
 
-// F10 — aportes extra
-// Deshace el aporte pareado de un movimiento. Sin pareja el movimiento nunca
-// tocó goal.s y no hay nada que revertir.
-export function revertirAporte(goal, mov) {
-  const i = (goal.aportes || []).findLastIndex((a) => a.monto === mov.monto && a.fecha.slice(0, 10) === mov.fecha);
-  if (i < 0) return;
-  goal.aportes.splice(i, 1);
-  goal.s = Math.max(0, (goal.s || 0) - mov.monto);
-}
-
-export function aplicarAporte(goal, monto, fecha = new Date()) {
-  goal.s = (goal.s || 0) + monto;
-  goal.aportes = goal.aportes || [];
-  goal.aportes.push({ fecha: fecha.toISOString(), monto });
-  return goal;
-}

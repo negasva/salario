@@ -3,9 +3,10 @@ import { amount, freeFor, clamp, r2 } from '../engine/reparto.js';
 import {
   monthlyToward, monthsToGoal, whenText, plazo, escalonActual,
   cuotaPorFecha, cuotaPorMeses, planRecorte, escenarios, costoOportunidad,
-  conflictosDeMetas, secuenciaPlazos, aplicarAporte,
+  conflictosDeMetas, secuenciaPlazos, aplicarRecorte,
 } from '../engine/metas.js';
 import { estadoDe, ordenadas, proyeccion } from '../engine/fila.js';
+import { aportesAMeta, hoyISO } from '../engine/movimientos.js';
 import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
@@ -38,7 +39,7 @@ export function renderMetas(root) {
   root.querySelector('#metaAdd').onclick = () => {
     const escalon = escalonDe(p);
     const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto',
-      aportes: [], estado: 'activa', orden: p.goals.length + 1 };
+      base: 0, estado: 'activa', orden: p.goals.length + 1 };
     p.goals.push(g);
     store.save();
     openGoalSheet(root, g, escalon < 4);
@@ -182,7 +183,9 @@ function openGoalSheet(root, g, warnEscalon) {
         ${warnEscalon ? `<div class="sub" style="color:var(--amber);margin-bottom:12px">Estás en el escalón ${escalonDe(p)}, esta meta es del escalón 4.</div>` : ''}
         <div class="fld"><label>Qué quieres comprar</label><input id="gName" value="${esc(g.n)}" ${g.special ? 'disabled' : ''}></div>
         <div class="fld"><label>Cuánto cuesta</label><input id="gCost" value="${plain(g.t, p.cur)}" inputmode="numeric"></div>
-        <div class="fld"><label>Cuánto llevas ahorrado</label><input id="gSaved" value="${plain(g.s, p.cur)}" inputmode="numeric"></div>
+        <div class="fld"><label>Cuánto llevas ahorrado</label><input id="gSaved" value="${plain(g.s, p.cur)}" inputmode="numeric">
+          <div class="hint">Los aportes registrados suman ${money(aportesAMeta(p.movs, g.id).total, p.cur)}. Si escribes otro total, la diferencia queda como lo que ya tenías antes.</div>
+        </div>
         <div class="fld"><label>Estado en la fila</label>
           <div class="chips">
             <button class="chip ${estadoDe(g) === 'activa' ? 'on' : ''}" data-estado="activa">Activa</button>
@@ -202,7 +205,10 @@ function openGoalSheet(root, g, warnEscalon) {
             <input id="gAporte" placeholder="0" inputmode="numeric" style="flex:1">
             <button id="gAporteBtn" class="mini">Aplicar</button>
           </div>
-          ${g.aportes?.length ? `<div class="sub" style="margin-top:6px">${g.aportes.slice(-5).reverse().map((a) => `${money(a.monto, p.cur)} · ${new Date(a.fecha).toLocaleDateString('es-CO')}`).join('<br>')}</div>` : ''}
+          ${(() => {
+            const ap = p.movs.filter((m) => m.goalId === g.id).slice(-5).reverse();
+            return ap.length ? `<div class="sub" style="margin-top:6px">${ap.map((m) => `${money(m.monto, p.cur)} · ${m.fecha}`).join('<br>')}</div>` : '';
+          })()}
         </div>
 
         <div class="label" style="margin-bottom:8px">Cómo quieres calcularla</div>
@@ -246,17 +252,24 @@ function openGoalSheet(root, g, warnEscalon) {
     overlay.querySelector('#gDone').onclick = close;
     overlay.querySelector('#gName').oninput = (e) => { g.n = e.target.value; store.save(); };
     overlay.querySelector('#gCost').onchange = (e) => { g.t = digits(e.target.value); g.manual = true; store.save(); paintSheet(); };
-    overlay.querySelector('#gSaved').onchange = (e) => { g.s = digits(e.target.value); store.save(); paintSheet(); };
+    overlay.querySelector('#gSaved').onchange = (e) => {
+      g.base = Math.max(0, digits(e.target.value) - aportesAMeta(p.movs, g.id).total);
+      store.save();
+      paintSheet();
+    };
     overlay.querySelector('#gPriority').onchange = (e) => { g.priority = e.target.value; store.save(); };
 
     overlay.querySelectorAll('.chip[data-estado]').forEach((b) => {
       b.onclick = () => { store.cambiarEstadoMeta(g, b.dataset.estado); paintSheet(); };
     });
 
+    // un aporte es un movimiento del libro: una sola puerta, un solo número
     overlay.querySelector('#gAporteBtn').onclick = () => {
       const monto = digits(overlay.querySelector('#gAporte').value);
       if (monto <= 0) return;
-      aplicarAporte(g, monto);
+      p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha: hoyISO(),
+        tipo: 'gasto', monto, itemId: null, lineId: null, goalId: g.id,
+        nota: `Aporte a ${g.n}`, extra: false });
       store.save();
       toast(`Aporte de ${money(monto, p.cur)} registrado`);
       paintSheet();
@@ -338,12 +351,20 @@ function openGoalSheet(root, g, warnEscalon) {
           <div><b>${r.bloque}</b><div class="sub">${r.costo}</div></div>
           <div style="text-align:right"><div class="num" style="font-weight:700">${money(r.monto, p.cur)}</div>
           <button class="mini" style="margin-top:4px">Aplicar</button></div></div>`;
+        // aplicar mueve los porcentajes de verdad; un botón que solo opaca una
+        // tarjeta es peor que no tener botón
         el.querySelector('button').onclick = () => {
+          if (!aplicarRecorte(r, p.items, inc, g)) {
+            toast('Ese recorte no tiene de dónde salir');
+            return;
+          }
+          store.save();
           cubierto += r.monto;
-          el.style.opacity = '.4';
-          el.querySelector('button').disabled = true;
           const restante = Math.max(0, faltante - cubierto);
-          planBox.querySelector('#gPlanCounter').textContent = restante > 0 ? `Faltan ${money(restante, p.cur)}` : 'Cubierto';
+          toast(restante > 0
+            ? `Listo. ${money(r.monto, p.cur)} más al mes hacia ${g.n}.`
+            : `Cubierto: ya sale la cuota de ${g.n}.`);
+          paintSheet();
         };
         cardsBox.appendChild(el);
       });

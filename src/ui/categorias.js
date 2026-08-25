@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, porItem, ingresoReal, enPeriodo } from '../engine/movimientos.js';
-import { plazo, whenText, metasEnItem, aplicarAporte, revertirAporte } from '../engine/metas.js';
+import { periodoDe, hoyISO, porItem, ingresoReal, enPeriodo, ritmoDelMes } from '../engine/movimientos.js';
+import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { icon } from './icons.js';
@@ -106,6 +106,8 @@ function catCard(it, p, gastado) {
   // compromiso restaría dos veces el mismo dinero
   const comprometido = metas.reduce((t, m) => t + (aporteDelMes(p, m.goal.id) ? 0 : m.monto), 0);
   const libre = r2(budget - real - comprometido);
+  // a día 25 gastarse el 90% del bloque va bien; a día 5 va fatal
+  const ritmo = ritmoDelMes(real, budget);
   return `
   <div class="card cat-card" data-id="${it.id}">
     <div class="cat-top">
@@ -134,6 +136,14 @@ function catCard(it, p, gastado) {
         libre <b class="num${libre < 0 ? ' over' : ''}">${money(libre, p.cur)}</b>
         ${libre < 0 ? '<b class="over"> Te pasaste del bloque.</b>' : ''}
       </div>
+      ${budget > 0 && real > 0 ? `<div class="sub">A estas alturas del mes tocaría llevar
+        <b class="num">${money(ritmo.esperado, p.cur)}</b>:
+        ${Math.abs(ritmo.pct) < 5
+          ? 'vas en el ritmo justo.'
+          : ritmo.delta > 0
+            ? `<b class="over">vas ${ritmo.pct}% por encima del ritmo</b>, ${money(ritmo.delta, p.cur)} de más.`
+            : `vas ${Math.abs(ritmo.pct)}% por debajo, ${money(-ritmo.delta, p.cur)} de margen.`}
+      </div>` : ''}
       ${it.r === 'deu' ? tarjetaDeuda(it, p, budget) : ''}
       ${it.L.length ? `<div class="sub">Planeado ${money(sp, p.cur)} · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}</div>` : ''}
     </div>
@@ -290,18 +300,16 @@ function wireCard(root, it, p) {
     renderCategorias(root);
   };
 
-  // El aporte se escribe en dos sitios: el libro de movimientos y goal.aportes.
-  // Deshacer tiene que revertir los dos.
+  // El aporte es un movimiento y nada más: el progreso de la meta se recalcula
+  // solo al guardar, así que no hay dos sitios que mantener a la par.
   function anotarAporte(goal, monto) {
     const fecha = hoyISO();
     p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha, tipo: 'gasto',
       monto, itemId: it.id, lineId: null, goalId: goal.id, nota: `Aporte a ${goal.n}`, extra: false });
-    aplicarAporte(goal, monto, new Date(`${fecha}T12:00:00`));
   }
 
   function borrarAporte(goal, mov) {
     p.movs.splice(p.movs.indexOf(mov), 1);
-    revertirAporte(goal, mov);
   }
 
   card.querySelectorAll('.line-meta').forEach((el) => {

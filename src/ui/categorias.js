@@ -184,7 +184,6 @@ function lines(it, p, gastadoLinea) {
   return it.L.map((l) => {
     const real = gastadoLinea[l.id] || 0;
     const tope = Number(l.tope) || 0;
-    const pct = tope > 0 ? Math.round((real / tope) * 100) : 0;
     return `
     <div class="line" data-lid="${l.id}">
       <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
@@ -195,13 +194,31 @@ function lines(it, p, gastadoLinea) {
     <div class="line-tope" data-lid="${l.id}">
       <label class="fieldw"><span>Tope del mes</span>
         <input class="ltope num" inputmode="numeric" value="${tope ? plain(tope, p.cur) : ''}" placeholder="sin tope"></label>
-      ${tope > 0 ? `<div class="sub">Llevas ${money(real, p.cur)} de ${money(tope, p.cur)}
-        <span class="hist-track" style="display:inline-block;width:80px;vertical-align:middle">
-          <i style="width:${Math.min(100, pct)}%;background:${pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)'}"></i></span>
-        ${pct >= 100 ? '<b class="over">te pasaste</b>' : `quedan ${money(Math.max(0, tope - real), p.cur)}`}</div>` : ''}
+      ${barraGasto(real, tope, Number(l.v) || 0, p)}
     </div>
     ${it.r === 'deu' ? filaDeuda(l, p) : ''}`;
   }).join('');
+}
+
+/* Cada renglon lleva su barra de lo gastado. Si hay tope, ese manda; si no,
+   el valor planeado sirve de referencia. Sin ninguno de los dos solo se
+   dice cuanto llevas, que una barra sin base no significa nada. */
+function barraGasto(real, tope, planeado, p) {
+  const base = tope || planeado;
+  if (!base) {
+    return real > 0
+      ? `<div class="sub">Llevas <b class="num">${money(real, p.cur)}</b> este mes.</div>`
+      : '';
+  }
+  const pct = Math.round((real / base) * 100);
+  const color = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+  return `<div class="sub linea-barra">
+    <span>Llevas <b class="num">${money(real, p.cur)}</b> de ${money(base, p.cur)}${tope ? '' : ' planeado'}</span>
+    <span class="hist-track"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></span>
+    <span class="${pct >= 100 ? 'over' : ''}"><b>${pct}%</b>${pct >= 100
+      ? ' · te pasaste'
+      : ` · quedan ${money(r2(base - real), p.cur)}`}</span>
+  </div>`;
 }
 
 // Un renglón de deuda gana tres campos. Vacíos, se comporta como cualquier otro.

@@ -4,7 +4,7 @@ import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { renglonesQueCrecieron, renglonesSobreTope } from '../engine/alertas.js';
 import { porItem, porLinea } from '../engine/movimientos.js';
 import { pintarResultados } from './buscador.js';
-import { preguntarIA } from '../ia.js';
+import { preguntarIA, explicar } from '../ia.js';
 import { icon } from './icons.js';
 import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
@@ -410,8 +410,8 @@ function cablearPregunta(root, p, datos) {
       })),
       metas: p.goals.map((g) => ({ nombre: g.n, objetivo: g.t, llevas: g.s || 0, estado: g.estado })),
     };
-    const r = await preguntarIA(q, contexto);
-    salida.textContent = r || 'La IA no está configurada en este proyecto todavía, así que esta tarjeta no puede responder.';
+    const { respuesta, error } = await preguntarIA(q, contexto);
+    salida.textContent = error ? explicar(error) : (respuesta || 'El modelo no contestó nada.');
   };
 
   btn.onclick = preguntar;

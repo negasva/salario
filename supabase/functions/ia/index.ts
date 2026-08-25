@@ -45,17 +45,33 @@ colombiana. Te llegan cifras ya calculadas por la app y una pregunta del usuario
 Responde en español de Colombia, en dos o tres frases, con las cifras que te dieron.
 No inventes números que no estén en los datos. No uses markdown ni listas.`;
 
+// 25 segundos y ni uno más: sin esto, un proveedor lento deja la tarjeta de la
+// app en "Pensando…" hasta que el usuario se aburra
+const LIMITE_MS = 25000;
+
 async function nvidia(messages: unknown[], maxTokens: number) {
   const key = Deno.env.get('NVIDIA_API_KEY');
   if (!key) return { error: 'sin-llave' };
-  const r = await fetch(NVIDIA_URL, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODELO, messages, temperature: 0.2, top_p: 0.95, max_tokens: maxTokens, stream: false }),
-  });
-  if (!r.ok) return { error: `proveedor-${r.status}` };
+  let r: Response;
+  try {
+    r = await fetch(NVIDIA_URL, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: MODELO, messages, temperature: 0.2, top_p: 0.95, max_tokens: maxTokens, stream: false }),
+      signal: AbortSignal.timeout(LIMITE_MS),
+    });
+  } catch (e) {
+    console.error('proveedor', e instanceof Error ? e.name : e);
+    return { error: e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError') ? 'tardo' : 'red' };
+  }
+  if (!r.ok) {
+    console.error('proveedor', r.status, (await r.text()).slice(0, 300));
+    return { error: `proveedor-${r.status}` };
+  }
   const data = await r.json();
-  return { texto: data.choices?.[0]?.message?.content ?? '' };
+  const m = data.choices?.[0]?.message ?? {};
+  // algunos modelos de razonamiento mandan el texto en reasoning_content
+  return { texto: m.content || m.reasoning_content || '' };
 }
 
 function soloJSON(texto: string) {
@@ -98,10 +114,12 @@ Deno.serve(async (req) => {
   }
 
   if (cuerpo.accion === 'preguntar') {
+    const t0 = Date.now();
     const { texto, error } = await nvidia([
       { role: 'system', content: PROMPT_PREGUNTAR },
       { role: 'user', content: `Datos: ${JSON.stringify(cuerpo.datos ?? {})}\nPregunta: ${String(cuerpo.pregunta || '').slice(0, 400)}` },
     ], 600);
+    console.log('preguntar', MODELO, `${Date.now() - t0}ms`, error || 'ok');
     if (error) return json({ error }, 503);
     return json({ respuesta: texto.trim() });
   }

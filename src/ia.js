@@ -1,39 +1,70 @@
 import { supabase } from './auth.js';
 
-/* Cliente de la función de IA. La llave del proveedor vive en Supabase, no
-   aquí: una app estática no puede guardar un secreto. Si la función no está
-   desplegada, todo devuelve null y la app sigue con el clasificador local. */
+/* Cliente de la función de IA.
 
-let estado = 'sin-probar'; // sin-probar | ok | no-disponible
+   Se llama con fetch y no con supabase.functions.invoke por una razón: invoke
+   no deja poner tiempo límite, y una petición que nunca vuelve deja la tarjeta
+   en "Pensando…" para siempre. Aquí, a los 30 segundos se corta y se dice por
+   qué. La llave del proveedor vive en el servidor; esto solo manda el token de
+   la sesión. */
 
-export function estadoIA() {
-  return estado;
+const URL_FUNCION = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ia`;
+const LIMITE_MS = 30000;
+
+export const MOTIVOS = {
+  'sin-sesion': 'Entra a tu cuenta para usar la IA.',
+  'sin-llave': 'Falta la llave del proveedor: supabase secrets set NVIDIA_API_KEY=…',
+  'sin-funcion': 'La función de IA no está desplegada: supabase functions deploy ia',
+  tardo: 'El proveedor tardó demasiado. Vuelve a intentar.',
+  'respuesta-ilegible': 'El modelo contestó algo que no pude leer.',
+  red: 'No pude hablar con el servidor de la IA.',
+};
+
+export function explicar(error) {
+  if (!error) return '';
+  if (String(error).startsWith('proveedor-')) {
+    const codigo = String(error).slice(10);
+    if (codigo === '401' || codigo === '403') return 'La llave del proveedor no sirve o expiró.';
+    if (codigo === '404') return 'Ese modelo no existe en tu cuenta. Cambia IA_MODELO.';
+    if (codigo === '429') return 'Te pasaste de la cuota del proveedor por ahora.';
+    return `El proveedor respondió ${codigo}.`;
+  }
+  return MOTIVOS[error] || `Error: ${error}`;
 }
 
+// Devuelve { datos } o { error }. Nunca lanza y nunca se queda colgado.
 async function llamar(cuerpo) {
-  if (estado === 'no-disponible') return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return { error: 'sin-sesion' };
+
   try {
-    const { data, error } = await supabase.functions.invoke('ia', { body: cuerpo });
-    if (error || data?.error) {
-      estado = 'no-disponible';
-      return null;
-    }
-    estado = 'ok';
-    return data;
-  } catch {
-    estado = 'no-disponible';
-    return null;
+    const r = await fetch(URL_FUNCION, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(cuerpo),
+      signal: AbortSignal.timeout(LIMITE_MS),
+    });
+    if (r.status === 404) return { error: 'sin-funcion' };
+    const datos = await r.json().catch(() => ({}));
+    if (!r.ok || datos.error) return { error: datos.error || `http-${r.status}` };
+    return { datos };
+  } catch (e) {
+    return { error: e.name === 'TimeoutError' || e.name === 'AbortError' ? 'tardo' : 'red' };
   }
 }
 
-// Devuelve [{ texto, cat, confianza }] o null si la IA no contestó
+// [{ texto, cat, confianza }] o null: clasificar es de fondo y no molesta al usuario
 export async function clasificarConIA(textos) {
-  const data = await llamar({ accion: 'clasificar', textos });
-  return Array.isArray(data?.resultados) ? data.resultados : null;
+  const { datos } = await llamar({ accion: 'clasificar', textos });
+  return Array.isArray(datos?.resultados) ? datos.resultados : null;
 }
 
-// Una frase sobre cifras que la app ya calculó. Nunca calcula la IA por su cuenta.
-export async function preguntarIA(pregunta, datos) {
-  const data = await llamar({ accion: 'preguntar', pregunta, datos });
-  return data?.respuesta || null;
+// { respuesta } o { error }: aquí el usuario está esperando y merece saber qué pasó
+export async function preguntarIA(pregunta, datosContexto) {
+  const { datos, error } = await llamar({ accion: 'preguntar', pregunta, datos: datosContexto });
+  return error ? { error } : { respuesta: datos?.respuesta || '' };
 }

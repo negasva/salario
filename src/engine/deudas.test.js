@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  mesesParaLiquidar, interesTotal, ordenar, plan, minimosCubiertos, deudasDelPerfil,
+  mesesParaLiquidar, interesTotal, ordenar, plan, minimosCubiertos, deudasDelPerfil, saldoVivo,
 } from './deudas.js';
 
 describe('amortización de una deuda', () => {
@@ -102,6 +102,36 @@ describe('deudas del perfil', () => {
     ];
     expect(deudasDelPerfil(items)).toEqual([
       { id: 'l1', n: 'Tarjeta', saldo: 3000000, tasa: 32, minimo: 150000 },
+    ]);
+  });
+});
+
+describe('saldo vivo', () => {
+  const linea = { id: 'l1', saldo: 1000 };
+  it('sin abonos devuelve el saldo declarado', () => {
+    expect(saldoVivo(linea, [{ id: 'm1', lineId: 'l1', monto: 300 }])).toBe(1000);
+  });
+  it('resta los abonos del renglón', () => {
+    expect(saldoVivo(linea, [
+      { id: 'm1', lineId: 'l1', monto: 300, abono: true },
+      { id: 'm2', lineId: 'l2', monto: 500, abono: true },
+    ])).toBe(700);
+  });
+  it('nunca baja de cero', () => {
+    expect(saldoVivo(linea, [{ id: 'm1', lineId: 'l1', monto: 5000, abono: true }])).toBe(0);
+  });
+});
+
+describe('deudas del perfil con abonos', () => {
+  it('usa el saldo vivo y saca las ya pagadas', () => {
+    const items = [{ r: 'deu', L: [
+      { id: 'l1', n: 'Tarjeta', saldo: 1000, tasa: 30, minimo: 100 },
+      { id: 'l2', n: 'Carro', saldo: 500 },
+    ] }];
+    const movs = [{ id: 'm1', lineId: 'l1', monto: 400, abono: true },
+      { id: 'm2', lineId: 'l2', monto: 500, abono: true }];
+    expect(deudasDelPerfil(items, movs)).toEqual([
+      { id: 'l1', n: 'Tarjeta', saldo: 600, tasa: 30, minimo: 100 },
     ]);
   });
 });

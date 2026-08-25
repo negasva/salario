@@ -16,7 +16,7 @@ function id() { return Math.random().toString(36).slice(2, 9); }
 const estadoFondo = (p) => store.ensureFondoGoal(p);
 
 const escalonDe = (p) => escalonActual({
-  minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items),
+  minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items, p.movs),
     p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, store.incomeRepartir(p)), 0)),
   fondoEstado: estadoFondo(p).estado,
   tieneMetasActivas: p.goals.some((g) => !g.special && estadoDe(g) === 'activa'),

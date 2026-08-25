@@ -1,16 +1,13 @@
 import * as store from '../store.js';
 import { amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
-import { money, plain, esc, digits } from '../format.js';
+import { money, plain, esc, digits, MESES } from '../format.js';
 import { excedente } from '../engine/consejo.js';
 import { ordenadas } from '../engine/fila.js';
-import { aplicarAporte } from '../engine/metas.js';
+import { aplicarAporte, revertirAporte } from '../engine/metas.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
-
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function nombrePeriodo(per) {
   const [a, m] = per.split('-');
@@ -145,6 +142,9 @@ export function renderMovimientos(root, args = {}) {
           ${p.goals.map((g) => `<option value="${g.id}">${esc(g.n)}</option>`).join('')}
         </select>
         <input id="mvNota" placeholder="Nota" aria-label="Nota">
+        <label class="mov-check" id="mvAbonoWrap" hidden>
+          <input type="checkbox" id="mvAbono"> Es un abono a la deuda
+        </label>
       </div>
     </div>
 
@@ -165,12 +165,22 @@ export function renderMovimientos(root, args = {}) {
   const notaEl = $('#mvNota');
   const fechaEl = $('#mvFecha');
   const extraEl = $('#mvExtra');
+  const abonoEl = $('#mvAbono');
   const saveEl = $('#mvSave');
 
   function pintarRenglones() {
     const it = p.items.find((x) => x.id === itemEl.value);
     lineEl.innerHTML = `<option value="">Sin renglón</option>${(it?.L || [])
       .map((l) => `<option value="${l.id}">${esc(l.n || 'sin nombre')}</option>`).join('')}`;
+    pintarAbono();
+  }
+
+  // El abono solo tiene sentido en un gasto contra un renglón de un bloque de deuda
+  function pintarAbono() {
+    const it = p.items.find((x) => x.id === itemEl.value);
+    const vale = tipo === 'gasto' && it?.r === 'deu' && !!lineEl.value;
+    $('#mvAbonoWrap').hidden = !vale;
+    if (!vale) abonoEl.checked = false;
   }
 
   function setTipo(t) {
@@ -180,6 +190,7 @@ export function renderMovimientos(root, args = {}) {
     lineEl.hidden = t === 'ingreso';
     goalEl.hidden = t === 'ingreso';
     $('#mvExtraWrap').hidden = t === 'gasto';
+    pintarAbono();
   }
 
   function limpiar() {
@@ -189,6 +200,8 @@ export function renderMovimientos(root, args = {}) {
     goalEl.value = '';
     lineEl.value = '';
     extraEl.checked = false;
+    abonoEl.checked = false;
+    $('#mvAbonoWrap').hidden = true;
     saveEl.textContent = 'Guardar';
     montoEl.focus();
   }
@@ -205,10 +218,18 @@ export function renderMovimientos(root, args = {}) {
       goalId: tipo === 'gasto' ? (goalEl.value || null) : null,
       nota: notaEl.value.trim(),
       extra: tipo === 'ingreso' && extraEl.checked,
+      abono: tipo === 'gasto' && !$('#mvAbonoWrap').hidden && abonoEl.checked,
     };
     const previo = editId && p.movs.find((m) => m.id === editId);
-    if (previo) Object.assign(previo, datos);
-    else p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), ...datos });
+    if (previo) {
+      sincronizarMeta(previo, null);
+      Object.assign(previo, datos);
+      sincronizarMeta(null, previo);
+    } else {
+      const nuevo = { id: nuevoId(), ...datos };
+      p.movs.push(nuevo);
+      sincronizarMeta(null, nuevo);
+    }
     store.save();
     periodo = periodoDe(datos.fecha);
     limpiar();
@@ -261,6 +282,19 @@ export function renderMovimientos(root, args = {}) {
     }
   }
 
+  /* El select de meta del libro mueve goal.s igual que "Ya lo guardé" de
+     Categorías: una sola puerta, un solo comportamiento. */
+  function sincronizarMeta(quitar, poner) {
+    if (quitar?.goalId) {
+      const g = p.goals.find((x) => x.id === quitar.goalId);
+      if (g) revertirAporte(g, quitar);
+    }
+    if (poner?.goalId) {
+      const g = p.goals.find((x) => x.id === poner.goalId);
+      if (g) aplicarAporte(g, poner.monto, new Date(`${poner.fecha}T12:00:00`));
+    }
+  }
+
   function editar(m) {
     editId = m.id;
     setTipo(m.tipo);
@@ -270,6 +304,8 @@ export function renderMovimientos(root, args = {}) {
     goalEl.value = m.goalId || '';
     notaEl.value = m.nota || '';
     extraEl.checked = !!m.extra;
+    pintarAbono();
+    abonoEl.checked = !!m.abono;
     $('#mvDetalle').hidden = false;
     saveEl.textContent = 'Actualizar';
     montoEl.focus();
@@ -331,7 +367,7 @@ export function renderMovimientos(root, args = {}) {
           return `<div class="mov-line" data-id="${m.id}">
             <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--success)' : (it?.c || 'var(--line)')}"></span>
             <span class="mov-line-txt">
-              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}
+              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}
               ${m.nota ? `<span class="sub">${esc(m.nota)}</span>` : ''}
             </span>
             <span class="num mov-line-n ${m.tipo === 'ingreso' ? 'in' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto, p.cur)}</span>
@@ -347,7 +383,9 @@ export function renderMovimientos(root, args = {}) {
       el.querySelector('.mov-ed').onclick = () => editar(m);
       el.querySelector('.mov-del').onclick = () => {
         const idx = p.movs.indexOf(m);
-        const { undo } = store.stageDelete(() => p.movs.splice(idx, 1), () => p.movs.splice(idx, 0, m));
+        const { undo } = store.stageDelete(
+          () => { p.movs.splice(idx, 1); sincronizarMeta(m, null); },
+          () => { p.movs.splice(idx, 0, m); sincronizarMeta(null, m); });
         if (editId === m.id) limpiar();
         pintarCuerpo();
         toast('Movimiento eliminado', () => { undo(); pintarCuerpo(); });
@@ -360,6 +398,7 @@ export function renderMovimientos(root, args = {}) {
     if (b) setTipo(b.dataset.tipo);
   };
   itemEl.onchange = pintarRenglones;
+  lineEl.onchange = pintarAbono;
   saveEl.onclick = guardar;
   // Enter guarda y limpia sin soltar el foco: sirve para meter varios seguidos
   root.querySelector('.mov-form').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); guardar(); } };

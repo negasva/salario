@@ -30,13 +30,21 @@ export function interesTotal(saldo, tasaAnual, cuota) {
   return amortizar(saldo, tasaAnual, cuota).interes;
 }
 
-// Los renglones de los bloques de deuda que sí tienen saldo
-export function deudasDelPerfil(items) {
+// Saldo declarado menos lo abonado desde el libro. Nunca por debajo de cero.
+export function saldoVivo(linea, movs = []) {
+  const abonado = movs
+    .filter((m) => m.abono && m.lineId === linea.id)
+    .reduce((s, m) => s + m.monto, 0);
+  return Math.max(0, (Number(linea.saldo) || 0) - abonado);
+}
+
+// Los renglones de los bloques de deuda que sí tienen saldo vivo
+export function deudasDelPerfil(items, movs = []) {
   return items
     .filter((it) => it.r === 'deu')
     .flatMap((it) => (it.L || [])
-      .filter((l) => Number(l.saldo) > 0)
-      .map((l) => ({ id: l.id, n: l.n, saldo: Number(l.saldo), tasa: Number(l.tasa) || 0, minimo: Number(l.minimo) || 0 })));
+      .map((l) => ({ id: l.id, n: l.n, saldo: saldoVivo(l, movs), tasa: Number(l.tasa) || 0, minimo: Number(l.minimo) || 0 }))
+      .filter((d) => d.saldo > 0));
 }
 
 export function ordenar(deudas, metodo = 'avalancha') {

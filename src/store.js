@@ -204,6 +204,7 @@ async function flushPush() {
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
         items: p.items, goals: p.goals, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
+        alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -264,6 +265,15 @@ export function importProfiles(incoming, replace) {
   }
   db.active = db.profiles[0].id;
   save();
+}
+
+export function renameProfile(id, nombre) {
+  const p = db.profiles.find((x) => x.id === id);
+  const n = String(nombre || '').trim();
+  if (!p || !n) return false;
+  p.name = n;
+  save();
+  return true;
 }
 
 export function removeProfile(id) {

@@ -78,9 +78,26 @@
 .badge.bad{background:var(--danger-soft);color:var(--danger)}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-5)}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5)}
-.grid-2a{display:grid;grid-template-columns:1fr 1.3fr;gap:var(--space-5)}
-.grid-2b{display:grid;grid-template-columns:1.4fr 1fr;gap:var(--space-5)}
+/* F9.5 — cuadrícula del dashboard: dos columnas y dense, sin coordenadas */
+.dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-5);grid-auto-flow:dense}
+.dash-w{display:flex;flex-direction:column;gap:var(--space-2)}
+.dash-w>.card{flex:1}
+.w2{grid-column:span 2}
+.dash-tools{display:flex;gap:var(--space-2);justify-content:flex-end}
+.dash-w-tools{display:flex;gap:4px}
+.dash-edit .dash-w:has(.card){outline:2px dashed var(--pink-lighter);outline-offset:4px;border-radius:var(--radius-lg)}
+/* un widget sin tarjeta (esenciales en verde, alertas sin nada) no ocupa sitio */
+.dash-w:not(:has(.card)){display:none}
+.dash-edit .dash-w .asa{cursor:grab;user-select:none}
+/* en modo edición la tarjeta es inerte: se arrastra desde cualquier parte y
+   nadie toca un input sin querer (Chrome tampoco arrastra desde un botón) */
+.dash-edit .dash-w>.card{pointer-events:none}
+@media(max-width:720px){
+  .dash-grid{grid-template-columns:1fr}
+  .w2{grid-column:span 1}
+  .dash-w-tools .ancho{display:none}
+}
+@media(min-width:721px){.dash-w-tools .mv{display:none}}
 
 .section-h{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:var(--tracking-wide);
   color:var(--ink-lighter);font-weight:var(--fw-bold);margin:var(--space-2) 0 0}
@@ -104,19 +121,10 @@
   color:var(--ink);margin-top:var(--space-1);line-height:1.05}
 .income-input:focus{outline:none;border-bottom:2px solid var(--ink)}
 
-.escalera{display:flex;flex-direction:column;margin-top:var(--space-3)}
-.peldano{display:flex;align-items:center;gap:var(--space-3);padding:7px 0;
-  border-bottom:1px solid var(--border-hairline)}
-.peldano:last-child{border-bottom:0}
-.peldano .bub{width:22px;height:22px;flex:none;border-radius:var(--radius-pill);
-  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:var(--fw-bold);
-  background:var(--pink-wash);color:var(--ink-lighter)}
-.peldano .txt{font-size:var(--text-sm);color:var(--ink-lighter)}
-.peldano.done .bub{background:var(--success);color:var(--on-success)}
-.peldano.done .txt{color:var(--ink)}
-.peldano.on .bub{background:var(--pink);color:var(--on-pink)}
-.peldano.on .txt{color:var(--ink);font-weight:var(--fw-bold)}
 
+/* el svg de base.css mide 20px: la gráfica necesita decir su tamaño */
+.spark-svg{width:100%;height:220px;display:block;margin-top:var(--space-3)}
+@media(max-width:720px){.spark-svg{height:160px}}
 .spark-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3)}
 .spark-val{font-size:var(--text-h3);font-weight:var(--fw-black);color:var(--ink)}
 .spark-months{display:flex;justify-content:space-between;margin-top:var(--space-2)}
@@ -141,6 +149,7 @@
 .ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:var(--text-sm);font-weight:var(--fw-black);color:var(--ink)}
 .ring .lbl{font-size:11px;color:var(--ink-lighter);text-align:center;max-width:96px;line-height:1.35}
+.ring .sub{margin-top:0;text-align:center;max-width:130px;font-size:11px}
 
 /* ── auth ─────────────────────────────────────────────────────────────── */
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;
@@ -244,6 +253,7 @@
 .goal.drag-over{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-wash)}
 /* F5 — la meta en fila se pinta atenuada: está ahí, pero todavía no cuenta */
 .goal-fila{opacity:.6;border-style:dashed}
+.ring-fila{opacity:.55}
 .goal-hecha .pbar i{background:var(--success)}
 
 /* ── anuncio ──────────────────────────────────────────────────────────── */
@@ -296,9 +306,6 @@
 .hist-track{flex:1;height:8px;border-radius:var(--radius-pill);background:var(--pink-wash);overflow:hidden}
 .hist-track i{display:block;height:100%;border-radius:var(--radius-pill)}
 
-@media (max-width:900px){
-  .grid-3,.grid-2a,.grid-2b{grid-template-columns:1fr}
-}
 @media (max-width:720px){
   .shell{padding:0}
   .shell-panel{border-radius:0;flex-direction:column;box-shadow:none;min-height:100vh}

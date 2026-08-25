@@ -1,8 +1,8 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porItem } from '../engine/movimientos.js';
-import { plazo, whenText, metasEnItem, aplicarAporte } from '../engine/metas.js';
-import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan } from '../engine/deudas.js';
+import { plazo, whenText, metasEnItem, aplicarAporte, revertirAporte } from '../engine/metas.js';
+import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -133,13 +133,18 @@ function lines(it, p) {
 // Un renglón de deuda gana tres campos. Vacíos, se comporta como cualquier otro.
 function filaDeuda(l, p) {
   const cuota = Number(l.minimo) || 0;
-  const saldo = Number(l.saldo) || 0;
+  const declarado = Number(l.saldo) || 0;
+  const saldo = saldoVivo(l, p.movs);
+  const abonadoMes = p.movs
+    .filter((m) => m.abono && m.lineId === l.id && periodoDe(m.fecha) === periodoDe(hoyISO()))
+    .reduce((s, m) => s + m.monto, 0);
   const meses = saldo > 0 ? mesesParaLiquidar(saldo, l.tasa, cuota) : null;
   const intereses = meses ? interesTotal(saldo, l.tasa, cuota) : null;
   return `<div class="deu-fila" data-lid="${l.id}">
     <label class="fieldw"><span>Saldo</span><input class="dv num" data-k="saldo" inputmode="numeric" value="${saldo ? plain(saldo, p.cur) : ''}" placeholder="0"></label>
     <label class="fieldw"><span>Tasa %</span><input class="dv num" data-k="tasa" inputmode="decimal" value="${l.tasa ?? ''}" placeholder="0"></label>
     <label class="fieldw"><span>Mínimo</span><input class="dv num" data-k="minimo" inputmode="numeric" value="${cuota ? plain(cuota, p.cur) : ''}" placeholder="0"></label>
+    ${declarado > 0 ? `<div class="sub deu-plazo">Saldo ${money(declarado, p.cur)} · abonado este mes ${money(abonadoMes, p.cur)} · quedan ${money(saldo, p.cur)}</div>` : ''}
     ${saldo > 0 ? `<div class="sub deu-plazo">${meses
       ? `Se liquida en ${plazo(meses)}, hacia ${whenText(meses)}. Intereses: ${money(intereses, p.cur)}.`
       : '<b class="over">Esta cuota nunca la paga: no cubre ni los intereses.</b>'}</div>` : ''}
@@ -148,7 +153,7 @@ function filaDeuda(l, p) {
 
 // La bola de nieve cuesta más plata y el usuario tiene derecho a elegirla igual
 function tarjetaDeuda(it, p, budget) {
-  const deudas = deudasDelPerfil([it]);
+  const deudas = deudasDelPerfil([it], p.movs);
   if (!deudas.length) return '';
   const av = plan(deudas, budget, 'avalancha');
   const bn = plan(deudas, budget, 'bolaDeNieve');
@@ -247,9 +252,7 @@ function wireCard(root, it, p) {
 
   function borrarAporte(goal, mov) {
     p.movs.splice(p.movs.indexOf(mov), 1);
-    const i = (goal.aportes || []).findLastIndex((a) => a.monto === mov.monto && a.fecha.slice(0, 10) === mov.fecha);
-    // sin aporte pareado el movimiento vino del libro y nunca tocó goal.s
-    if (i >= 0) { goal.aportes.splice(i, 1); goal.s = Math.max(0, (goal.s || 0) - mov.monto); }
+    revertirAporte(goal, mov);
   }
 
   card.querySelectorAll('.line-meta').forEach((el) => {

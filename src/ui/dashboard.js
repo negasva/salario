@@ -64,7 +64,7 @@ export async function renderDashboard(root) {
   if (creado) store.save();
 
   const escalon = escalonActual({
-    minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items),
+    minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items, p.movs),
       p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, inc), 0)),
     fondoEstado,
     tieneMetasActivas: p.goals.some((g) => !g.special),

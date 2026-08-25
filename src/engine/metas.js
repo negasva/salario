@@ -179,6 +179,15 @@ export function secuenciaPlazos(goalsEnConflicto, items, income) {
 }
 
 // F10 — aportes extra
+// Deshace el aporte pareado de un movimiento. Sin pareja el movimiento nunca
+// tocó goal.s y no hay nada que revertir.
+export function revertirAporte(goal, mov) {
+  const i = (goal.aportes || []).findLastIndex((a) => a.monto === mov.monto && a.fecha.slice(0, 10) === mov.fecha);
+  if (i < 0) return;
+  goal.aportes.splice(i, 1);
+  goal.s = Math.max(0, (goal.s || 0) - mov.monto);
+}
+
 export function aplicarAporte(goal, monto, fecha = new Date()) {
   goal.s = (goal.s || 0) + monto;
   goal.aportes = goal.aportes || [];

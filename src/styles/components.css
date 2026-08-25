@@ -78,8 +78,21 @@
 .badge.bad{background:var(--danger-soft);color:var(--danger)}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-5)}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5)}
-.grid-2b{display:grid;grid-template-columns:1.4fr 1fr;gap:var(--space-5)}
+/* F9.5 — cuadrícula del dashboard: dos columnas y dense, sin coordenadas */
+.dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-5);grid-auto-flow:dense}
+.dash-w{display:flex;flex-direction:column;gap:var(--space-2)}
+.dash-w>.card{flex:1}
+.w2{grid-column:span 2}
+.dash-tools{display:flex;gap:var(--space-2);justify-content:flex-end}
+.dash-w-tools{display:flex;gap:4px}
+.dash-edit .dash-w{outline:2px dashed var(--pink-lighter);outline-offset:4px;border-radius:var(--radius-lg)}
+.dash-edit .dash-w .asa{cursor:grab}
+@media(max-width:720px){
+  .dash-grid{grid-template-columns:1fr}
+  .w2{grid-column:span 1}
+  .dash-w-tools .ancho{display:none}
+}
+@media(min-width:721px){.dash-w-tools .mv{display:none}}
 
 .section-h{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:var(--tracking-wide);
   color:var(--ink-lighter);font-weight:var(--fw-bold);margin:var(--space-2) 0 0}
@@ -285,9 +298,6 @@
 .hist-track{flex:1;height:8px;border-radius:var(--radius-pill);background:var(--pink-wash);overflow:hidden}
 .hist-track i{display:block;height:100%;border-radius:var(--radius-pill)}
 
-@media (max-width:900px){
-  .grid-3,.grid-2b{grid-template-columns:1fr}
-}
 @media (max-width:720px){
   .shell{padding:0}
   .shell-panel{border-radius:0;flex-direction:column;box-shadow:none;min-height:100vh}

@@ -50,6 +50,76 @@ function ringSvg(pct, color) {
   </svg>`;
 }
 
+/* F9.5 — cuadrícula acomodable. Dos columnas con grid-auto-flow:dense, así que
+   basta con guardar orden y ancho: nadie ve un hueco raro y no hay coordenadas
+   que mantener. Fuera del modo edición nada se arrastra, para no mover una
+   tarjeta sin querer al hacer scroll. */
+const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'tasa', 'ahorro', 'reparto', 'metas'];
+const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2 };
+
+let edicion = false;
+
+function ordenWidgets(p) {
+  const lay = p.dashLayout || {};
+  // un widget nuevo entra al final, en el orden en que está declarado
+  return WIDGETS.slice().sort((a, b) =>
+    (lay[a]?.orden ?? 1000 + WIDGETS.indexOf(a)) - (lay[b]?.orden ?? 1000 + WIDGETS.indexOf(b)));
+}
+
+function anchoDe(p, id) {
+  return p.dashLayout?.[id]?.ancho ?? ANCHO_DEFECTO[id] ?? 1;
+}
+
+function guardarLayout(p, orden) {
+  p.dashLayout = Object.fromEntries(orden.map((id, i) => [id, { orden: i, ancho: anchoDe(p, id) }]));
+  store.save();
+}
+
+function cablearLayout(root, p, orden) {
+  root.querySelector('#dAcomodar').onclick = () => { edicion = !edicion; renderDashboard(root); };
+  const reset = root.querySelector('#dReset');
+  if (reset) reset.onclick = () => { delete p.dashLayout; store.save(); renderDashboard(root); };
+  if (!edicion) return;
+
+  const mover = (id, delta) => {
+    const lista = orden.slice();
+    const i = lista.indexOf(id);
+    const j = i + delta;
+    if (j < 0 || j >= lista.length) return;
+    lista.splice(j, 0, lista.splice(i, 1)[0]);
+    guardarLayout(p, lista);
+    renderDashboard(root);
+  };
+
+  root.querySelectorAll('.dash-w-tools .mv').forEach((b) => {
+    b.onclick = () => mover(b.dataset.w, Number(b.dataset.mv));
+  });
+  root.querySelectorAll('.dash-w-tools .ancho').forEach((b) => {
+    b.onclick = () => {
+      guardarLayout(p, orden);
+      p.dashLayout[b.dataset.w].ancho = anchoDe(p, b.dataset.w) === 2 ? 1 : 2;
+      store.save();
+      renderDashboard(root);
+    };
+  });
+
+  // arrastrar y soltar nativo; se guarda al soltar, no en cada dragover
+  const grid = root.querySelector('#dashGrid');
+  let arrastrado = null;
+  grid.querySelectorAll('.dash-w').forEach((el) => {
+    el.ondragstart = (e) => { arrastrado = el.dataset.w; e.dataTransfer.effectAllowed = 'move'; };
+    el.ondragover = (e) => e.preventDefault();
+    el.ondrop = (e) => {
+      e.preventDefault();
+      if (!arrastrado || arrastrado === el.dataset.w) return;
+      const lista = orden.filter((id) => id !== arrastrado);
+      lista.splice(lista.indexOf(el.dataset.w), 0, arrastrado);
+      guardarLayout(p, lista);
+      renderDashboard(root);
+    };
+  });
+}
+
 export async function renderDashboard(root) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
@@ -82,9 +152,8 @@ export async function renderDashboard(root) {
 
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
-  root.innerHTML = `
-    <div class="grid-3">
-      <div class="card card-pink">
+  const bloques = {
+    ingreso: `<div class="card card-pink">
         <div class="income-head">
           <span class="label">${tituloIngreso}</span>
           <select id="dCurrency" aria-label="Moneda">
@@ -97,7 +166,7 @@ export async function renderDashboard(root) {
         <div class="sub">${hayNomina
           ? `Registrado en Movimientos · plan <b class="num">${money(p.inc, p.cur)}</b>
              <button class="mini" id="dPlanEdit">Editar el plan</button>`
-          : `Planeado · aún sin nómina registrada`}</div>
+          : 'Planeado · aún sin nómina registrada'}</div>
         ${ing.extra > 0 ? `<div class="sub">Extra este mes <b class="num">${money(ing.extra, p.cur)}</b></div>` : ''}
         ${hayNomina && Math.abs(brecha) > 0.05 ? `<div class="sub">
           Tu nómina real va ${money(Math.abs(ing.nomina - p.inc), p.cur)} por ${brecha > 0 ? 'encima' : 'debajo'} del plan.
@@ -106,43 +175,43 @@ export async function renderDashboard(root) {
         <div class="sub">${p.ingresoTipo === 'variable'
           ? `Repartes sobre el promedio: <b class="num">${money(inc, p.cur)}</b>`
           : `${p.cur} · ingreso fijo`}</div>
-      </div>
+      </div>`,
 
-      <div class="card card-ink">
+    mes: `<div class="card card-ink">
         <span class="label">Tu mes</span>
         <div class="kpi num">${t}%</div>
         <div class="sub">${estadoMes}</div>
-      </div>
+      </div>`,
 
-      <div class="card">
+    fondo: `<div class="card">
         <span class="label">Fondo de emergencia</span>
         <div class="kpi num">${money(fondoSaved, p.cur)}</div>
         <span class="badge ${badgeClass}">${fondoEstado}</span>
         <div class="sub">Objetivo ${money(target, p.cur)} (${plazo(p.fondoMeses)})</div>
-      </div>
-    </div>
+      </div>`,
 
-    ${diag && diag.nivel !== 'verde' ? `
-    <div class="card" style="border-color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'})">
-      <span class="label">Esenciales</span>
-      <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
-        Tus esenciales suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
-        ${diag.nivel === 'rojo' ? 'Es demasiado.' : 'Está en el límite.'}
-      </div>
-      ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}
-    </div>` : ''}
-    <div id="dAlertas"></div>
+    esenciales: diag && diag.nivel !== 'verde' ? `<div class="card" style="border-color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'})">
+        <span class="label">Esenciales</span>
+        <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
+          Tus esenciales suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
+          ${diag.nivel === 'rojo' ? 'Es demasiado.' : 'Está en el límite.'}
+        </div>
+        ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}
+      </div>` : '',
 
-    <div class="card">
-      <div class="spark-head">
-        <span class="label">Tasa de ahorro</span>
-        <span class="spark-val num">${ahorroHoy}%</span>
-      </div>
-      <div id="dSpark"><div class="sub">Cargando historial…</div></div>
-    </div>
+    alertas: '<div id="dAlertas"></div>',
 
-    <div class="grid-2b">
-      <div class="card">
+    tasa: `<div class="card">
+        <div class="spark-head">
+          <span class="label">Tasa de ahorro</span>
+          <span class="spark-val num">${ahorroHoy}%</span>
+        </div>
+        <div id="dSpark"><div class="sub">Cargando historial…</div></div>
+      </div>`,
+
+    ahorro: '<div class="card" id="dAhorro"></div>',
+
+    reparto: `<div class="card">
         <span class="label">Reparto del ingreso</span>
         ${p.items.length ? p.items.map((it) => `
           <div class="repline">
@@ -151,9 +220,9 @@ export async function renderDashboard(root) {
             <span class="track"><i style="width:${Math.min(100, it.p)}%;background:${it.c}"></i></span>
             <span class="pv num">${it.p}%</span>
           </div>`).join('') : '<div class="empty">Sin categorías.</div>'}
-      </div>
+      </div>`,
 
-      <div class="card" style="display:flex;flex-direction:column">
+    metas: `<div class="card" style="display:flex;flex-direction:column">
         <span class="label">Metas</span>
         ${p.goals.length ? `<div class="rings">
           ${ordenadas(p.goals).map((g) => {
@@ -175,10 +244,29 @@ export async function renderDashboard(root) {
             </div>`;
           }).join('')}
         </div>` : '<div class="empty">Sin metas todavía.</div>'}
-      </div>
-    </div>
+      </div>`,
+  };
 
-    <div class="card" id="dAhorro"></div>`;
+  const orden = ordenWidgets(p);
+  root.innerHTML = `
+    <div class="dash-tools">
+      <button class="mini" id="dAcomodar">${edicion ? 'Listo' : 'Acomodar'}</button>
+      ${edicion ? '<button class="mini" id="dReset">Restablecer</button>' : ''}
+    </div>
+    <div class="dash-grid${edicion ? ' dash-edit' : ''}" id="dashGrid">
+      ${orden.map((id) => `<div class="dash-w${anchoDe(p, id) === 2 ? ' w2' : ''}" data-w="${id}"
+        ${edicion ? 'draggable="true"' : ''}>
+        ${edicion ? `<div class="dash-w-tools">
+          <button class="mini asa" title="Arrastrar">⠿</button>
+          <button class="mini ancho" data-w="${id}">${anchoDe(p, id) === 2 ? 'Angosta' : 'Ancha'}</button>
+          <button class="mini mv" data-mv="-1" data-w="${id}" aria-label="Subir">↑</button>
+          <button class="mini mv" data-mv="1" data-w="${id}" aria-label="Bajar">↓</button>
+        </div>` : ''}
+        ${bloques[id]}
+      </div>`).join('')}
+    </div>`;
+
+  cablearLayout(root, p, orden);
 
   root.querySelector('#dIncome').onchange = (e) => {
     p.inc = digits(e.target.value);

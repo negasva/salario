@@ -181,7 +181,7 @@ Dos capas. `localStorage` bajo la llave `reparto:v8` es caché, y Supabase es la
 
 Hay dos tablas. `perfiles` guarda todo el presupuesto vivo como un blob JSON. `cierres` guarda un snapshot por mes cerrado, con el periodo en formato `AAAA-MM`. Ambas con row level security amarrada a `auth.uid()`. El upsert de perfiles devuelve su `id` y ese `id` se guarda en `p.remoteId`: sin eso cada guardado insertaría una fila nueva, y todo el historial se cae detrás.
 
-La autenticación es correo y contraseña de Supabase, con recuperación por enlace. Si empezaste a usar la app sin cuenta y después te registras, lo que tenías en local se sube como perfil inicial y sale un aviso.
+La autenticación es correo y contraseña de Supabase, con recuperación por enlace. Al crear una cuenta salen dos hojas seguidas, una por dato: cómo se llama el presupuesto y cuánto entra al mes; al terminar la app cae en Categorías, que es donde se reparte. Ni un paso más: un tour de siete pantallas se salta completo. La marca de "cuenta nueva" vive en `localStorage`, no en la sesión, porque si el correo pide confirmación la cuenta entra más tarde y el paso a paso tiene que estar esperando. Si empezaste a usar la app sin cuenta y después te registras, lo que tenías en local se sube como perfil inicial y sale un aviso.
 
 ### Las seis vistas
 

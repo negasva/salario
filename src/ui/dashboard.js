@@ -31,10 +31,14 @@ export function sparkline(rates, extras = [], w = 280, h = 90, pad = 6) {
   const line = pts.map((pt) => `${pt.x},${pt.y}`).join(' ');
   const area = `M${pts[0].x},${h} L${pts.map((pt) => `${pt.x},${pt.y}`).join(' L')} L${pts[pts.length - 1].x},${h} Z`;
   const extraMarkers = pts.map((pt, i) => extras[i] ? `<circle cx="${pt.x}" cy="${pt.y}" r="4" fill="var(--success)"></circle>` : '').join('');
-  return `<svg width="100%" height="110" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block">
+  // el punto por dato hace legible una serie con meses en cero, que si no es una raya
+  const puntos = pts.map((pt) => `<circle cx="${pt.x}" cy="${pt.y}" r="3" fill="var(--pink-dark)"
+    vector-effect="non-scaling-stroke"></circle>`).join('');
+  return `<svg class="spark-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
     <path d="${area}" fill="var(--pink-lighter)" opacity="0.55"></path>
     <polyline points="${line}" fill="none" stroke="var(--pink-dark)" stroke-width="2.5"
-      stroke-linecap="round" stroke-linejoin="round"></polyline>
+      stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+    ${puntos}
     ${extraMarkers}
   </svg>`;
 }
@@ -107,7 +111,12 @@ function cablearLayout(root, p, orden) {
   const grid = root.querySelector('#dashGrid');
   let arrastrado = null;
   grid.querySelectorAll('.dash-w').forEach((el) => {
-    el.ondragstart = (e) => { arrastrado = el.dataset.w; e.dataTransfer.effectAllowed = 'move'; };
+    el.ondragstart = (e) => {
+      arrastrado = el.dataset.w;
+      e.dataTransfer.effectAllowed = 'move';
+      // sin setData Firefox y Safari no arrancan el arrastre
+      e.dataTransfer.setData('text/plain', el.dataset.w);
+    };
     el.ondragover = (e) => e.preventDefault();
     el.ondrop = (e) => {
       e.preventDefault();
@@ -257,7 +266,7 @@ export async function renderDashboard(root) {
       ${orden.map((id) => `<div class="dash-w${anchoDe(p, id) === 2 ? ' w2' : ''}" data-w="${id}"
         ${edicion ? 'draggable="true"' : ''}>
         ${edicion ? `<div class="dash-w-tools">
-          <button class="mini asa" title="Arrastrar">⠿</button>
+          <span class="mini asa" draggable="true" title="Arrastrar">⠿ Mover</span>
           <button class="mini ancho" data-w="${id}">${anchoDe(p, id) === 2 ? 'Angosta' : 'Ancha'}</button>
           <button class="mini mv" data-mv="-1" data-w="${id}" aria-label="Subir">↑</button>
           <button class="mini mv" data-mv="1" data-w="${id}" aria-label="Bajar">↓</button>
@@ -330,6 +339,7 @@ function pintarAhorro(root, p, destino = null) {
     ${sparkline(serie.map((r) => r.acumulado))}
     <div class="spark-months">${serie.map((r) => `<span>${mesCorto(r.periodo)}</span>`).join('')}</div>
     <div class="hist-list">
+      <div class="mov-res sub"><span class="nm">Mes</span><span>Aportado</span><span>Acumulado</span></div>
       ${filas.map((r) => `<div class="mov-res">
         <span class="nm">${mesCorto(r.periodo)} ${r.periodo.slice(0, 4)}</span>
         <span class="num">${money(r.monto, p.cur)}</span>

@@ -204,6 +204,7 @@ async function flushPush() {
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
         items: p.items, goals: p.goals, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
+        alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();

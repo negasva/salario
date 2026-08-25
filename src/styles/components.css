@@ -85,8 +85,13 @@
 .w2{grid-column:span 2}
 .dash-tools{display:flex;gap:var(--space-2);justify-content:flex-end}
 .dash-w-tools{display:flex;gap:4px}
-.dash-edit .dash-w{outline:2px dashed var(--pink-lighter);outline-offset:4px;border-radius:var(--radius-lg)}
-.dash-edit .dash-w .asa{cursor:grab}
+.dash-edit .dash-w:has(.card){outline:2px dashed var(--pink-lighter);outline-offset:4px;border-radius:var(--radius-lg)}
+/* un widget sin tarjeta (esenciales en verde, alertas sin nada) no ocupa sitio */
+.dash-w:not(:has(.card)){display:none}
+.dash-edit .dash-w .asa{cursor:grab;user-select:none}
+/* en modo edición la tarjeta es inerte: se arrastra desde cualquier parte y
+   nadie toca un input sin querer (Chrome tampoco arrastra desde un botón) */
+.dash-edit .dash-w>.card{pointer-events:none}
 @media(max-width:720px){
   .dash-grid{grid-template-columns:1fr}
   .w2{grid-column:span 1}
@@ -117,6 +122,9 @@
 .income-input:focus{outline:none;border-bottom:2px solid var(--ink)}
 
 
+/* el svg de base.css mide 20px: la gráfica necesita decir su tamaño */
+.spark-svg{width:100%;height:220px;display:block;margin-top:var(--space-3)}
+@media(max-width:720px){.spark-svg{height:160px}}
 .spark-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3)}
 .spark-val{font-size:var(--text-h3);font-weight:var(--fw-black);color:var(--ink)}
 .spark-months{display:flex;justify-content:space-between;margin-top:var(--space-2)}

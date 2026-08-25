@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, aportesAMeta, podar, hoyISO,
-} from './movimientos.js';
+  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, aportesAMeta, podar, hoyISO, serieAhorro } from './movimientos.js';
 
 const MOVS = [
   { id: 'm1', fecha: '2026-08-03', tipo: 'gasto', monto: 85000, itemId: 'i1', lineId: 'l1' },
@@ -73,5 +72,40 @@ describe('poda', () => {
       { fecha: '2026-08-24', tipo: 'gasto', monto: 3 },
     ];
     expect(podar(viejos, 24, hoy).map((m) => m.monto)).toEqual([2, 3]);
+  });
+});
+
+describe('serie de ahorro', () => {
+  const hoy = new Date(2026, 7, 15); // agosto 2026
+
+  it('sin movimientos devuelve los meses en cero', () => {
+    const s = serieAhorro([], null, 3, [], hoy);
+    expect(s.map((r) => r.periodo)).toEqual(['2026-06', '2026-07', '2026-08']);
+    expect(s.every((r) => r.monto === 0 && r.acumulado === 0)).toBe(true);
+  });
+
+  it('el acumulado es monótono', () => {
+    const movs = [
+      { id: 'm1', fecha: '2026-06-10', tipo: 'gasto', monto: 100, goalId: 'g1' },
+      { id: 'm2', fecha: '2026-08-02', tipo: 'gasto', monto: 50, goalId: 'g1' },
+    ];
+    const s = serieAhorro(movs, null, 3, [], hoy);
+    expect(s.map((r) => r.acumulado)).toEqual([100, 100, 150]);
+  });
+
+  it('no cuenta dos veces un aporte a meta cargado a un bloque de ahorro', () => {
+    const movs = [{ id: 'm1', fecha: '2026-08-02', tipo: 'gasto', monto: 200, goalId: 'g1', itemId: 'cor' }];
+    expect(serieAhorro(movs, null, 1, ['cor'], hoy)[0].monto).toBe(200);
+  });
+
+  it('filtra por meta, por bloque y por abonos', () => {
+    const movs = [
+      { id: 'm1', fecha: '2026-08-02', tipo: 'gasto', monto: 200, goalId: 'g1' },
+      { id: 'm2', fecha: '2026-08-03', tipo: 'gasto', monto: 300, itemId: 'cor' },
+      { id: 'm3', fecha: '2026-08-04', tipo: 'gasto', monto: 400, lineId: 'l1', abono: true },
+    ];
+    expect(serieAhorro(movs, 'meta:g1', 1, [], hoy)[0].monto).toBe(200);
+    expect(serieAhorro(movs, 'item:cor', 1, [], hoy)[0].monto).toBe(300);
+    expect(serieAhorro(movs, 'deuda', 1, [], hoy)[0].monto).toBe(400);
   });
 });

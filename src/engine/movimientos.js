@@ -58,3 +58,31 @@ export function podar(movs, meses = 24, hoy = new Date()) {
   const limite = periodoDe(hoyISO(new Date(hoy.getFullYear(), hoy.getMonth() - meses, 1)));
   return movs.filter((m) => periodoDe(m.fecha) >= limite);
 }
+
+/* Serie mensual de ahorro para la gráfica del dashboard.
+   destino: null (todo) | 'meta:<goalId>' | 'item:<itemId>' | 'deuda'.
+   Con destino null hay que decirle qué bloques cuentan como ahorro
+   (los de rol cor y lar): el movimiento no guarda el rol, solo el itemId.
+   Cada movimiento se cuenta una sola vez aunque caiga en dos categorías. */
+export function serieAhorro(movs, destino = null, meses = 12, itemsAhorro = [], hoy = new Date()) {
+  const periodos = Array.from({ length: meses }, (_, i) => periodoDe(
+    hoyISO(new Date(hoy.getFullYear(), hoy.getMonth() - (meses - 1 - i), 1))));
+  const cuenta = (m) => {
+    if (m.tipo !== 'gasto') return false;
+    if (destino === 'deuda') return !!m.abono;
+    if (destino?.startsWith('meta:')) return m.goalId === destino.slice(5);
+    if (destino?.startsWith('item:')) return m.itemId === destino.slice(5);
+    return !!m.goalId || !!m.abono || itemsAhorro.includes(m.itemId);
+  };
+  const porPeriodo = {};
+  movs.filter(cuenta).forEach((m) => {
+    const per = periodoDe(m.fecha);
+    porPeriodo[per] = (porPeriodo[per] || 0) + m.monto;
+  });
+  let acumulado = 0;
+  return periodos.map((periodo) => {
+    const monto = porPeriodo[periodo] || 0;
+    acumulado += monto;
+    return { periodo, monto, acumulado };
+  });
+}

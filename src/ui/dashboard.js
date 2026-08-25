@@ -1,12 +1,10 @@
 import * as store from '../store.js';
-import { total, r2, amount, diagnosticoEsenciales } from '../engine/reparto.js';
-import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engine/metas.js';
-import { recomendar } from '../engine/consejo.js';
-import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
+import { total, r2, diagnosticoEsenciales } from '../engine/reparto.js';
+import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { renglonesQueCrecieron } from '../engine/alertas.js';
 import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
-import { periodoDe, hoyISO, ingresoReal } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, ingresoReal, serieAhorro } from '../engine/movimientos.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -65,14 +63,6 @@ export async function renderDashboard(root) {
   const { target, saved: fondoSaved, estado: fondoEstado, creado } = store.ensureFondoGoal(p);
   if (creado) store.save();
 
-  const escalon = escalonActual({
-    minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items, p.movs),
-      p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, inc), 0)),
-    fondoEstado,
-    tieneMetasActivas: p.goals.some((g) => !g.special),
-  });
-
-  const rec = recomendar({ fondoEstado, essentialsShare: diag ? diag.share : 0 });
   const ahorroHoy = tasaAhorro(p);
 
   const estadoMes = Math.abs(diff) < 0.01
@@ -143,28 +133,12 @@ export async function renderDashboard(root) {
     </div>` : ''}
     <div id="dAlertas"></div>
 
-    <div class="grid-2a">
-      <div class="card">
-        <span class="label">Orden de prioridad</span>
-        <div class="escalera">
-          ${ESCALERA.map((s, i) => {
-            const n = i + 1;
-            const state = n < escalon ? 'done' : n === escalon ? 'on' : '';
-            return `<div class="peldano ${state}">
-              <span class="bub">${n < escalon ? '✓' : n}</span>
-              <span class="txt">${s}</span>
-            </div>`;
-          }).join('')}
-        </div>
+    <div class="card">
+      <div class="spark-head">
+        <span class="label">Tasa de ahorro</span>
+        <span class="spark-val num">${ahorroHoy}%</span>
       </div>
-
-      <div class="card">
-        <div class="spark-head">
-          <span class="label">Tasa de ahorro</span>
-          <span class="spark-val num">${ahorroHoy}%</span>
-        </div>
-        <div id="dSpark"><div class="sub">Cargando historial…</div></div>
-      </div>
+      <div id="dSpark"><div class="sub">Cargando historial…</div></div>
     </div>
 
     <div class="grid-2b">
@@ -204,13 +178,7 @@ export async function renderDashboard(root) {
       </div>
     </div>
 
-    <div class="card" style="background:var(--pink-wash);border-color:var(--pink-lighter)">
-      <span class="label">Recomendado de ahorro</span>
-      <div class="sub" style="font-size:var(--text-sm);color:var(--ink)">
-        Corto plazo <b class="num">${rec.corto}%</b> · Largo plazo <b class="num">${rec.largo}%</b>
-      </div>
-      <div class="sub">${rec.motivo}.</div>
-    </div>`;
+    <div class="card" id="dAhorro"></div>`;
 
   root.querySelector('#dIncome').onchange = (e) => {
     p.inc = digits(e.target.value);
@@ -236,8 +204,54 @@ export async function renderDashboard(root) {
     renderDashboard(root);
   };
 
+  pintarAhorro(root, p);
+
   // el historial viene de Supabase: la UI ya se pintó, esto solo rellena la tarjeta
   paintSpark(root, p, ahorroHoy);
+}
+
+/* La gráfica se alimenta del libro, no de los cierres: así hay datos desde el
+   primer mes. Al cambiar el filtro solo se repinta esta tarjeta. */
+function pintarAhorro(root, p, destino = null) {
+  const box = root.querySelector('#dAhorro');
+  if (!box) return;
+  if (!p.movs.length) {
+    box.innerHTML = `<span class="label">Ahorro acumulado</span>
+      <div class="empty">Registra tus primeros movimientos y aquí verás cómo crece tu ahorro.</div>`;
+    return;
+  }
+  const bloques = p.items.filter((it) => it.r === 'cor' || it.r === 'lar');
+  const serie = serieAhorro(p.movs, destino, 12, bloques.map((it) => it.id));
+  const filas = serie.slice().reverse();
+
+  box.innerHTML = `
+    <div class="spark-head">
+      <span class="label">Ahorro acumulado</span>
+      <select id="dAhorroFiltro" aria-label="Qué ahorro">
+        <option value="">Todo</option>
+        ${ordenadas(p.goals).length ? `<optgroup label="Metas">
+          ${ordenadas(p.goals).map((g) => `<option value="meta:${g.id}">${esc(g.n)}</option>`).join('')}
+        </optgroup>` : ''}
+        ${bloques.length ? `<optgroup label="Bloques">
+          ${bloques.map((it) => `<option value="item:${it.id}">${esc(it.n)}</option>`).join('')}
+        </optgroup>` : ''}
+        <option value="deuda">Pago de deudas</option>
+      </select>
+    </div>
+    <div class="kpi num">${money(serie[serie.length - 1].acumulado, p.cur)}</div>
+    ${sparkline(serie.map((r) => r.acumulado))}
+    <div class="spark-months">${serie.map((r) => `<span>${mesCorto(r.periodo)}</span>`).join('')}</div>
+    <div class="hist-list">
+      ${filas.map((r) => `<div class="mov-res">
+        <span class="nm">${mesCorto(r.periodo)} ${r.periodo.slice(0, 4)}</span>
+        <span class="num">${money(r.monto, p.cur)}</span>
+        <span class="num mov-res-d">${money(r.acumulado, p.cur)}</span>
+      </div>`).join('')}
+    </div>`;
+
+  const filtro = box.querySelector('#dAhorroFiltro');
+  filtro.value = destino || '';
+  filtro.onchange = () => pintarAhorro(root, p, filtro.value || null);
 }
 
 async function paintSpark(root, p, ahorroHoy) {

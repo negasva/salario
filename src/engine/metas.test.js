@@ -13,7 +13,6 @@ import {
   secuenciaPlazos,
   metasEnItem,
 } from './metas.js';
-import { recomendar } from './consejo.js';
 
 describe('F3 fondo de emergencia', () => {
   it('objetivo = fijos + 50% variables, por N meses', () => {
@@ -162,18 +161,5 @@ describe('F10 aportes extra', () => {
     aplicarAporte(g, 50, new Date(2026, 0, 1));
     expect(g.s).toBe(150);
     expect(g.aportes).toHaveLength(1);
-  });
-});
-
-describe('F2 recomendado de ahorro', () => {
-  it('todo a corto plazo si el fondo esta critico', () => {
-    const r = recomendar({ fondoEstado: 'critico', essentialsShare: 40 });
-    expect(r.corto).toBe(100);
-    expect(r.motivo).toMatch(/colchón/);
-  });
-  it('baja el ahorro sugerido si esenciales pasan 65%', () => {
-    const r = recomendar({ fondoEstado: 'completo', essentialsShare: 70 });
-    expect(r.corto).toBe(15);
-    expect(r.motivo).toMatch(/esenciales/);
   });
 });

@@ -41,15 +41,6 @@ export function emergencyStatus(saved, oneMonth, target) {
   return 'completo';
 }
 
-// F4 — escalera de prioridad
-export const ESCALERA = [
-  'Mínimos de deuda',
-  'Fondo de emergencia — 1 mes',
-  'Fondo de emergencia — completo',
-  'Metas',
-  'Inversión largo plazo',
-];
-
 export function escalonActual(estado) {
   if (!estado.minimosDeudaCubiertos) return 1;
   if (estado.fondoEstado === 'critico') return 2;

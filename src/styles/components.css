@@ -79,7 +79,6 @@
 
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-5)}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5)}
-.grid-2a{display:grid;grid-template-columns:1fr 1.3fr;gap:var(--space-5)}
 .grid-2b{display:grid;grid-template-columns:1.4fr 1fr;gap:var(--space-5)}
 
 .section-h{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:var(--tracking-wide);
@@ -104,18 +103,6 @@
   color:var(--ink);margin-top:var(--space-1);line-height:1.05}
 .income-input:focus{outline:none;border-bottom:2px solid var(--ink)}
 
-.escalera{display:flex;flex-direction:column;margin-top:var(--space-3)}
-.peldano{display:flex;align-items:center;gap:var(--space-3);padding:7px 0;
-  border-bottom:1px solid var(--border-hairline)}
-.peldano:last-child{border-bottom:0}
-.peldano .bub{width:22px;height:22px;flex:none;border-radius:var(--radius-pill);
-  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:var(--fw-bold);
-  background:var(--pink-wash);color:var(--ink-lighter)}
-.peldano .txt{font-size:var(--text-sm);color:var(--ink-lighter)}
-.peldano.done .bub{background:var(--success);color:var(--on-success)}
-.peldano.done .txt{color:var(--ink)}
-.peldano.on .bub{background:var(--pink);color:var(--on-pink)}
-.peldano.on .txt{color:var(--ink);font-weight:var(--fw-bold)}
 
 .spark-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3)}
 .spark-val{font-size:var(--text-h3);font-weight:var(--fw-black);color:var(--ink)}
@@ -299,7 +286,7 @@
 .hist-track i{display:block;height:100%;border-radius:var(--radius-pill)}
 
 @media (max-width:900px){
-  .grid-3,.grid-2a,.grid-2b{grid-template-columns:1fr}
+  .grid-3,.grid-2b{grid-template-columns:1fr}
 }
 @media (max-width:720px){
   .shell{padding:0}

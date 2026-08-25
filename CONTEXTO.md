@@ -38,6 +38,7 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
   traspaso,                        // F5: el traspaso de fila esperando respuesta
   avisosVistos, avisosEnviados,    // F6: qué aviso se descartó y cuál se notificó, por día
   alertasSilenciadas,              // F7: qué alertas de renglón se silenciaron
+  dashLayout,                      // F9: { widgetId: { orden, ancho } } del dashboard
   updated,
 }
 ```
@@ -46,7 +47,7 @@ Dentro de un perfil hay tres listas que se cruzan.
 
 Las **categorías** (`items`) son los bloques del reparto. Vienen cinco por defecto: Esenciales 55%, Gasto libre 5%, Deudas 10%, Ahorro corto plazo 15%, Inversión largo plazo 15%. Cada una tiene un porcentaje, un color, un rol (`r`) y una lista de renglones (`L`) donde escribes los conceptos reales: arriendo, servicios, mercado. Cada renglón se marca como fijo o variable, y esa marca no es decorativa: el plan de recorte solo toca variables, y el objetivo del fondo de emergencia se calcula como los fijos más la mitad de los variables.
 
-Los renglones de un bloque con rol `deu` llevan además `saldo`, `tasa` y `minimo`. Vacíos, el renglón se comporta como cualquier otro.
+Los renglones de un bloque con rol `deu` llevan además `saldo`, `tasa` y `minimo`. Vacíos, el renglón se comporta como cualquier otro. El `saldo` es el declarado; el que manda en los cálculos es el **saldo vivo**, que le resta los movimientos marcados `abono: true`. Un abono es un gasto normal en todo lo demás: cuenta en `gastoTotal`, en `porItem` y en el presupuesto del bloque.
 
 Las **metas** (`goals`) son las cosas que quieres comprar. Cada meta guarda un mapa `a` que dice qué porcentaje de cada bloque reclama. Si la Moto tiene `a = { ahorroCorto: 88 }`, se lleva el 88% de lo que caiga en ese bloque cada mes. Ese mapa es el corazón del cálculo y también la fuente del conflicto: si dos metas suman más de 100% del mismo bloque, la app lo detecta y baja el tope del slider de la segunda.
 
@@ -65,6 +66,7 @@ Los **movimientos** (`movs`) son el libro de lo que de verdad entró y salió. U
   lineId,         // renglón concreto, opcional
   goalId,         // si el gasto es un aporte a una meta
   nota, extra,    // `extra`: ingreso que no es la nómina
+  abono,          // F9: gasto que baja el saldo de un renglón de deuda
 }
 ```
 
@@ -74,7 +76,7 @@ Al arrancar se podan los movimientos de más de 24 meses. El perfil entero viaja
 
 ### El motor de cálculo
 
-Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 104 pruebas en siete archivos.
+Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 118 pruebas en ocho archivos.
 
 `reparto.js` hace la aritmética base. Suma porcentajes, convierte porcentaje a monto, separa fijos de variables, y calcula cuánto queda libre de un bloque después de que las otras metas lo reclamaron.
 
@@ -82,17 +84,17 @@ Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único c
 
 `fila.js` maneja la fila: el orden de las metas, quién sigue, el traspaso de una asignación a la siguiente, y la proyección de cuándo le toca el turno a cada una.
 
-`avisos.js` decide qué tiene que decirte la app hoy: los días que faltan para el cierre del mes, los que faltan para la fecha de una meta, y si un aviso ya se descartó hoy.
+`avisos.js` decide qué tiene que decirte la app hoy: el cierre del mes a 5, 3 y 1 día, los que faltan para la fecha de una meta, y si un aviso ya se descartó hoy.
 
-`consejo.js` tiene la parte opinada. Recomienda el reparto entre corto y largo plazo según el estado de tu fondo, y maneja el ingreso variable.
+`consejo.js` maneja el ingreso variable y el excedente del mes bueno. La recomendación de reparto corto/largo se fue con la tarjeta que la pintaba.
 
-`movimientos.js` agrega el libro: por periodo, por bloque, por renglón, ingreso real contra extra, y lo aportado a cada meta. Un ingreso extra se registra como `tipo: 'ingreso'` con `extra: true`; sus aportes sugeridos o manuales quedan como movimientos de gasto con `goalId` y también actualizan `goal.aportes`/`goal.s`. También `hoyISO()`, que construye la fecha en local a propósito — `toISOString()` convierte a UTC y al este de Greenwich el día 1 del mes cae en el periodo anterior.
+`movimientos.js` agrega el libro: por periodo, por bloque, por renglón, ingreso real contra extra, y lo aportado a cada meta. Un ingreso extra se registra como `tipo: 'ingreso'` con `extra: true`; sus aportes sugeridos o manuales quedan como movimientos de gasto con `goalId` y también actualizan `goal.aportes`/`goal.s`. También `serieAhorro()`, la serie mensual que alimenta la gráfica del dashboard, filtrable por meta, por bloque o por abonos a deuda, y que nunca cuenta dos veces el mismo movimiento. Y `hoyISO()`, que construye la fecha en local a propósito — `toISOString()` convierte a UTC y al este de Greenwich el día 1 del mes cae en el periodo anterior.
 
 `cierre.js` arma el snapshot del mes, calcula qué meses quedaron sin cerrar, y saca la brecha entre lo planeado y lo gastado.
 
-`deudas.js` amortiza. Meses para liquidar, intereses totales, orden de ataque por avalancha o bola de nieve, y el plan que reparte el presupuesto del bloque. Todo sale de una sola simulación mes a mes en vez de la fórmula cerrada: es exacta con el último pago parcial, y el plan la necesita igual, porque cuando una deuda cae su mínimo se suma al sobrante y arrastra a la siguiente. De ahí sale la ventaja de los dos métodos.
+`deudas.js` amortiza. `saldoVivo()` descuenta los abonos del libro y `deudasDelPerfil(items, movs)` trabaja sobre él, así que el plazo y los intereses se mueven cuando pagas. Meses para liquidar, intereses totales, orden de ataque por avalancha o bola de nieve, y el plan que reparte el presupuesto del bloque. Todo sale de una sola simulación mes a mes en vez de la fórmula cerrada: es exacta con el último pago parcial, y el plan la necesita igual, porque cuando una deuda cae su mínimo se suma al sobrante y arrastra a la siguiente. De ahí sale la ventaja de los dos métodos.
 
-Hay una regla de prioridad que atraviesa todo, la escalera de cinco peldaños que se ve en el dashboard: mínimos de deuda, un mes de fondo, fondo completo, metas, inversión de largo plazo. La app te dice en cuál estás y te avisa si estás creando una meta del peldaño 4 cuando todavía andas en el 2. El peldaño 1 se verifica de verdad contra los mínimos de tus deudas y el presupuesto del bloque.
+Hay una regla de prioridad que atraviesa todo, la escalera de cinco peldaños que usa Metas para avisarte cuando creas una meta fuera de turno (el dashboard ya no la pinta): mínimos de deuda, un mes de fondo, fondo completo, metas, inversión de largo plazo. La app te dice en cuál estás y te avisa si estás creando una meta del peldaño 4 cuando todavía andas en el 2. El peldaño 1 se verifica de verdad contra los mínimos de tus deudas y el presupuesto del bloque.
 
 ### El plan de recorte
 
@@ -112,9 +114,9 @@ Si no hay nadie esperando en la fila, no pasa nada. La meta cumplida sigue como 
 
 ### Los avisos
 
-El problema real de estas apps no es que estén mal hechas. Es que la gente las abre dos veces y las olvida. Así que hay dos avisos, y los dos llegan cinco días antes.
+El problema real de estas apps no es que estén mal hechas. Es que la gente las abre dos veces y las olvida. Así que hay dos avisos. El del cierre llega tres veces —a 5, 3 y 1 día— y el de meta cinco días antes.
 
-El primero es el del cierre: `Quedan 5 días de agosto. Llevas $3,2 M registrados de $4,1 M presupuestados.` El segundo es el de una meta con fecha objetivo: `Faltan 5 días para tu fecha de la Moto y llevas el 78%.` Nada más. Una app que avisa de diez cosas no avisa de ninguna.
+El primero es el del cierre, y cada disparo es más corto que el anterior: `Quedan 5 días de agosto. Llevas $3,2 M registrados de $4,1 M presupuestados.`, luego `Faltan 3 días para el cierre de agosto. Revisa lo que no registraste.`, y al final `Mañana cierro agosto. Última oportunidad de cuadrar el mes.` Cada día tiene su propia clave (`cierre-5-2026-08`), así que descartar uno no tapa el siguiente. El segundo es el de una meta con fecha objetivo: `Faltan 5 días para tu fecha de la Moto y llevas el 78%.` Nada más. Una app que avisa de diez cosas no avisa de ninguna.
 
 Salen en un **anuncio grande** (`ui/anuncio.js`), y esa es la parte que importa. No es un toast de seis segundos en la esquina, que es lo que nadie ve, y tampoco es un modal, que se cierra por reflejo sin leerlo. Es una franja del ancho del contenido, arriba de todo, que empuja el resto de la vista hacia abajo y se queda ahí hasta que actúas o la descartas. Rosa con tinta, o tinta con blanco cuando es urgente. Uno o dos botones y una X.
 
@@ -156,7 +158,7 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 
 ### Las seis vistas
 
-**Dashboard** es el resumen. Ingreso editable, cuánto por ciento llevas repartido, estado del fondo, la escalera de prioridad, la tasa de ahorro con su tendencia, el reparto por bloques y los anillos de progreso de cada meta. Si tus esenciales pasan del 50% aparece una tarjeta de advertencia con los tres renglones que más pesan. Si la app cerró meses por ti al arrancar, sale un anuncio que lleva a Historial.
+**Dashboard** es el resumen, y desde la Fase 9 es una cuadrícula que el usuario acomoda: el botón `Acomodar` entra en modo edición y ahí cada tarjeta se arrastra, cambia de ancho (una o dos columnas) o sube y baja con flechas en móvil; `Restablecer` borra `p.dashLayout`. Fuera de ese modo nada se mueve. Las tarjetas son: el ingreso del mes (la nómina real registrada en Movimientos, con el plan al lado y un botón para adoptar el real), cuánto por ciento llevas repartido, el estado del fondo, la tasa de ahorro con su tendencia, la gráfica de **ahorro acumulado** con su filtro (todo, una meta, un bloque de ahorro, pago de deudas) y su tabla mes a mes, el reparto por bloques, y los anillos de progreso de cada meta con el monto, el plazo y la fecha escritos debajo. Si tus esenciales pasan del 50% aparece una tarjeta de advertencia con los tres renglones que más pesan. Si la app cerró meses por ti al arrancar, sale un anuncio que lleva a Historial.
 
 **Categorías** es donde vive el detalle. Cada bloque con su slider, su porcentaje, su monto en pesos, y la lista de conceptos. Debajo de los conceptos, lo que las metas ya reclaman de ese bloque, con un botón `Ya lo guardé` que registra el aporte del mes. Al pie, la cuenta completa: presupuesto, gastos reales, comprometido por metas, y el libre. En un bloque de deudas, cada renglón muestra en cuánto se liquida y cuántos intereses cuesta, y al final el comparativo entre avalancha y bola de nieve.
 
@@ -166,7 +168,7 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 
 **Historial** cierra el mes y guarda el snapshot. Muestra la tasa de ahorro mes a mes, los esenciales como porcentaje del ingreso con semáforo, la comparación contra el promedio de los tres meses anteriores, y por cada cierre las barras enfrentadas de plan contra real con la brecha dicha en una frase.
 
-**Ajustes** tiene los perfiles, el tipo de ingreso, los meses objetivo del fondo, la tasa anual para el costo de oportunidad, el botón que pide permiso para las notificaciones, y exportar/importar en JSON.
+**Ajustes** tiene los perfiles (el activo se renombra en un input, sin `prompt()`; el import pregunta con dos botones que dicen qué hace cada uno, no con un `confirm()` ambiguo), el tipo de ingreso, los meses objetivo del fondo, la tasa anual para el costo de oportunidad, el botón que pide permiso para las notificaciones, y exportar/importar en JSON.
 
 La paleta visual se cambia desde el botón de colores del menú lateral. Se conserva por perfil en el blob local y en Supabase (`paleta`), por lo que al volver a entrar a la cuenta se recupera el tema elegido. La paleta rosa chicle actual sigue siendo la predeterminada; también están Coral & azul, Pizarra y Vivo. Los colores de acento se combinan con texto oscuro o blanco según el contraste, y no se usan colores claros como texto principal.
 
@@ -196,10 +198,12 @@ Para el backend: creas el proyecto en supabase.com, corres `supabase/schema.sql`
 
 Vale la pena decirlo en voz alta, porque el código no lo dice.
 
-**El progreso de una meta se cuenta por dos caminos.** `goal.s` y `goal.aportes` por un lado, y los movimientos con `goalId` por el otro. `Ya lo guardé` en Categorías escribe en los dos y los mantiene sincronizados, pero un aporte metido a mano desde Movimientos no mueve `goal.s`. Lo limpio es que `goal.s` salga de `aportesAMeta()` y `goal.aportes` desaparezca; eso cambia cómo se calcula el progreso de toda meta, así que no se ha tocado.
+**El progreso de una meta se cuenta por dos caminos.** `goal.s` y `goal.aportes` por un lado, y los movimientos con `goalId` por el otro. Desde la Fase 9 las dos puertas escriben en los dos sitios: Categorías con `Ya lo guardé` y el libro con su select de meta, que llama a `aplicarAporte()` al guardar y a `revertirAporte()` al editar o borrar. Lo limpio es que `goal.s` salga de `aportesAMeta()` y `goal.aportes` desaparezca; eso cambia cómo se calcula el progreso de toda meta, así que no se ha tocado.
 
 **El botón "Aplicar" del plan de recorte no aplica nada.** Mueve un contador visual y opaca la tarjeta, pero no toca los porcentajes.
 
 **`digits()` se come los decimales.** Todo campo de dinero parsea con `digits()`, que descarta lo que no sea dígito. En COP, CLP y ARS da igual porque no se usan decimales, pero en USD o EUR un `85,000.50` se lee como `8500050`. Es consistente en toda la app, y por eso mismo es un solo arreglo cuando toque hacerlo.
 
-**Los aportes manuales desde el libro todavía no actualizan el progreso de la meta.** Los aportes de ingreso extra y `Ya lo guardé` sí mantienen sincronizados `goal.s`, `goal.aportes` y el movimiento con `goalId`; un aporte creado directamente desde Movimientos sigue siendo la excepción histórica descrita arriba.
+**WhatsApp no es posible desde una app web.** Mandar un mensaje requiere la Cloud API de Meta: número verificado, servidor propio que guarde el token y plantillas aprobadas una por una. Un backend entero para reemplazar lo que el navegador ya hace gratis. La vía realista, si algún día se quiere, es un servicio externo con un cron en Supabase Edge Functions, y eso es otro proyecto.
+
+**Los avisos no llegan con la app cerrada.** La única vía sin backend es un service worker con Periodic Background Sync, que solo corre en Chrome de escritorio y solo si el usuario instaló la PWA. No está hecho.

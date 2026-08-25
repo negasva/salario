@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DIAS_AVISO, diasQueQuedan, diasHasta, fueVisto,
+  DIAS_AVISO, DIAS_CIERRE, diasQueQuedan, diasHasta, fueVisto,
   avisoFinDeMes, avisosDeMetas, avisosPendientes,
 } from './avisos.js';
 
@@ -36,29 +36,43 @@ describe('F6 cuentas de días', () => {
 });
 
 describe('F6.1 aviso de fin de mes', () => {
-  const hoy = new Date(2026, 7, 26);
-
-  it('no sale antes de los cinco días', () => {
-    expect(avisoFinDeMes(perfil(), INC, new Date(2026, 7, 25))).toBe(null);
-  });
+  const hoy = new Date(2026, 7, 26); // quedan 5
 
   // Intl separa con espacios duros, no con el espacio de la tecla
   const plano = (t) => t.replace(/[\u00a0\u202f]/g, ' ');
 
-  it('dice cuánto llevas registrado de cuánto presupuestado', () => {
+  it('solo sale a 5, 3 y 1 días', () => {
+    [25, 27, 29, 31].forEach((d) => {
+      expect(avisoFinDeMes(perfil(), INC, new Date(2026, 7, d))).toBe(null);
+    });
+    [26, 28, 30].forEach((d) => {
+      expect(avisoFinDeMes(perfil(), INC, new Date(2026, 7, d))).not.toBe(null);
+    });
+  });
+
+  it('a cinco días dice cuánto llevas registrado de cuánto presupuestado', () => {
     const p = perfil({ movs: [{ fecha: '2026-08-03', tipo: 'gasto', monto: 3200000, itemId: 'ese' }] });
     const av = avisoFinDeMes(p, INC, hoy);
     expect(av.titulo).toBe('Quedan 5 días de agosto');
     expect(plano(av.cuerpo)).toContain('$3,2 M registrados');
     expect(plano(av.cuerpo)).toContain('$3,5 M presupuestados'); // 70% de 5.000.000
-    expect(av.clave).toBe('cierre-2026-08');
+    expect(av.clave).toBe('cierre-5-2026-08');
     expect(av.vistas).toEqual(['dashboard', 'movimientos']);
   });
 
-  it('el último día no dice "quedan 0 días" y es urgente', () => {
-    const av = avisoFinDeMes(perfil(), INC, new Date(2026, 7, 31));
-    expect(av.titulo).toBe('Hoy es el último día de agosto');
+  it('a tres días manda a revisar y no repite las cifras', () => {
+    const av = avisoFinDeMes(perfil(), INC, new Date(2026, 7, 28));
+    expect(av.titulo).toBe('Faltan 3 días para el cierre de agosto');
+    expect(av.cuerpo).toBe('Revisa lo que no registraste.');
+    expect(av.clave).toBe('cierre-3-2026-08');
+  });
+
+  it('a un día es urgente y tiene su propia clave', () => {
+    const av = avisoFinDeMes(perfil(), INC, new Date(2026, 7, 30));
+    expect(av.titulo).toBe('Mañana cierro agosto');
+    expect(av.cuerpo).toBe('Última oportunidad de cuadrar el mes.');
     expect(av.urgente).toBe(true);
+    expect(av.clave).toBe('cierre-1-2026-08');
   });
 
   it('solo cuenta los gastos del mes vivo', () => {
@@ -109,13 +123,22 @@ describe('F6.2 descartar no repite el mismo día', () => {
   });
 
   it('el aviso descartado hoy no vuelve a salir hoy', () => {
-    const p = perfil({ avisosVistos: { 'cierre-2026-08': '2026-08-26' } });
+    const p = perfil({ avisosVistos: { 'cierre-5-2026-08': '2026-08-26' } });
     expect(avisosPendientes(p, INC, hoy)).toEqual([]);
-    p.avisosVistos = { 'cierre-2026-08': '2026-08-25' };
+    p.avisosVistos = { 'cierre-5-2026-08': '2026-08-25' };
     expect(avisosPendientes(p, INC, hoy).length).toBe(1);
   });
 
-  it('cinco dias es el umbral de los dos avisos', () => {
+  it('cinco dias es el umbral del aviso de meta', () => {
     expect(DIAS_AVISO).toBe(5);
+  });
+
+  it('descartar el de cinco no tapa el de tres', () => {
+    const p = perfil({ avisosVistos: { 'cierre-5-2026-08': '2026-08-28' } });
+    expect(avisosPendientes(p, INC, new Date(2026, 7, 28)).length).toBe(1);
+  });
+
+  it('el cierre avisa a 5, 3 y 1 días', () => {
+    expect(DIAS_CIERRE).toEqual([5, 3, 1]);
   });
 });

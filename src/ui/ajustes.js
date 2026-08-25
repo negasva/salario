@@ -119,9 +119,9 @@ export function renderAjustes(root) {
 
   const notifTexto = {
     'no-soportado': 'Este navegador no tiene notificaciones. Los avisos igual salen dentro de la app.',
-    granted: 'Concedido. Al abrir la app te avisamos del cierre de mes y de las metas con fecha encima.',
+    granted: 'Concedido. Al abrir la app te avisamos a 5, 3 y 1 día del cierre de mes, y de las metas con fecha encima.',
     denied: 'Lo negaste. Se cambia desde el candado de la barra de direcciones; mientras tanto los avisos salen dentro de la app.',
-    default: 'Te avisamos cinco días antes del cierre de mes y de la fecha de una meta. Nada más.',
+    default: 'Te avisamos a 5, 3 y 1 día del cierre de mes y cinco días antes de la fecha de una meta. Nada más.',
   };
   const pintarNotif = () => {
     const estado = estadoNotificaciones();

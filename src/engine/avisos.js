@@ -9,6 +9,10 @@ import { money, moneyCorto } from '../format.js';
 
 export const DIAS_AVISO = 5;
 
+// El cierre avisa tres veces, cada una más corta que la anterior. Clave
+// distinta por día para que avisosVistos y avisosEnviados no se pisen.
+export const DIAS_CIERRE = [5, 3, 1];
+
 export function diasQueQuedan(hoy = new Date()) {
   const ultimo = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   return ultimo - hoy.getDate();
@@ -31,20 +35,31 @@ export function fueVisto(marcas, clave, hoy = new Date()) {
   return (marcas || {})[clave] === hoyISO(hoy);
 }
 
-// A cinco días del cierre: lo registrado contra lo presupuestado.
+// A 5, 3 y 1 días del cierre. Nada entre medias: avisar todos los días es no avisar.
 export function avisoFinDeMes(p, income, hoy = new Date()) {
   const quedan = diasQueQuedan(hoy);
-  if (quedan > DIAS_AVISO) return null;
+  if (!DIAS_CIERRE.includes(quedan)) return null;
   const periodo = periodoDe(hoyISO(hoy));
+  const mes = MES[hoy.getMonth()];
   const registrado = gastoTotal(p.movs || [], periodo);
   const presupuestado = (p.items || []).reduce((s, it) => s + amount(it, income), 0);
+  const texto = {
+    5: {
+      titulo: `Quedan ${dias(quedan)} de ${mes}`,
+      cuerpo: `Llevas ${moneyCorto(registrado, p.cur)} registrados de ${moneyCorto(presupuestado, p.cur)} presupuestados.`,
+    },
+    3: {
+      titulo: `Faltan ${dias(quedan)} para el cierre de ${mes}`,
+      cuerpo: 'Revisa lo que no registraste.',
+    },
+    1: {
+      titulo: `Mañana cierro ${mes}`,
+      cuerpo: 'Última oportunidad de cuadrar el mes.',
+    },
+  }[quedan];
   return {
-    clave: `cierre-${periodo}`,
-    titulo: quedan === 0
-      ? `Hoy es el último día de ${MES[hoy.getMonth()]}`
-      : `Quedan ${dias(quedan)} de ${MES[hoy.getMonth()]}`,
-    cuerpo: `Llevas ${moneyCorto(registrado, p.cur)} registrados de ${moneyCorto(presupuestado, p.cur)} presupuestados. `
-      + 'Recuerda revisar y registrar lo que falte antes del cierre automático.',
+    clave: `cierre-${quedan}-${periodo}`,
+    ...texto,
     urgente: quedan <= 1,
     vistas: ['dashboard', 'movimientos'],
     accion: { label: 'Registrar lo que falta', ruta: 'movimientos' },

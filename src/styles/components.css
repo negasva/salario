@@ -435,3 +435,22 @@
   /* el campo de fecha se corta si comparte línea */
   .mov-detalle .fieldw{flex:1 1 100%}
 }
+
+/* pagos reales por renglón */
+.pagos-head{display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap;
+  margin:var(--space-3) 0;padding:var(--space-3);background:var(--pink-wash);border-radius:var(--radius-sm)}
+.pagos-head .ph-cifra{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pagos-head .ph-cifra b{font-size:var(--text-base);font-weight:var(--fw-bold);color:var(--ink)}
+.pagos-head .badge{margin-left:auto}
+.num.ok,.sub.ok{color:var(--success)}
+.line-pago{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:6px}
+.line-pago .fieldw{max-width:180px}
+.line-pago .mini{font-size:11px;padding:7px 9px;display:flex;align-items:center;gap:4px;flex:none}
+.line-pago .lcerrar.on{color:var(--success);border-color:var(--success);background:var(--success-soft)}
+.line-pago .ln-dif{margin-top:0;font-weight:var(--fw-semibold)}
+.cc-tot{display:flex;gap:var(--space-5);flex-wrap:wrap;padding:var(--space-3);
+  background:var(--pink-wash);border-radius:var(--radius-sm)}
+.cc-cat,.cc-dest{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:6px}
+.cc-cat .cc-n,.cc-dest .cc-n{flex:1;min-width:120px;font-weight:var(--fw-semibold);color:var(--ink);overflow-wrap:anywhere}
+.cc-cat b{flex:none}
+.cc-dest .fieldw{flex:0 0 150px}

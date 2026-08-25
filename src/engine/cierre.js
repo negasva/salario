@@ -48,9 +48,12 @@ export function construirSnapshot(p, periodo, income, previo = {}) {
       itemId: it.id, nombre: it.n, pct: it.p,
       plan: r2(amount(it, income)), real: r2(gastos[it.id] || 0),
     })),
+    // se guarda el renglon aunque no se haya pagado: un mes en cero tambien
+    // cuenta para el promedio, y sin `plan` no hay contra que compararlo
     lineas: Object.fromEntries(p.items.flatMap((it) => (it.L || [])
-      .filter((l) => lineas[l.id])
-      .map((l) => [l.id, { nombre: l.n, itemId: it.id, real: r2(lineas[l.id]) }]))),
+      .filter((l) => lineas[l.id] || Number(l.v) > 0)
+      .map((l) => [l.id, { nombre: l.n, itemId: it.id, plan: Number(l.v) || 0,
+        fixed: l.fixed !== false, real: r2(lineas[l.id] || 0) }]))),
     metas: p.goals.map((g) => ({
       goalId: g.id, nombre: g.n,
       aportado: r2(aportesAMeta(p.movs, g.id).porPeriodo[periodo] || 0),

@@ -5,6 +5,7 @@ import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { renglonesSobreTope } from '../engine/alertas.js';
+import { resumenItem, fijarPagado } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
@@ -91,14 +92,16 @@ function aportadoEsteMes(p, periodo) {
 function paintList(root) {
   const p = store.active();
   const box = root.querySelector('#catList');
-  const gastado = porItem(p.movs, periodoDe(hoyISO()));
-  const gastadoLinea = porLinea(p.movs, periodoDe(hoyISO()));
-  box.innerHTML = p.items.map((it) => catCard(it, p, gastado, gastadoLinea)).join('');
+  const periodo = periodoDe(hoyISO());
+  const gastado = porItem(p.movs, periodo);
+  const gastadoLinea = porLinea(p.movs, periodo);
+  box.innerHTML = p.items.map((it) => catCard(it, p, gastado, gastadoLinea, periodo)).join('');
 
   p.items.forEach((it) => wireCard(root, it, p));
 }
 
-function catCard(it, p, gastado, gastadoLinea) {
+function catCard(it, p, gastado, gastadoLinea, periodo) {
+  const res = resumenItem(it, gastadoLinea, periodo);
   const budget = amount(it, store.incomeRepartir(p));
   const real = gastado[it.id] || 0;
   const sp = spentInItem(it);
@@ -119,6 +122,7 @@ function catCard(it, p, gastado, gastadoLinea) {
       <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
     </div>
     <div class="sub cat-desc" contenteditable="${!it.locked}">${esc(it.d || '')}</div>
+    ${res.total ? cabeceraPagos(res, p) : ''}
     <div class="cat-fields">
       <label class="fieldw"><span>${p.cur}</span><input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}" ${it.locked ? 'disabled' : ''}></label>
       <label class="fieldw pcent"><input class="cat-pct num" type="text" inputmode="decimal" value="${it.p}" ${it.locked ? 'disabled' : ''}><span>%</span></label>
@@ -126,8 +130,10 @@ function catCard(it, p, gastado, gastadoLinea) {
     <input type="range" class="cat-range" min="0" max="100" step="0.5" value="${it.p}" ${it.locked ? 'disabled' : ''}>
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
-      <div class="detail-head"><span class="label">Detalle</span><button class="btn-plus cat-plus">+</button></div>
-      <div class="lines">${lines(it, p, gastadoLinea)}</div>
+      <div class="detail-head"><span class="label">Detalle</span>
+        <button class="mini cat-fijos" title="Marca como pagados los renglones fijos de este mes">Fijos al día</button>
+        <button class="btn-plus cat-plus">+</button></div>
+      <div class="lines">${lines(it, p, res)}</div>
       ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
         <span class="label">Comprometido por metas</span></div>
         <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
@@ -179,11 +185,31 @@ function diaCorto(fecha) {
   return `${d} de ${MESES[m - 1]}`;
 }
 
-function lines(it, p, gastadoLinea) {
-  if (!it.L.length) return '<div class="empty">Sin nada en la lista.</div>';
-  return it.L.map((l) => {
-    const real = gastadoLinea[l.id] || 0;
+/* Encabezado de la categoría: planeado, pagado real y la diferencia con su
+   nombre. Un ahorro que se llama "diferencia" no se celebra igual. */
+function cabeceraPagos(res, p) {
+  const ahorro = res.diferencia >= 0;
+  return `<div class="pagos-head">
+    <div class="ph-cifra"><span class="label">Planeado</span><b class="num">${money(res.plan, p.cur)}</b></div>
+    <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
+    <div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
+      <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(res.diferencia), p.cur)}</b></div>
+    <span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>
+  </div>`;
+}
+
+const ESTADOS = {
+  pendiente: { t: 'pendiente', c: '' },
+  parcial: { t: 'parcial', c: 'warn' },
+  pagado: { t: 'pagado', c: 'ok' },
+  excedido: { t: 'excedido', c: 'bad' },
+};
+
+function lines(it, p, res) {
+  if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
+  return res.filas.map(({ l, plan, pagado, diferencia, estado }) => {
     const tope = Number(l.tope) || 0;
+    const est = ESTADOS[estado];
     return `
     <div class="line" data-lid="${l.id}">
       <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
@@ -191,10 +217,23 @@ function lines(it, p, gastadoLinea) {
       <button class="mini fixedtoggle ${l.fixed ? 'on' : ''}" title="Fijo/variable">${l.fixed ? 'Fijo' : 'Variable'}</button>
       <button class="mini lx">${icon('cerrar', 'ic-sm')}</button>
     </div>
+    <div class="line-pago" data-lid="${l.id}">
+      <label class="fieldw"><span>Pagado</span>
+        <input class="lpag num" inputmode="numeric" value="${pagado ? plain(pagado, p.cur) : ''}" placeholder="0"></label>
+      <button class="mini lcerrar ${estado === 'pagado' || estado === 'excedido' ? 'on' : ''}"
+        aria-pressed="${estado === 'pagado' || estado === 'excedido'}">${icon('check', 'ic-sm')} Pagado por completo</button>
+      <span class="badge ${est.c}">${est.t}</span>
+      ${plan > 0 && pagado > 0 && diferencia !== 0
+        ? `<span class="sub ln-dif ${diferencia > 0 ? 'ok' : 'over'}">${diferencia > 0
+            ? `ahorras ${money(diferencia, p.cur)}`
+            : `sobrecosto ${money(-diferencia, p.cur)}`}</span>`
+        : ''}
+      ${plan > 0 && diferencia === 0 && pagado > 0 ? '<span class="sub ln-dif">clavado al plan</span>' : ''}
+    </div>
     <div class="line-tope" data-lid="${l.id}">
       <label class="fieldw"><span>Tope del mes</span>
         <input class="ltope num" inputmode="numeric" value="${tope ? plain(tope, p.cur) : ''}" placeholder="sin tope"></label>
-      ${barraGasto(real, tope, Number(l.v) || 0, p)}
+      ${barraGasto(pagado, tope, plan, p)}
     </div>
     ${it.r === 'deu' ? filaDeuda(l, p) : ''}`;
   }).join('');
@@ -404,6 +443,51 @@ function wireCard(root, it, p) {
     const fecha = el.querySelector('.deu-fecha');
     if (fecha) fecha.onchange = (e) => { l.fechaLimite = e.target.value || null; store.save(); renderCategorias(root); };
   });
+
+  /* El pago real. El campo es el total del mes: escribirlo ajusta el libro de
+     movimientos, que es el único sitio donde vive lo pagado. El toggle solo
+     autocompleta si el campo está vacío; con plata escrita, respeta el número. */
+  const periodo = periodoDe(hoyISO());
+  card.querySelectorAll('.line-pago').forEach((el) => {
+    const l = it.L.find((x) => x.id === el.dataset.lid);
+    if (!l) return;
+
+    el.querySelector('.lpag').onchange = (e) => {
+      fijarPagado(p.movs, it, l, digits(e.target.value), hoyISO());
+      store.save();
+      renderCategorias(root);
+    };
+
+    el.querySelector('.lcerrar').onclick = () => {
+      const pagado = porLinea(p.movs, periodo)[l.id] || 0;
+      if (l.pagadoEn === periodo && pagado >= (Number(l.v) || 0)) {
+        l.pagadoEn = null;
+      } else {
+        if (!pagado) fijarPagado(p.movs, it, l, Number(l.v) || 0, hoyISO());
+        l.pagadoEn = periodo;
+      }
+      store.save();
+      renderCategorias(root);
+    };
+  });
+
+  /* Sin cron no hay "al iniciar el mes": un botón deja los fijos al día de un
+     golpe y cada renglón se sigue pudiendo corregir a mano. */
+  card.querySelector('.cat-fijos').onclick = () => {
+    const pagados = porLinea(p.movs, periodo);
+    const fijos = it.L.filter((l) => l.fixed !== false && Number(l.v) > 0 && !pagados[l.id]);
+    if (!fijos.length) { toast('Los fijos de este mes ya están al día'); return; }
+    const antes = JSON.parse(JSON.stringify(p.movs));
+    fijos.forEach((l) => { fijarPagado(p.movs, it, l, Number(l.v), hoyISO()); l.pagadoEn = periodo; });
+    store.save();
+    renderCategorias(root);
+    toast(`${fijos.length} fijo${fijos.length > 1 ? 's' : ''} marcado${fijos.length > 1 ? 's' : ''} como pagado`, () => {
+      p.movs.splice(0, p.movs.length, ...antes);
+      fijos.forEach((l) => { l.pagadoEn = null; });
+      store.save();
+      renderCategorias(root);
+    });
+  };
 
   // el tope vive fuera de la fila del renglón, en su propia línea
   card.querySelectorAll('.line-tope').forEach((el) => {

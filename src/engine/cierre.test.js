@@ -57,10 +57,10 @@ describe('snapshot version 2', () => {
     ]);
   });
 
-  it('guarda los renglones que tuvieron gasto', () => {
+  it('guarda los renglones con su plan y si son fijos', () => {
     expect(snap.lineas).toEqual({
-      l1: { nombre: 'Arriendo', itemId: 'i1', real: 400000 },
-      l2: { nombre: 'Mercado', itemId: 'i1', real: 150000 },
+      l1: { nombre: 'Arriendo', itemId: 'i1', plan: 0, fixed: true, real: 400000 },
+      l2: { nombre: 'Mercado', itemId: 'i1', plan: 0, fixed: true, real: 150000 },
     });
   });
 

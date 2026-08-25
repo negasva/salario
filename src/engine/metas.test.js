@@ -105,16 +105,20 @@ describe('F2.2 metas que reclaman un bloque', () => {
   const item = { id: 'i1', m: 1000000 };   // un millón asignado al mes
 
   it('devuelve una fila por meta, con su monto mensual', () => {
-    const moto = { id: 'g1', n: 'Moto', a: { i1: 88 } };
-    const fondo = { id: 'g2', n: 'Fondo', special: 'emergencia', a: { i1: 12 } };
+    const moto = { id: 'g1', n: 'Moto', a: { i1: 880000 } };
+    const fondo = { id: 'g2', n: 'Fondo', special: 'emergencia', a: { i1: 120000 } };
     expect(metasEnItem([moto, fondo], item)).toEqual([
-      { goal: moto, pct: 88, monto: 880000 },
-      { goal: fondo, pct: 12, monto: 120000 },
+      { goal: moto, monto: 880000 },
+      { goal: fondo, monto: 120000 },
     ]);
   });
 
+  it('una meta no se lleva mas de lo que el bloque tiene asignado', () => {
+    expect(metasEnItem([{ id: 'g1', a: { i1: 9000000 } }], item)[0].monto).toBe(1000000);
+  });
+
   it('un bloque sin metas devuelve vacío', () => {
-    expect(metasEnItem([{ id: 'g1', a: { otro: 50 } }], item)).toEqual([]);
+    expect(metasEnItem([{ id: 'g1', a: { otro: 500000 } }], item)).toEqual([]);
   });
 
   it('un pct de 0 no aparece', () => {
@@ -134,7 +138,7 @@ describe('F9 metas en competencia', () => {
 
 describe('F9 orden por prioridad', () => {
   const items = [{ id: 'i1', m: 1000000 }];
-  const mk = (id, priority) => ({ id, priority, t: 100000, s: 0, a: { i1: 100 } });
+  const mk = (id, priority) => ({ id, priority, t: 100000, s: 0, a: { i1: 1000000 } });
 
   it('ordena alta, media, baja sin importar el orden de entrada', () => {
     const baja = { ...mk('baja', 'baja'), t: 300000 };

@@ -11,7 +11,7 @@ const items = [{ id: 'cor', n: 'Ahorro corto plazo', m: 1000000, r: 'cor', L: []
 function metas() {
   return [
     { id: 'fondo', n: 'Fondo de emergencia', special: 'emergencia', orden: 0, estado: 'activa', t: 4000000, s: 0, a: {} },
-    { id: 'moto', n: 'Moto', orden: 1, estado: 'activa', t: 24000000, s: 0, a: { cor: 80 } },
+    { id: 'moto', n: 'Moto', orden: 1, estado: 'activa', t: 24000000, s: 0, a: { cor: 800000 } },
     { id: 'viaje', n: 'Viaje', orden: 2, estado: 'en_fila', t: 6000000, s: 0, a: {} },
   ];
 }
@@ -57,20 +57,20 @@ describe('F5.1 orden', () => {
 describe('F5.2 una meta en fila no consume bloque', () => {
   it('no cuenta en claimedBy ni le baja el tope a las activas', () => {
     const gs = metas();
-    gs[2].a = { cor: 50 }; // su reparto se guarda...
-    expect(claimedBy(gs, 'cor', null)).toBe(80); // ...pero no cuenta
-    expect(freeFor(gs, gs[1], 'cor')).toBe(100);
+    gs[2].a = { cor: 500000 }; // su reparto se guarda...
+    expect(claimedBy(gs, 'cor', null)).toBe(800000); // ...pero no cuenta
+    expect(freeFor(gs, gs[1], items[0])).toBe(1000000);
   });
 
   it('no aparece como comprometida en el bloque', () => {
     const gs = metas();
-    gs[2].a = { cor: 50 };
+    gs[2].a = { cor: 500000 };
     expect(metasEnItem(gs, items[0]).map((x) => x.goal.id)).toEqual(['moto']);
   });
 
   it('no pelea con nadie: una meta en fila no esta en conflicto', () => {
     const gs = metas();
-    gs[2].a = { cor: 50 };
+    gs[2].a = { cor: 500000 };
     expect(conflictosDeMetas(gs)).toEqual([]);
   });
 });
@@ -100,7 +100,7 @@ describe('F5.2 traspaso', () => {
     expect(gs[1].estado).toBe('completa');
     expect(gs[1].a).toEqual({});
     expect(gs[2].estado).toBe('activa');
-    expect(gs[2].a).toEqual({ cor: 80 });
+    expect(gs[2].a).toEqual({ cor: 800000 });
   });
 
   it('a mano libera el bloque sin repartirlo', () => {
@@ -111,8 +111,13 @@ describe('F5.2 traspaso', () => {
     expect(gs[2].estado).toBe('activa');
   });
 
-  it('lo que la meta de la fila ya reclamaba se suma, con tope 100', () => {
-    expect(mezclarAsignacion({ cor: 40 }, { cor: 80, lar: 10 })).toEqual({ cor: 100, lar: 10 });
+  it('lo que la meta de la fila ya reclamaba se suma, con tope en lo que el bloque tiene', () => {
+    expect(mezclarAsignacion({ cor: 400000 }, { cor: 800000, lar: 100000 }, items))
+      .toEqual({ cor: 1000000, lar: 100000 });
+  });
+
+  it('sin conocer el bloque no hay tope que aplicar', () => {
+    expect(mezclarAsignacion({ cor: 400000 }, { cor: 800000 })).toEqual({ cor: 1200000 });
   });
 
   it('vence a las 24 horas', () => {

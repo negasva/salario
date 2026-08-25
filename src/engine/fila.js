@@ -1,4 +1,5 @@
 import { monthlyToward } from './metas.js';
+import { amount } from './reparto.js';
 
 // F5 — la fila de metas. Dos metas que compiten por un bloque ya no compiten
 // para siempre: se ponen una detrás de otra y el dinero de la que termina pasa
@@ -59,23 +60,28 @@ export function metaCumplida(goals) {
   return ordenadas(goals).find((g) => estadoDe(g) === 'activa' && (g.t || 0) > 0 && (g.s || 0) >= g.t) || null;
 }
 
-export function mezclarAsignacion(base, extra) {
+/* Las asignaciones son plata, así que el tope de cada bloque es lo que ese
+   bloque tiene asignado: heredar la plata de otra meta no puede hacer que un
+   bloque prometa más de lo que le entra. */
+export function mezclarAsignacion(base, extra, items = []) {
   const out = { ...(base || {}) };
   Object.entries(extra || {}).forEach(([k, v]) => {
-    out[k] = Math.min(100, (Number(out[k]) || 0) + (Number(v) || 0));
+    const it = items.find((x) => x.id === k);
+    const suma = (Number(out[k]) || 0) + (Number(v) || 0);
+    out[k] = it ? Math.min(amount(it), suma) : suma;
   });
   return out;
 }
 
 /* La meta termina y su asignación pasa entera a la que sigue en la fila.
-   `aMano` libera el porcentaje sin repartirlo: lo acomoda el usuario. */
-export function aplicarTraspaso(desde, hacia, aMano = false) {
+   `aMano` libera la plata sin repartirla: la acomoda el usuario. */
+export function aplicarTraspaso(desde, hacia, aMano = false, items = []) {
   const asignacion = desde.a || {};
   desde.estado = 'completa';
   desde.a = {};
   if (hacia) {
     hacia.estado = 'activa';
-    if (!aMano) hacia.a = mezclarAsignacion(hacia.a, asignacion);
+    if (!aMano) hacia.a = mezclarAsignacion(hacia.a, asignacion, items);
   }
   return { desde, hacia };
 }
@@ -93,7 +99,7 @@ export function proyeccion(goals, items) {
   let libreEn = 0;
   ordenadas(goals).filter((g) => estadoDe(g) !== 'completa').forEach((g) => {
     const enFila = estadoDe(g) === 'en_fila';
-    const a = enFila && previa ? mezclarAsignacion(g.a, previa.a) : g.a;
+    const a = enFila && previa ? mezclarAsignacion(g.a, previa.a, items) : g.a;
     const empieza = enFila ? libreEn : 0;
     const mensual = monthlyToward({ a }, items);
     const falta = Math.max(0, (g.t || 0) - (g.s || 0));

@@ -153,8 +153,18 @@ function normalizeProfile(p) {
     if (it.locked === undefined) it.locked = false;
   });
   p.goals = p.goals || [];
+  /* Migración: lo que una meta reclamaba de un bloque era un porcentaje de ese
+     bloque; ahora es plata. Se traduce una sola vez con el monto que el bloque
+     tiene hoy, y la marca queda en el perfil para no volver a convertir. */
+  const metasEnPorcentaje = !p.metasEnPlata;
   p.goals.forEach((g, i) => {
     g.a = g.a || {};
+    if (metasEnPorcentaje) {
+      Object.entries(g.a).forEach(([itemId, pct]) => {
+        const it = p.items.find((x) => x.id === itemId);
+        g.a[itemId] = it ? Math.round(((Number(it.m) || 0) * (Number(pct) || 0)) / 100) : 0;
+      });
+    }
     if (!g.priority) g.priority = 'media';
     // dateMode era booleano; ahora el modo tiene tres estados
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
@@ -163,6 +173,7 @@ function normalizeProfile(p) {
     if (!g.estado) g.estado = 'activa';
     if (typeof g.orden !== 'number') g.orden = g.special ? 0 : i + 1;
   });
+  p.metasEnPlata = true;
   reasignar(ordenadas(p.goals));
   // primero se fija la base con todos los movimientos, y lo que la poda se lleve
   // se suma a esa base: podar dos años de libro no puede borrar tu progreso
@@ -241,7 +252,7 @@ async function flushPush() {
       data: {
         inc: p.inc, cur: p.cur, paleta: p.paleta, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
-        items: p.items, goals: p.goals, traspaso: p.traspaso || null,
+        items: p.items, goals: p.goals, metasEnPlata: true, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         recurrentes: p.recurrentes || [],
@@ -350,6 +361,7 @@ export async function bootAuth(uid) {
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
       movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda, traspaso: row.data.traspaso || null,
+      metasEnPlata: row.data.metasEnPlata,
       avisosVistos: row.data.avisosVistos, avisosEnviados: row.data.avisosEnviados,
       alertasSilenciadas: row.data.alertasSilenciadas,
       updated: new Date(row.updated_at).getTime(),
@@ -455,7 +467,7 @@ export function aplicarTraspasoPendiente(aMano = false) {
   const t = traspasoPendiente();
   p.traspaso = null;
   if (!t) { save(); return null; }
-  traspasar(t.desde, t.hacia, aMano);
+  traspasar(t.desde, t.hacia, aMano, p.items);
   save();
   return t;
 }

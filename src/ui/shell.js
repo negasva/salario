@@ -1,4 +1,5 @@
 import { icon } from './icons.js';
+import { abrirBuscador } from './buscador.js';
 import { signOut } from '../auth.js';
 import * as store from '../store.js';
 import { PALETAS, normalizarPaleta } from '../theme.js';
@@ -32,6 +33,7 @@ export function renderShell(root, currentRoute, onNavigate) {
           <nav>
             ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
           </nav>
+          <button class="navlink" id="btnBuscar" title="Buscar" aria-label="Buscar">${icon('buscar')}</button>
           <div class="palette-control">
             <button class="navlink palette-trigger" id="btnPalette" title="Cambiar paleta" aria-label="Cambiar paleta" aria-expanded="false">${icon('paleta')}</button>
             <div class="palette-menu" id="paletteMenu" role="menu" aria-label="Paletas de colores" hidden>
@@ -57,6 +59,7 @@ export function renderShell(root, currentRoute, onNavigate) {
     </div>
     <div class="toast" id="toast" aria-live="polite" aria-atomic="true"><span id="toastMsg"></span></div>`;
 
+  root.querySelector('#btnBuscar').onclick = () => abrirBuscador();
   root.querySelectorAll('.navlink[data-r]').forEach((b) => {
     b.onclick = () => onNavigate(b.dataset.r);
   });

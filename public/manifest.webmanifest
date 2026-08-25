@@ -1,0 +1,19 @@
+{
+  "name": "Reparto mensual",
+  "short_name": "Reparto",
+  "description": "Reparte el sueldo en bloques y sabe cuándo llegas a tus metas.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#12111A",
+  "theme_color": "#FFF1F7",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "/icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

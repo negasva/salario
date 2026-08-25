@@ -1,9 +1,10 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, porItem, ingresoReal, enPeriodo, ritmoDelMes } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, porItem, porLinea, ingresoReal, enPeriodo, ritmoDelMes } from '../engine/movimientos.js';
 import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
+import { renglonesSobreTope } from '../engine/alertas.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
@@ -91,12 +92,13 @@ function paintList(root) {
   const p = store.active();
   const box = root.querySelector('#catList');
   const gastado = porItem(p.movs, periodoDe(hoyISO()));
-  box.innerHTML = p.items.map((it) => catCard(it, p, gastado)).join('');
+  const gastadoLinea = porLinea(p.movs, periodoDe(hoyISO()));
+  box.innerHTML = p.items.map((it) => catCard(it, p, gastado, gastadoLinea)).join('');
 
   p.items.forEach((it) => wireCard(root, it, p));
 }
 
-function catCard(it, p, gastado) {
+function catCard(it, p, gastado, gastadoLinea) {
   const budget = amount(it, store.incomeRepartir(p));
   const real = gastado[it.id] || 0;
   const sp = spentInItem(it);
@@ -125,7 +127,7 @@ function catCard(it, p, gastado) {
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
       <div class="detail-head"><span class="label">Detalle</span><button class="btn-plus cat-plus">+</button></div>
-      <div class="lines">${lines(it, p)}</div>
+      <div class="lines">${lines(it, p, gastadoLinea)}</div>
       ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
         <span class="label">Comprometido por metas</span></div>
         <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
@@ -177,16 +179,29 @@ function diaCorto(fecha) {
   return `${d} de ${MESES[m - 1]}`;
 }
 
-function lines(it, p) {
+function lines(it, p, gastadoLinea) {
   if (!it.L.length) return '<div class="empty">Sin nada en la lista.</div>';
-  return it.L.map((l) => `
+  return it.L.map((l) => {
+    const real = gastadoLinea[l.id] || 0;
+    const tope = Number(l.tope) || 0;
+    const pct = tope > 0 ? Math.round((real / tope) * 100) : 0;
+    return `
     <div class="line" data-lid="${l.id}">
       <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
       <input class="lv num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0">
       <button class="mini fixedtoggle ${l.fixed ? 'on' : ''}" title="Fijo/variable">${l.fixed ? 'Fijo' : 'Variable'}</button>
       <button class="mini lx">${icon('cerrar', 'ic-sm')}</button>
     </div>
-    ${it.r === 'deu' ? filaDeuda(l, p) : ''}`).join('');
+    <div class="line-tope" data-lid="${l.id}">
+      <label class="fieldw"><span>Tope del mes</span>
+        <input class="ltope num" inputmode="numeric" value="${tope ? plain(tope, p.cur) : ''}" placeholder="sin tope"></label>
+      ${tope > 0 ? `<div class="sub">Llevas ${money(real, p.cur)} de ${money(tope, p.cur)}
+        <span class="hist-track" style="display:inline-block;width:80px;vertical-align:middle">
+          <i style="width:${Math.min(100, pct)}%;background:${pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)'}"></i></span>
+        ${pct >= 100 ? '<b class="over">te pasaste</b>' : `quedan ${money(Math.max(0, tope - real), p.cur)}`}</div>` : ''}
+    </div>
+    ${it.r === 'deu' ? filaDeuda(l, p) : ''}`;
+  }).join('');
 }
 
 // Un renglón de deuda gana tres campos. Vacíos, se comporta como cualquier otro.
@@ -203,6 +218,12 @@ function filaDeuda(l, p) {
     <label class="fieldw"><span>Saldo</span><input class="dv num" data-k="saldo" inputmode="numeric" value="${saldo ? plain(saldo, p.cur) : ''}" placeholder="0"></label>
     <label class="fieldw"><span>Tasa %</span><input class="dv num" data-k="tasa" inputmode="decimal" value="${l.tasa ?? ''}" placeholder="0"></label>
     <label class="fieldw"><span>Mínimo</span><input class="dv num" data-k="minimo" inputmode="numeric" value="${cuota ? plain(cuota, p.cur) : ''}" placeholder="0"></label>
+    <label class="fieldw"><span>Día de pago</span><input class="dv num" data-k="diaPago" inputmode="numeric" value="${l.diaPago || ''}" placeholder="—"></label>
+    <div class="chips deu-plazo-tipo">
+      <button class="mini deu-tipo ${l.fechaLimite ? '' : 'on'}" data-lid="${l.id}" data-tipo="indefinida">Sin fecha final</button>
+      <button class="mini deu-tipo ${l.fechaLimite ? 'on' : ''}" data-lid="${l.id}" data-tipo="fecha">Con fecha límite</button>
+      ${l.fechaLimite ? `<input type="date" class="deu-fecha" data-lid="${l.id}" value="${l.fechaLimite}">` : ''}
+    </div>
     ${declarado > 0 ? `<div class="sub deu-plazo">Saldo ${money(declarado, p.cur)} · abonado este mes ${money(abonadoMes, p.cur)} · quedan ${money(saldo, p.cur)}</div>` : ''}
     ${saldo > 0 ? `<div class="sub deu-plazo">${meses
       ? `Se liquida en ${plazo(meses)}, hacia ${whenText(meses)}. Intereses: ${money(intereses, p.cur)}.`
@@ -348,11 +369,34 @@ function wireCard(root, it, p) {
     el.querySelectorAll('.dv').forEach((inp) => {
       inp.onchange = (e) => {
         const k = inp.dataset.k;
-        l[k] = k === 'tasa' ? Number(String(e.target.value).replace(',', '.')) || 0 : digits(e.target.value);
+        l[k] = k === 'tasa' ? Number(String(e.target.value).replace(',', '.')) || 0
+          : k === 'diaPago' ? Math.min(31, Math.max(0, digits(e.target.value)))
+            : digits(e.target.value);
         store.save();
         renderCategorias(root);
       };
     });
+    // una deuda es indefinida (solo día de corte) o tiene fecha final
+    el.querySelectorAll('.deu-tipo').forEach((b) => {
+      b.onclick = () => {
+        l.fechaLimite = b.dataset.tipo === 'fecha' ? (l.fechaLimite || hoyISO()) : null;
+        store.save();
+        renderCategorias(root);
+      };
+    });
+    const fecha = el.querySelector('.deu-fecha');
+    if (fecha) fecha.onchange = (e) => { l.fechaLimite = e.target.value || null; store.save(); renderCategorias(root); };
+  });
+
+  // el tope vive fuera de la fila del renglón, en su propia línea
+  card.querySelectorAll('.line-tope').forEach((el) => {
+    const l = it.L.find((x) => x.id === el.dataset.lid);
+    if (!l) return;
+    el.querySelector('.ltope').onchange = (e) => {
+      l.tope = digits(e.target.value);
+      store.save();
+      renderCategorias(root);
+    };
   });
 
   card.querySelector('.deu-metodo')?.addEventListener('click', (e) => {

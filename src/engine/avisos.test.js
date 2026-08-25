@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DIAS_AVISO, DIAS_CIERRE, diasQueQuedan, diasHasta, fueVisto,
-  avisoFinDeMes, avisosDeMetas, avisosPendientes,
+  avisoFinDeMes, avisosDeMetas, avisosPendientes, avisosDeDeudas,
 } from './avisos.js';
 
 const INC = 5000000;
@@ -140,5 +140,41 @@ describe('F6.2 descartar no repite el mismo día', () => {
 
   it('el cierre avisa a 5, 3 y 1 días', () => {
     expect(DIAS_CIERRE).toEqual([5, 3, 1]);
+  });
+});
+
+describe('F11 aviso de pago de deuda', () => {
+  const conDeuda = (extra = {}) => perfil({ items: [
+    { id: 'deu', n: 'Deudas', p: 10, r: 'deu', L: [
+      { id: 'd1', n: 'Tarjeta', saldo: 3000000, minimo: 150000, diaPago: 20, ...extra },
+    ] },
+  ] });
+
+  it('avisa dos días antes, el día antes y el mismo día', () => {
+    [18, 19, 20].forEach((d) => {
+      expect(avisosDeDeudas(conDeuda(), new Date(2026, 7, d))).toHaveLength(1);
+    });
+  });
+
+  it('calla lejos de la fecha y después de pasada', () => {
+    expect(avisosDeDeudas(conDeuda(), new Date(2026, 7, 10))).toEqual([]);
+    expect(avisosDeDeudas(conDeuda(), new Date(2026, 7, 21))).toEqual([]);
+  });
+
+  it('el día del pago es urgente y dice la cuota', () => {
+    const [av] = avisosDeDeudas(conDeuda(), new Date(2026, 7, 20));
+    expect(av.titulo).toBe('Hoy se paga Tarjeta');
+    expect(av.urgente).toBe(true);
+    expect(av.clave).toBe('deuda-d1-2026-08');
+  });
+
+  it('una deuda con fecha límite dice cuánto le queda', () => {
+    const [av] = avisosDeDeudas(conDeuda({ fechaLimite: '2026-12-20' }), new Date(2026, 7, 19));
+    expect(av.cuerpo).toContain('2026-12-20');
+  });
+
+  it('un renglón sin día de pago o ya pagado no avisa', () => {
+    expect(avisosDeDeudas(conDeuda({ diaPago: 0 }), new Date(2026, 7, 20))).toEqual([]);
+    expect(avisosDeDeudas(conDeuda({ saldo: 0 }), new Date(2026, 7, 20))).toEqual([]);
   });
 });

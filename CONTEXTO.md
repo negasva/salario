@@ -50,7 +50,9 @@ Dentro de un perfil hay tres listas que se cruzan.
 
 Las **categorías** (`items`) son los bloques del reparto. Vienen cinco por defecto: Esenciales 55%, Gasto libre 5%, Deudas 10%, Ahorro corto plazo 15%, Inversión largo plazo 15%. Cada una tiene un porcentaje, un color, un rol (`r`) y una lista de renglones (`L`) donde escribes los conceptos reales: arriendo, servicios, mercado. Cada renglón se marca como fijo o variable, y esa marca no es decorativa: el plan de recorte solo toca variables, y el objetivo del fondo de emergencia se calcula como los fijos más la mitad de los variables.
 
-Los renglones de un bloque con rol `deu` llevan además `saldo`, `tasa` y `minimo`. Vacíos, el renglón se comporta como cualquier otro. El `saldo` es el declarado; el que manda en los cálculos es el **saldo vivo**, que le resta los movimientos marcados `abono: true`. Un abono es un gasto normal en todo lo demás: cuenta en `gastoTotal`, en `porItem` y en el presupuesto del bloque.
+Cada renglón puede llevar `tope`: el máximo que quieres gastar ahí en el mes. Desde el 80% la app lo dice en el dashboard y pinta la barra en Categorías. La alerta de la Fase 7 avisa el mes siguiente, cuando ya gastaste; el tope avisa el mismo día.
+
+Los renglones de un bloque con rol `deu` llevan además `saldo`, `tasa` y `minimo`, más `diaPago` y `fechaLimite`: una deuda puede ser indefinida (solo día de corte cada mes) o tener fecha final. Dos días antes del pago, y el mismo día, sale el aviso — la mora cuesta más que cualquier tasa que hayas calculado. Vacíos, el renglón se comporta como cualquier otro. El `saldo` es el declarado; el que manda en los cálculos es el **saldo vivo**, que le resta los movimientos marcados `abono: true`. Un abono es un gasto normal en todo lo demás: cuenta en `gastoTotal`, en `porItem` y en el presupuesto del bloque.
 
 Las **metas** (`goals`) son las cosas que quieres comprar. Cada meta guarda un mapa `a` que dice qué porcentaje de cada bloque reclama. Si la Moto tiene `a = { ahorroCorto: 88 }`, se lleva el 88% de lo que caiga en ese bloque cada mes. Ese mapa es el corazón del cálculo y también la fuente del conflicto: si dos metas suman más de 100% del mismo bloque, la app lo detecta y baja el tope del slider de la segunda.
 
@@ -70,12 +72,30 @@ Los **movimientos** (`movs`) son el libro de lo que de verdad entró y salió. U
   goalId,         // si el gasto es un aporte a una meta
   nota, extra,    // `extra`: ingreso que no es la nómina
   abono,          // F9: gasto que baja el saldo de un renglón de deuda
+  cat,            // F11: categoría de gasto (mercado, comida-fuera, transporte…)
+  recId,          // F10: el recurrente del que salió, si salió de uno
 }
 ```
 
 Una sola estructura resuelve cuatro cosas: aporte a meta (`goalId`), cierre de mes real (agrupar por `itemId` y periodo), alerta de renglón que creció (agrupar por `lineId`) e ingreso extra (`tipo: 'ingreso'` con `extra: true`). No hay cuatro sistemas separados, y esa es la decisión de diseño central de todo lo que se construyó después.
 
 Al arrancar se podan los movimientos de más de 24 meses. El perfil entero viaja como un blob JSON y sin poda crecería sin techo.
+
+### Las categorías de gasto y la IA
+
+Un gasto se clasifica en diez categorías —mercado, comida preparada, vivienda, servicios, transporte, salud, ocio, suscripciones, educación, otros— y nada más: con veinte, nadie clasifica nada.
+
+`engine/clasificar.js` lo hace en el navegador, sin red y sin costo, con un diccionario de palabras y marcas colombianas. La regla difícil es la del pan: *pan, lechuga, salsa de tomate* es mercado, pero *comida en Dogger* es comida preparada, y las dos son comida. Por eso el diccionario trae Frisby, El Corral, Crepes & Waffles, Juan Valdez, Tostao, Rappi y compañía, y una marca de restaurante pesa el doble que un sustantivo suelto. Una lista de compras vota en conjunto en vez de renglón por renglón.
+
+Mientras escribes la nota, la app propone el bloque que suele pagar esa categoría; si ya elegiste uno a mano, no te lo mueve.
+
+Lo que el diccionario no reconoce se le pregunta a la **IA**, y solo eso. Vive en una Supabase Edge Function (`supabase/functions/ia`) por una razón que no es negociable: la llave del proveedor no puede estar en el navegador, donde cualquiera la saca del bundle. La función tiene dos acciones: `clasificar`, que devuelve JSON, y `preguntar`, que responde en una frase sobre cifras **que la app ya calculó** — la IA no calcula nada por su cuenta ni ve más datos de los que se le mandan. Sin la función desplegada, `src/ia.js` devuelve `null`, la app se queda con el clasificador local y la tarjeta de preguntas lo dice en voz alta en vez de fingir.
+
+Para desplegarla: `supabase secrets set NVIDIA_API_KEY=...` y `supabase functions deploy ia`.
+
+### El buscador
+
+Un botón en la barra lateral y una tarjeta en el dashboard, los dos sobre `engine/buscar.js`: busca en movimientos, metas, bloques y renglones a la vez, sin tildes ni mayúsculas, y suma lo encontrado. Buscar "rappi" es buscar los últimos rappis y cuánto se han llevado; por eso los movimientos salen del más reciente al más viejo y las cosas con nombre propio salen primero.
 
 ### El motor de cálculo
 
@@ -150,6 +170,10 @@ Si trabajas por tu cuenta y el ingreso no es el mismo cada mes, cambias el perfi
 Si el último mes fue mejor que el promedio, la app calcula el excedente y sugiere 70% a metas y fondo, 30% libre.
 
 Cuando se registra un ingreso extra (por ejemplo, una prima), Movimientos muestra un anuncio grande con ese mismo reparto 70/30. `Aplicar sugerencia` recorre las metas activas en el orden de la fila y crea sus aportes; `Repartir a mano` abre un selector con montos y `Dejarlo sin asignar` no crea movimientos adicionales. El resumen mensual separa nómina e ingreso extra. El cierre guarda el total extra en `snapshot.ingresoExtra`, y Historial marca con un punto verde los meses que lo tuvieron para que los picos de la tasa de ahorro se puedan explicar.
+
+### La PWA
+
+`public/manifest.webmanifest` y `public/sw.js`: se instala en el teléfono y abre sin internet. El service worker cachea el cascarón —el HTML y los estáticos con hash del build— y **ninguna respuesta de datos**: una app de plata que muestra saldos viejos es peor que una que dice que no hay internet. Los datos siguen viniendo de `localStorage` y de Supabase.
 
 ### Persistencia
 

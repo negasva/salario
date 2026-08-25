@@ -36,3 +36,14 @@ Import del repo en Vercel, framework preset "Vite", variables de entorno arriba.
 - Gráficos en SVG a mano: cuatro tipos de gráfico no justifican una librería.
 - localStorage como caché, Supabase como fuente de verdad: la UI nunca espera al servidor.
 - Un solo sistema de tokens de color, tarjetas siempre más claras que el fondo.
+
+## La función de IA (opcional)
+
+La app clasifica gastos sin red con el diccionario de `src/engine/clasificar.js`. La IA solo afina lo que queda en "otros" y responde la tarjeta de preguntas del dashboard.
+
+```
+supabase secrets set NVIDIA_API_KEY=tu-llave
+supabase functions deploy ia
+```
+
+La llave nunca llega al navegador. Sin la función desplegada la app funciona igual, y lo dice donde corresponde.

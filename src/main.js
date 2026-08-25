@@ -74,3 +74,11 @@ onAuthChange((session) => {
 });
 
 boot();
+
+/* PWA: instalable y con cascarón offline. El service worker no cachea datos,
+   solo el armazón; los saldos siempre salen de localStorage o de Supabase. */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* sin offline, la app va igual */ });
+  });
+}

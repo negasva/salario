@@ -88,8 +88,41 @@ export function avisosDeMetas(p, hoy = new Date()) {
     });
 }
 
+/* F11 — la mora es más cara que cualquier tasa que calcules, así que el pago
+   de una deuda avisa dos días antes y el mismo día. El renglón puede ser una
+   deuda indefinida (solo día de corte cada mes) o tener fecha límite. */
+export function avisosDeDeudas(p, hoy = new Date()) {
+  const periodo = periodoDe(hoyISO(hoy));
+  const ultimo = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  return (p.items || [])
+    .filter((it) => it.r === 'deu')
+    .flatMap((it) => (it.L || []).map((l) => ({ it, l })))
+    .filter(({ l }) => Number(l.diaPago) > 0 && Number(l.saldo) > 0)
+    .map(({ l }) => {
+      const dia = Math.min(Number(l.diaPago), ultimo);
+      const faltan = dia - hoy.getDate();
+      const cuota = Number(l.minimo) || 0;
+      const limite = l.fechaLimite ? diasHasta(l.fechaLimite, hoy) : null;
+      return { l, faltan, cuota, limite };
+    })
+    .filter(({ faltan }) => faltan >= 0 && faltan <= 2)
+    .map(({ l, faltan, cuota, limite }) => ({
+      clave: `deuda-${l.id}-${periodo}`,
+      titulo: faltan === 0
+        ? `Hoy se paga ${l.n || 'tu deuda'}`
+        : `${faltan === 1 ? 'Mañana' : `En ${dias(faltan)}`} se paga ${l.n || 'tu deuda'}`,
+      cuerpo: `${cuota > 0 ? `La cuota es ${money(cuota, p.cur)}. ` : ''}`
+        + (limite !== null && limite >= 0
+          ? `Esta deuda termina el ${l.fechaLimite}, faltan ${dias(limite)}.`
+          : 'Pagar tarde cuesta más que cualquier tasa que hayas calculado.'),
+      urgente: faltan === 0,
+      vistas: ['dashboard', 'categorias'],
+      accion: { label: 'Ver el bloque de deudas', ruta: 'categorias' },
+    }));
+}
+
 export function avisosPendientes(p, income, hoy = new Date()) {
-  return [avisoFinDeMes(p, income, hoy), ...avisosDeMetas(p, hoy)]
+  return [avisoFinDeMes(p, income, hoy), ...avisosDeMetas(p, hoy), ...avisosDeDeudas(p, hoy)]
     .filter(Boolean)
     .filter((av) => !fueVisto(p.avisosVistos, av.clave, hoy));
 }

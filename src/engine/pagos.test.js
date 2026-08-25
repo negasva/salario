@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { estadoLinea, resumenItem, resumenMes, fijarPagado, movimientosDeAhorro, ahorroRepartido, promedioVariables } from './pagos.js';
+import { estadoLinea, resumenItem, resumenMes, agregarPago, pagosDeLinea, quitarPago, movimientosDeAhorro, ahorroRepartido, promedioVariables } from './pagos.js';
 
 const linea = (id, n, v, extra = {}) => ({ id, n, v, fixed: true, ...extra });
 const gasto = (id, lineId, monto, fecha = '2026-08-10') => ({ id, fecha, tipo: 'gasto', monto, itemId: 'i1', lineId });
@@ -43,47 +43,57 @@ describe('resumen', () => {
   });
 });
 
-describe('fijarPagado', () => {
+describe('pagos por transacción', () => {
   const item = { id: 'i1' };
   const l = linea('l1', 'Mercado', 500000);
 
-  it('crea el movimiento la primera vez', () => {
+  it('cada compra es su propio movimiento y se suman', () => {
     const movs = [];
-    expect(fijarPagado(movs, item, l, 465000, '2026-08-12')).toBe(465000);
-    expect(movs).toHaveLength(1);
-    expect(movs[0]).toMatchObject({ monto: 465000, lineId: 'l1', itemId: 'i1', tipo: 'gasto' });
+    agregarPago(movs, item, l, 120000, '2026-08-03');
+    agregarPago(movs, item, l, 85000, '2026-08-11');
+    agregarPago(movs, item, l, 260000, '2026-08-24');
+    expect(movs).toHaveLength(3);
+    expect(movs.reduce((s, m) => s + m.monto, 0)).toBe(465000);
+    expect(movs[0]).toMatchObject({ tipo: 'gasto', itemId: 'i1', lineId: 'l1', goalId: null });
   });
 
-  it('subir solo agrega la diferencia, sin duplicar', () => {
-    const movs = [gasto('m1', 'l1', 200000)];
-    expect(fijarPagado(movs, item, l, 500000, '2026-08-12')).toBe(300000);
-    expect(movs.reduce((s, m) => s + m.monto, 0)).toBe(500000);
+  it('cada pago lleva su propio id, para poder borrar solo ese', () => {
+    const movs = [];
+    agregarPago(movs, item, l, 100000, '2026-08-03');
+    agregarPago(movs, item, l, 100000, '2026-08-03');
+    expect(movs[0].id).not.toBe(movs[1].id);
   });
 
-  it('bajar recorta los mas recientes y nunca deja gastos negativos', () => {
-    const movs = [gasto('m1', 'l1', 200000, '2026-08-01'), gasto('m2', 'l1', 300000, '2026-08-20')];
-    fijarPagado(movs, item, l, 150000, '2026-08-25');
-    expect(movs).toHaveLength(1);
-    expect(movs[0]).toMatchObject({ id: 'm1', monto: 150000 });
-    expect(movs.every((m) => m.monto > 0)).toBe(true);
+  it('acepta una nota para saber de dónde salió la compra', () => {
+    const movs = [];
+    agregarPago(movs, item, l, 90000, '2026-08-03', 'D1');
+    expect(movs[0].nota).toBe('D1');
+    agregarPago(movs, item, l, 90000, '2026-08-04');
+    expect(movs[1].nota).toBe('Pago Mercado');
   });
 
-  it('poner cero borra los pagos del mes', () => {
-    const movs = [gasto('m1', 'l1', 200000)];
-    fijarPagado(movs, item, l, 0, '2026-08-25');
+  it('cero o negativo no ensucia el libro', () => {
+    const movs = [];
+    expect(agregarPago(movs, item, l, 0, '2026-08-03')).toBe(null);
+    expect(agregarPago(movs, item, l, -5000, '2026-08-03')).toBe(null);
     expect(movs).toHaveLength(0);
   });
 
-  it('no toca otros meses ni otros renglones', () => {
-    const movs = [gasto('m1', 'l1', 100000, '2026-07-10'), gasto('m2', 'l2', 90000)];
-    fijarPagado(movs, item, l, 0, '2026-08-25');
-    expect(movs).toHaveLength(2);
+  it('lista solo los pagos de ese renglón y ese mes, en orden', () => {
+    const movs = [
+      gasto('m1', 'l1', 260000, '2026-08-24'),
+      gasto('m2', 'l1', 120000, '2026-08-03'),
+      gasto('m3', 'l2', 999, '2026-08-05'),
+      gasto('m4', 'l1', 777, '2026-07-05'),
+    ];
+    expect(pagosDeLinea(movs, 'l1', '2026-08').map((m) => m.id)).toEqual(['m2', 'm1']);
   });
 
-  it('el mismo valor no ensucia el libro', () => {
-    const movs = [gasto('m1', 'l1', 465000)];
-    expect(fijarPagado(movs, item, l, 465000, '2026-08-12')).toBe(0);
-    expect(movs).toHaveLength(1);
+  it('quitar un pago borra solo ese y deja los demás', () => {
+    const movs = [gasto('m1', 'l1', 120000), gasto('m2', 'l1', 85000)];
+    expect(quitarPago(movs, 'm1')).toBe(true);
+    expect(movs.map((m) => m.id)).toEqual(['m2']);
+    expect(quitarPago(movs, 'noexiste')).toBe(false);
   });
 });
 

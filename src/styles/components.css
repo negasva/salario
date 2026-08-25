@@ -447,7 +447,15 @@
 .line-pago .fieldw{max-width:180px}
 .line-pago .mini{font-size:11px;padding:7px 9px;display:flex;align-items:center;gap:4px;flex:none}
 .line-pago .lcerrar.on{color:var(--success);border-color:var(--success);background:var(--success-soft)}
-.line-pago .ln-dif{margin-top:0;font-weight:var(--fw-semibold)}
+.line-pago .ln-dif,.line-pago .ln-tot{margin-top:0;font-weight:var(--fw-semibold)}
+.line-pago .lpag-add{width:32px;padding:0;font-size:var(--text-base);line-height:1}
+.pagos-lista{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pago-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;
+  border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--border-hairline)}
+.pago-chip .sub{margin-top:0;font-size:11px}
+.pago-x{width:22px;height:22px;padding:0;border:0;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:var(--ink-lighter);border-radius:50%}
+.pago-x:hover{background:var(--danger-soft);color:var(--danger)}
 .cc-tot{display:flex;gap:var(--space-5);flex-wrap:wrap;padding:var(--space-3);
   background:var(--pink-wash);border-radius:var(--radius-sm)}
 .cc-cat,.cc-dest{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:6px}

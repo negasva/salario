@@ -220,8 +220,8 @@ function lines(it, p, res) {
     <div class="line-pago" data-lid="${l.id}">
       <label class="fieldw"><span>Pagado</span>
         <input class="lpag num" inputmode="numeric" value="${pagado ? plain(pagado, p.cur) : ''}" placeholder="0"></label>
-      <button class="mini lcerrar ${estado === 'pagado' || estado === 'excedido' ? 'on' : ''}"
-        aria-pressed="${estado === 'pagado' || estado === 'excedido'}">${icon('check', 'ic-sm')} Pagado por completo</button>
+      <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
+        aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
       <span class="badge ${est.c}">${est.t}</span>
       ${plan > 0 && pagado > 0 && diferencia !== 0
         ? `<span class="sub ln-dif ${diferencia > 0 ? 'ok' : 'over'}">${diferencia > 0
@@ -459,11 +459,11 @@ function wireCard(root, it, p) {
     };
 
     el.querySelector('.lcerrar').onclick = () => {
-      const pagado = porLinea(p.movs, periodo)[l.id] || 0;
-      if (l.pagadoEn === periodo && pagado >= (Number(l.v) || 0)) {
+      if (l.pagadoEn === periodo) {
         l.pagadoEn = null;
       } else {
-        if (!pagado) fijarPagado(p.movs, it, l, Number(l.v) || 0, hoyISO());
+        // autocompleta solo si no hay nada escrito; con plata puesta, la respeta
+        if (!(porLinea(p.movs, periodo)[l.id] || 0)) fijarPagado(p.movs, it, l, Number(l.v) || 0, hoyISO());
         l.pagadoEn = periodo;
       }
       store.save();

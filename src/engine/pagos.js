@@ -22,7 +22,7 @@ export function resumenItem(it, pagadoPorLinea = {}, periodo) {
   });
   const plan = r2(filas.reduce((s, f) => s + f.plan, 0));
   const pagado = r2(filas.reduce((s, f) => s + f.pagado, 0));
-  return { filas, plan, pagado, diferencia: r2(plan - pagado),
+  return { periodo, filas, plan, pagado, diferencia: r2(plan - pagado),
     cerradas: filas.filter((f) => CERRADAS.includes(f.estado)).length, total: filas.length };
 }
 

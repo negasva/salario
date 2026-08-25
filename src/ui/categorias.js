@@ -1,11 +1,12 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, porItem } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, porItem, ingresoReal, enPeriodo } from '../engine/movimientos.js';
 import { plazo, whenText, metasEnItem, aplicarAporte, revertirAporte } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
+import { abrirSelectorExtra } from './movimientos.js';
 
 const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
   'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
@@ -14,6 +15,7 @@ export function renderCategorias(root) {
   const p = store.active();
 
   root.innerHTML = `
+    <div id="catIngreso"></div>
     <div class="cats-head">
       <button id="catAdd" class="wide btn-primary">+ Agregar categoría</button>
       <button id="catEqual">Repartir lo que falta en partes iguales</button>
@@ -33,6 +35,48 @@ export function renderCategorias(root) {
   };
 
   paintList(root);
+  paintIngreso(root);
+}
+
+/* El reparto ya no se hace sobre un número tecleado: los porcentajes reparten
+   lo que de verdad entró este mes, y cada ingreso nuevo mueve el monto de
+   todos los bloques. Aquí se ve de dónde sale ese número. */
+function paintIngreso(root) {
+  const p = store.active();
+  const periodo = periodoDe(hoyISO());
+  const ing = ingresoReal(p.movs, periodo);
+  const box = root.querySelector('#catIngreso');
+  const base = store.incomeRepartir(p);
+  const sinRepartir = Math.max(0, ing.extra - aportadoEsteMes(p, periodo));
+
+  box.innerHTML = `<div class="card" style="margin-bottom:var(--space-5)">
+    <span class="label">Lo que repartes este mes</span>
+    <div class="kpi num">${money(base, p.cur)}</div>
+    <div class="sub">${ing.total > 0
+      ? `Nómina ${money(ing.nomina, p.cur)}${ing.extra > 0 ? ` · extra ${money(ing.extra, p.cur)}` : ''}
+         · plan ${money(p.inc, p.cur)}. Los porcentajes de abajo reparten este número.`
+      : `Todavía no registras ingresos de ${MESES[Number(periodo.split('-')[1]) - 1]}, así que reparto el plan.`}</div>
+    ${sinRepartir > 0 ? `<div class="sub">Del extra te quedan <b class="num">${money(sinRepartir, p.cur)}</b> sin mandar a ninguna meta.</div>` : ''}
+    <div class="prow">
+      ${sinRepartir > 0 ? '<button id="catExtra" class="btn-primary">Repartir el extra entre mis metas</button>' : ''}
+      ${ing.total > 0 && ing.total !== p.inc ? '<button id="catPlan">Dejar este ingreso como plan</button>' : ''}
+    </div>
+  </div>`;
+
+  const bExtra = box.querySelector('#catExtra');
+  if (bExtra) bExtra.onclick = () => abrirSelectorExtra(p, sinRepartir, hoyISO(), (t) => {
+    renderCategorias(root);
+    toast(t > 0 ? `Repartiste ${money(t, p.cur)} entre tus metas.` : 'El extra quedó sin asignar.');
+  });
+  const bPlan = box.querySelector('#catPlan');
+  if (bPlan) bPlan.onclick = () => { p.inc = ing.total; store.save(); renderCategorias(root); };
+}
+
+// lo del extra que ya salió hacia metas este mes
+function aportadoEsteMes(p, periodo) {
+  return enPeriodo(p.movs, periodo)
+    .filter((m) => m.tipo === 'gasto' && m.goalId)
+    .reduce((s, m) => s + m.monto, 0);
 }
 
 function paintList(root) {

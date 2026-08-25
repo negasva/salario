@@ -43,7 +43,7 @@ function metasActivas(p) {
   return ordenadas(p.goals).filter((g) => (g.estado || 'activa') === 'activa');
 }
 
-function abrirSelectorExtra(p, monto, fecha, alTerminar) {
+export function abrirSelectorExtra(p, monto, fecha, alTerminar) {
   const metas = metasActivas(p);
   const overlay = document.createElement('div');
   overlay.className = 'overlay on';

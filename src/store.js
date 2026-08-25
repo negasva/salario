@@ -5,7 +5,7 @@ import {
   ordenadas, reasignar, metaCumplida, siguienteEnFila, mover, soltar,
   aplicarTraspaso as traspasar, traspasoVencido,
 } from './engine/fila.js';
-import { podar, hoyISO } from './engine/movimientos.js';
+import { podar, hoyISO, periodoDe, ingresoReal } from './engine/movimientos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -74,7 +74,15 @@ export function freshProfile(name) {
 }
 
 // F18 — ingreso variable: promedio para repartir, minimo para calcular esenciales
+/* Lo que de verdad entró este mes: nómina más extra. Mientras no haya un solo
+   ingreso registrado se reparte sobre el plan, que es lo único que hay. */
+export function ingresoDelMes(p, periodo = periodoDe(hoyISO())) {
+  return ingresoReal(p?.movs || [], periodo).total;
+}
+
 export function incomeRepartir(p) {
+  const real = ingresoDelMes(p);
+  if (real > 0) return real;
   if (p.ingresoTipo !== 'variable') return p.inc;
   const { promedio } = ingresoEfectivo(p.ingresoHistorial || []);
   return promedio || p.inc;
@@ -341,7 +349,7 @@ export async function autoCerrar() {
   const cierres = await listarCierres();
   const pendientes = periodosPendientes(cierres.map((c) => c.periodo), p.movs);
   for (const periodo of pendientes) {
-    const { error } = await cerrarMes(periodo, construirSnapshot(p, periodo, incomeRepartir(p)));
+    const { error } = await cerrarMes(periodo, construirSnapshot(p, periodo, ingresoDelMes(p, periodo) || incomeRepartir(p)));
     if (error) break;
     cerradosAuto.push(periodo);
   }

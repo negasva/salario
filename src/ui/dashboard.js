@@ -20,8 +20,8 @@ function tasaAhorro(p) {
   return r2(cor + lar);
 }
 
-export function sparkline(rates, extras = [], w = 280, h = 90, pad = 6) {
-  const min = Math.min(...rates);
+export function sparkline(rates, extras = [], w = 900, h = 220, pad = 34) {
+  const min = Math.min(...rates, 0);
   const max = Math.max(...rates);
   const range = max - min || 1;
   const pts = rates.map((v, i) => ({
@@ -30,16 +30,29 @@ export function sparkline(rates, extras = [], w = 280, h = 90, pad = 6) {
   }));
   const line = pts.map((pt) => `${pt.x},${pt.y}`).join(' ');
   const area = `M${pts[0].x},${h} L${pts.map((pt) => `${pt.x},${pt.y}`).join(' L')} L${pts[pts.length - 1].x},${h} Z`;
-  const extraMarkers = pts.map((pt, i) => extras[i] ? `<circle cx="${pt.x}" cy="${pt.y}" r="4" fill="var(--success)"></circle>` : '').join('');
-  // el punto por dato hace legible una serie con meses en cero, que si no es una raya
-  const puntos = pts.map((pt) => `<circle cx="${pt.x}" cy="${pt.y}" r="3" fill="var(--pink-dark)"
-    vector-effect="non-scaling-stroke"></circle>`).join('');
+  const guias = [0.25, 0.5, 0.75].map((k) => `<line x1="0" x2="${w}" y1="${pad + k * (h - 2 * pad)}"
+    y2="${pad + k * (h - 2 * pad)}" stroke="var(--pink-wash)" stroke-width="1"
+    vector-effect="non-scaling-stroke"></line>`).join('');
+  const extraMarkers = pts.map((pt, i) => extras[i] ? `<circle cx="${pt.x}" cy="${pt.y}" r="5" fill="var(--success)"></circle>` : '').join('');
+  // punto hueco por dato, sólido el último; encima un blanco grande e invisible
+  // que es el que recibe el cursor, porque un radio de 4px no se acierta con el ratón
+  const puntos = pts.map((pt, i) => `<circle cx="${pt.x}" cy="${pt.y}" r="${i === pts.length - 1 ? 6 : 4}"
+    fill="${i === pts.length - 1 ? 'var(--pink-dark)' : 'var(--white)'}" stroke="var(--pink-dark)"
+    stroke-width="2" vector-effect="non-scaling-stroke"></circle>`).join('');
+  const zonas = pts.map((pt, i) => `<circle class="spark-hit" data-i="${i}" cx="${pt.x}" cy="${pt.y}"
+    r="16" fill="transparent"></circle>`).join('');
   return `<svg class="spark-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    <path d="${area}" fill="var(--pink-lighter)" opacity="0.55"></path>
+    <defs><linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--pink)" stop-opacity="0.45"></stop>
+      <stop offset="100%" stop-color="var(--pink)" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    ${guias}
+    <path d="${area}" fill="url(#sparkFill)"></path>
     <polyline points="${line}" fill="none" stroke="var(--pink-dark)" stroke-width="2.5"
       stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
     ${puntos}
     ${extraMarkers}
+    ${zonas}
   </svg>`;
 }
 
@@ -336,7 +349,10 @@ function pintarAhorro(root, p, destino = null) {
       </select>
     </div>
     <div class="kpi num">${money(serie[serie.length - 1].acumulado, p.cur)}</div>
-    ${sparkline(serie.map((r) => r.acumulado))}
+    <div class="spark-wrap">
+      ${sparkline(serie.map((r) => r.acumulado))}
+      <div class="spark-tip" hidden></div>
+    </div>
     <div class="spark-months">${serie.map((r) => `<span>${mesCorto(r.periodo)}</span>`).join('')}</div>
     <div class="hist-list">
       <div class="mov-res sub"><span class="nm">Mes</span><span>Aportado</span><span>Acumulado</span></div>
@@ -346,6 +362,24 @@ function pintarAhorro(root, p, destino = null) {
         <span class="num mov-res-d">${money(r.acumulado, p.cur)}</span>
       </div>`).join('')}
     </div>`;
+
+  // el globo con la cifra del punto que tiene el cursor encima
+  const wrap = box.querySelector('.spark-wrap');
+  const tip = box.querySelector('.spark-tip');
+  wrap.querySelectorAll('.spark-hit').forEach((hit) => {
+    hit.onmouseenter = () => {
+      const r = serie[Number(hit.dataset.i)];
+      const caja = wrap.getBoundingClientRect();
+      const punto = hit.getBoundingClientRect();
+      tip.innerHTML = `<b>${mesCorto(r.periodo)} ${r.periodo.slice(0, 4)}</b>
+        <span class="num">${money(r.acumulado, p.cur)} acumulado</span>
+        <span class="num sub">${r.monto > 0 ? `+${money(r.monto, p.cur)} ese mes` : 'sin aportes ese mes'}</span>`;
+      tip.hidden = false;
+      tip.style.left = `${Math.min(caja.width - tip.offsetWidth - 4, Math.max(4, punto.left - caja.left + punto.width / 2 - tip.offsetWidth / 2))}px`;
+      tip.style.top = `${Math.max(4, punto.top - caja.top - tip.offsetHeight - 8)}px`;
+    };
+    hit.onmouseleave = () => { tip.hidden = true; };
+  });
 
   const filtro = box.querySelector('#dAhorroFiltro');
   filtro.value = destino || '';

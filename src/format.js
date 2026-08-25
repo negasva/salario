@@ -1,3 +1,6 @@
+export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
 export function noDecimals(cur) {
   return cur === 'COP' || cur === 'CLP' || cur === 'ARS';
 }

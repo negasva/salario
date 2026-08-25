@@ -1,16 +1,13 @@
 import * as store from '../store.js';
 import { amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
-import { money, plain, esc, digits } from '../format.js';
+import { money, plain, esc, digits, MESES } from '../format.js';
 import { excedente } from '../engine/consejo.js';
 import { ordenadas } from '../engine/fila.js';
 import { aplicarAporte, revertirAporte } from '../engine/metas.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
-
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function nombrePeriodo(per) {
   const [a, m] = per.split('-');

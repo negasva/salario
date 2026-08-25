@@ -3,7 +3,7 @@ import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../en
 import { periodoDe, hoyISO, porItem } from '../engine/movimientos.js';
 import { plazo, whenText, metasEnItem, aplicarAporte, revertirAporte } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
-import { money, plain, esc, digits } from '../format.js';
+import { money, plain, esc, digits, MESES } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
@@ -109,9 +109,6 @@ function aporteDelMes(p, goalId) {
   const per = periodoDe(hoyISO());
   return p.movs.find((m) => m.goalId === goalId && periodoDe(m.fecha) === per);
 }
-
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function diaCorto(fecha) {
   const [, m, d] = fecha.split('-').map(Number);

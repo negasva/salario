@@ -4,7 +4,8 @@ import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engin
 import { recomendar } from '../engine/consejo.js';
 import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { renglonesQueCrecieron } from '../engine/alertas.js';
-import { money, plain, esc, digits } from '../format.js';
+import { money, plain, esc, digits, MESES } from '../format.js';
+import { periodoDe, hoyISO, ingresoReal } from '../engine/movimientos.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -79,19 +80,36 @@ export async function renderDashboard(root) {
       ? `Quedan ${diff}% libres, ${money(inc * diff / 100, p.cur)} sin asignar.`
       : `Te pasaste ${Math.abs(diff)}%, son ${money(inc * Math.abs(diff) / 100, p.cur)} que no tienes.`;
 
+  const periodo = periodoDe(hoyISO());
+  const ing = ingresoReal(p.movs, periodo);
+  const hayNomina = ing.nomina > 0;
+  const brecha = p.inc > 0 ? (ing.nomina - p.inc) / p.inc : 0;
+  const [anio, mes] = periodo.split('-');
+  const tituloIngreso = `Ingreso neto · ${MESES[Number(mes) - 1]} ${anio}`;
+
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
   root.innerHTML = `
     <div class="grid-3">
       <div class="card card-pink">
         <div class="income-head">
-          <span class="label">Ingreso neto del mes</span>
+          <span class="label">${tituloIngreso}</span>
           <select id="dCurrency" aria-label="Moneda">
             ${['COP', 'MXN', 'USD', 'ARS', 'CLP', 'PEN', 'EUR'].map((c) => `<option ${c === p.cur ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
         </div>
+        ${hayNomina ? `<div class="kpi num">${money(ing.nomina, p.cur)}</div>` : ''}
         <input id="dIncome" class="income-input num" type="text" inputmode="numeric"
-          value="${plain(p.inc, p.cur)}" aria-label="Ingreso neto mensual">
+          value="${plain(p.inc, p.cur)}" aria-label="Ingreso neto mensual" ${hayNomina ? 'hidden' : ''}>
+        <div class="sub">${hayNomina
+          ? `Registrado en Movimientos · plan <b class="num">${money(p.inc, p.cur)}</b>
+             <button class="mini" id="dPlanEdit">Editar el plan</button>`
+          : `Planeado · aún sin nómina registrada`}</div>
+        ${ing.extra > 0 ? `<div class="sub">Extra este mes <b class="num">${money(ing.extra, p.cur)}</b></div>` : ''}
+        ${hayNomina && Math.abs(brecha) > 0.05 ? `<div class="sub">
+          Tu nómina real va ${money(Math.abs(ing.nomina - p.inc), p.cur)} por ${brecha > 0 ? 'encima' : 'debajo'} del plan.
+          <button class="mini" id="dUsarReal">Usar el real como plan</button>
+        </div>` : ''}
         <div class="sub">${p.ingresoTipo === 'variable'
           ? `Repartes sobre el promedio: <b class="num">${money(inc, p.cur)}</b>`
           : `${p.cur} · ingreso fijo`}</div>
@@ -187,6 +205,19 @@ export async function renderDashboard(root) {
 
   root.querySelector('#dIncome').onchange = (e) => {
     p.inc = digits(e.target.value);
+    store.save();
+    renderDashboard(root);
+  };
+  // el plan sigue siendo lo que reparte: cambiarlo es un clic, nunca automático
+  const editar = root.querySelector('#dPlanEdit');
+  if (editar) editar.onclick = () => {
+    const input = root.querySelector('#dIncome');
+    input.hidden = false;
+    input.focus();
+  };
+  const usarReal = root.querySelector('#dUsarReal');
+  if (usarReal) usarReal.onclick = () => {
+    p.inc = ing.nomina;
     store.save();
     renderDashboard(root);
   };

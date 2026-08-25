@@ -1,12 +1,9 @@
 import * as store from '../store.js';
 import { periodoDe, hoyISO } from '../engine/movimientos.js';
 import { construirSnapshot, brechaDelMes, aportadoEnCierre } from '../engine/cierre.js';
-import { money, plain, esc, digits } from '../format.js';
+import { money, plain, esc, digits, MESES } from '../format.js';
 import { toast } from './shell.js';
 import { sparkline } from './dashboard.js';
-
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function nombreMes(periodo) {
   const [a, m] = periodo.split('-');

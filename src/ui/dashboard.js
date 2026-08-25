@@ -4,6 +4,7 @@ import { escalonActual, ESCALERA, monthsToGoal, whenText, plazo } from '../engin
 import { recomendar } from '../engine/consejo.js';
 import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { renglonesQueCrecieron } from '../engine/alertas.js';
+import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { periodoDe, hoyISO, ingresoReal } from '../engine/movimientos.js';
 
@@ -86,6 +87,8 @@ export async function renderDashboard(root) {
   const brecha = p.inc > 0 ? (ing.nomina - p.inc) / p.inc : 0;
   const [anio, mes] = periodo.split('-');
   const tituloIngreso = `Ingreso neto · ${MESES[Number(mes) - 1]} ${anio}`;
+
+  const proy = proyeccion(p.goals, p.items, inc);
 
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
@@ -179,16 +182,22 @@ export async function renderDashboard(root) {
       <div class="card" style="display:flex;flex-direction:column">
         <span class="label">Metas</span>
         ${p.goals.length ? `<div class="rings">
-          ${p.goals.map((g) => {
+          ${ordenadas(p.goals).map((g) => {
             const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
+            const est = estadoDe(g);
             const n = monthsToGoal(g, p.items, inc);
-            const title = n ? `${money(g.s || 0, p.cur)} de ${money(g.t, p.cur)} · ${plazo(n)}, hacia ${whenText(n)}` : `${money(g.s || 0, p.cur)} de ${money(g.t, p.cur)} · sin aporte mensual`;
-            return `<div class="ring" title="${esc(title)}">
+            const antes = proy[g.id]?.predecesor;
+            const segunda = est === 'en_fila'
+              ? (antes ? `Empieza cuando termines la ${esc(antes.n)}` : 'En fila')
+              : n ? `faltan ${plazo(n)} · hacia ${whenText(n)}` : 'sin aporte mensual';
+            return `<div class="ring${est === 'en_fila' ? ' ring-fila' : ''}">
               <div class="wrap">
                 ${ringSvg(pct, g.special === 'emergencia' ? 'var(--warning)' : 'var(--pink)')}
                 <div class="pct num">${Math.round(pct * 100)}%</div>
               </div>
               <div class="lbl">${esc(g.n)}</div>
+              <div class="sub num">${money(g.s || 0, p.cur)} de ${money(g.t, p.cur)}</div>
+              <div class="sub">${segunda}</div>
             </div>`;
           }).join('')}
         </div>` : '<div class="empty">Sin metas todavía.</div>'}

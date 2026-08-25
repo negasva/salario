@@ -141,6 +141,7 @@
 .ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:var(--text-sm);font-weight:var(--fw-black);color:var(--ink)}
 .ring .lbl{font-size:11px;color:var(--ink-lighter);text-align:center;max-width:96px;line-height:1.35}
+.ring .sub{margin-top:0;text-align:center;max-width:130px;font-size:11px}
 
 /* ── auth ─────────────────────────────────────────────────────────────── */
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;
@@ -244,6 +245,7 @@
 .goal.drag-over{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-wash)}
 /* F5 — la meta en fila se pinta atenuada: está ahí, pero todavía no cuenta */
 .goal-fila{opacity:.6;border-style:dashed}
+.ring-fila{opacity:.55}
 .goal-hecha .pbar i{background:var(--success)}
 
 /* ── anuncio ──────────────────────────────────────────────────────────── */

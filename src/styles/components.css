@@ -221,7 +221,7 @@
 .line-meta{background:var(--pink-wash);border-left:3px solid var(--pink);cursor:pointer;
   padding:8px 10px;border-radius:var(--radius-sm)}
 .line-meta.line-fondo{border-left-color:var(--warning)}
-.line-meta .lm-n{flex:1;min-width:0;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--ink)}
+.line-meta .lm-n{flex:1;min-width:0;font-size:var(--text-sm);font-weight:var(--fw-semibold);color:var(--ink);overflow-wrap:anywhere}
 .line-meta .lm-p{flex:none}
 .line-meta .lm-v{flex:none;font-size:var(--text-sm);font-weight:var(--fw-bold)}
 .line-meta .mini{flex:none;font-size:11px;padding:7px 9px;display:flex;align-items:center;gap:4px}
@@ -405,3 +405,26 @@
 .deu-comp .over{color:var(--danger)}
 .linea-barra{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;flex:1 1 240px}
 .linea-barra .hist-track{flex:1 1 60px;min-width:60px;max-width:160px}
+
+/* ── móvil: filas que se parten ───────────────────────────────────────────
+   Va al final del archivo a propósito: estas reglas tienen la misma
+   especificidad que las de escritorio y solo ganan si aparecen después. */
+@media (max-width:720px){
+  /* con cuatro columnas en 390px el nombre se comprime a cero y el texto se
+     sale encima del resto: se parte en dos filas y se acabó el desorden */
+  .line,.line-meta,.rec-item,.busca-item,.mov-line{flex-wrap:wrap;row-gap:6px}
+  .line .ln,.line-meta .lm-n,.busca-item .nm,.mov-line .mov-line-txt{flex:1 1 100%}
+  .line .lv{flex:1 1 auto;width:auto;text-align:left}
+  .line-meta .lm-v,.rec-item .num,.mov-line .mov-line-n{margin-right:auto}
+  .line-meta .badge,.rec-item .badge{margin-top:0}
+  .rec-item .nm{flex:1 1 100%}
+  /* presupuesto contra real: nombre y diferencia arriba, cifra y barra debajo */
+  .mov-res{flex-wrap:wrap;row-gap:4px}
+  .mov-res .dot{order:0}
+  .mov-res .nm{order:1;flex:1 1 auto}
+  .mov-res-d{order:2;margin-left:auto}
+  .mov-res-n{order:3;flex:1 1 100%}
+  .mov-res .hist-track{order:4;flex:1 0 100%}
+  /* el campo de fecha se corta si comparte línea */
+  .mov-detalle .fieldw{flex:1 1 100%}
+}

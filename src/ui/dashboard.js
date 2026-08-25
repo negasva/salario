@@ -73,6 +73,11 @@ function ringSvg(pct, color) {
    tarjeta sin querer al hacer scroll. */
 const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'tasa', 'ahorro', 'reparto', 'metas'];
 const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2 };
+const NOMBRES = {
+  ingreso: 'Ingreso del mes', mes: 'Tu mes', fondo: 'Fondo de emergencia',
+  esenciales: 'Aviso de esenciales', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
+  ahorro: 'Ahorro acumulado', reparto: 'Reparto del ingreso', metas: 'Metas',
+};
 
 let edicion = false;
 
@@ -87,8 +92,12 @@ function anchoDe(p, id) {
   return p.dashLayout?.[id]?.ancho ?? ANCHO_DEFECTO[id] ?? 1;
 }
 
+function ocultoDe(p, id) {
+  return !!p.dashLayout?.[id]?.oculto;
+}
+
 function guardarLayout(p, orden) {
-  p.dashLayout = Object.fromEntries(orden.map((id, i) => [id, { orden: i, ancho: anchoDe(p, id) }]));
+  p.dashLayout = Object.fromEntries(orden.map((id, i) => [id, { orden: i, ancho: anchoDe(p, id), oculto: ocultoDe(p, id) }]));
   store.save();
 }
 
@@ -110,6 +119,14 @@ function cablearLayout(root, p, orden) {
 
   root.querySelectorAll('.dash-w-tools .mv').forEach((b) => {
     b.onclick = () => mover(b.dataset.w, Number(b.dataset.mv));
+  });
+  root.querySelectorAll('.dash-w-tools .ver').forEach((b) => {
+    b.onclick = () => {
+      guardarLayout(p, orden);
+      p.dashLayout[b.dataset.w].oculto = !ocultoDe(p, b.dataset.w);
+      store.save();
+      renderDashboard(root);
+    };
   });
   root.querySelectorAll('.dash-w-tools .ancho').forEach((b) => {
     b.onclick = () => {
@@ -270,27 +287,33 @@ export async function renderDashboard(root) {
   };
 
   const orden = ordenWidgets(p);
+  // fuera del modo edición un widget oculto no existe; dentro se ve apagado,
+  // que es la única forma de poder volver a encenderlo
+  const visibles = edicion ? orden : orden.filter((id) => !ocultoDe(p, id));
   root.innerHTML = `
     <div class="dash-tools">
       <button class="mini" id="dAcomodar">${edicion ? 'Listo' : 'Acomodar'}</button>
       ${edicion ? '<button class="mini" id="dReset">Restablecer</button>' : ''}
     </div>
     <div class="dash-grid${edicion ? ' dash-edit' : ''}" id="dashGrid">
-      ${orden.map((id) => `<div class="dash-w${anchoDe(p, id) === 2 ? ' w2' : ''}" data-w="${id}"
+      ${visibles.map((id) => `<div class="dash-w${anchoDe(p, id) === 2 ? ' w2' : ''}${ocultoDe(p, id) ? ' dash-off' : ''}" data-w="${id}"
         ${edicion ? 'draggable="true"' : ''}>
         ${edicion ? `<div class="dash-w-tools">
           <span class="mini asa" draggable="true" title="Arrastrar">⠿ Mover</span>
+          <button class="mini ver" data-w="${id}">${ocultoDe(p, id) ? 'Mostrar' : 'Quitar'}</button>
           <button class="mini ancho" data-w="${id}">${anchoDe(p, id) === 2 ? 'Angosta' : 'Ancha'}</button>
           <button class="mini mv" data-mv="-1" data-w="${id}" aria-label="Subir">↑</button>
           <button class="mini mv" data-mv="1" data-w="${id}" aria-label="Bajar">↓</button>
         </div>` : ''}
-        ${bloques[id]}
+        ${ocultoDe(p, id) ? `<div class="card"><div class="empty">${NOMBRES[id]} — quitado del dashboard</div></div>` : bloques[id]}
       </div>`).join('')}
     </div>`;
 
   cablearLayout(root, p, orden);
 
-  root.querySelector('#dIncome').onchange = (e) => {
+  // el widget del ingreso se puede haber quitado del dashboard
+  const incomeEl = root.querySelector('#dIncome');
+  if (incomeEl) incomeEl.onchange = (e) => {
     p.inc = digits(e.target.value);
     store.save();
     renderDashboard(root);
@@ -308,7 +331,8 @@ export async function renderDashboard(root) {
     store.save();
     renderDashboard(root);
   };
-  root.querySelector('#dCurrency').onchange = (e) => {
+  const curEl = root.querySelector('#dCurrency');
+  if (curEl) curEl.onchange = (e) => {
     p.cur = e.target.value;
     store.save();
     renderDashboard(root);

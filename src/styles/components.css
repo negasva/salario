@@ -89,6 +89,7 @@
 /* un widget sin tarjeta (esenciales en verde, alertas sin nada) no ocupa sitio */
 .dash-w:not(:has(.card)){display:none}
 .dash-edit .dash-w .asa{cursor:grab;user-select:none}
+.dash-off{opacity:.5}
 /* en modo edición la tarjeta es inerte: se arrastra desde cualquier parte y
    nadie toca un input sin querer (Chrome tampoco arrastra desde un botón) */
 .dash-edit .dash-w>.card{pointer-events:none}
@@ -131,6 +132,8 @@
   padding:8px 10px;font-size:var(--text-xs);line-height:1.3;pointer-events:none;
   box-shadow:0 6px 18px rgba(0,0,0,.18);white-space:nowrap}
 .spark-tip .sub{color:var(--pink-lighter);margin-top:0}
+/* display:flex le gana al display:none que el navegador da a [hidden] */
+.spark-tip[hidden]{display:none}
 @media(max-width:720px){.spark-svg{height:160px}}
 .spark-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3)}
 .spark-val{font-size:var(--text-h3);font-weight:var(--fw-black);color:var(--ink)}

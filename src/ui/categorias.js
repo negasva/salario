@@ -47,7 +47,12 @@ function paintIngreso(root) {
   const ing = ingresoReal(p.movs, periodo);
   const box = root.querySelector('#catIngreso');
   const base = store.incomeRepartir(p);
-  const sinRepartir = Math.max(0, ing.extra - aportadoEsteMes(p, periodo));
+  /* Lo repartible aparte no es solo el ingreso marcado como extra: cualquier
+     peso que entre por encima del plan también está sin dueño hasta que lo
+     mandes a una meta. Un ingreso sin marcar contaba como nada y esa era la
+     puerta por la que se perdía. */
+  const sobrante = Math.max(0, ing.total - p.inc);
+  const sinRepartir = Math.max(0, sobrante - aportadoEsteMes(p, periodo));
 
   box.innerHTML = `<div class="card" style="margin-bottom:var(--space-5)">
     <span class="label">Lo que repartes este mes</span>
@@ -56,9 +61,12 @@ function paintIngreso(root) {
       ? `Nómina ${money(ing.nomina, p.cur)}${ing.extra > 0 ? ` · extra ${money(ing.extra, p.cur)}` : ''}
          · plan ${money(p.inc, p.cur)}. Los porcentajes de abajo reparten este número.`
       : `Todavía no registras ingresos de ${MESES[Number(periodo.split('-')[1]) - 1]}, así que reparto el plan.`}</div>
-    ${sinRepartir > 0 ? `<div class="sub">Del extra te quedan <b class="num">${money(sinRepartir, p.cur)}</b> sin mandar a ninguna meta.</div>` : ''}
+    ${sobrante > 0 ? `<div class="sub">Entraron <b class="num">${money(sobrante, p.cur)}</b> por encima del plan.
+      ${sinRepartir > 0
+        ? `Te quedan <b class="num">${money(sinRepartir, p.cur)}</b> sin mandar a ninguna meta.`
+        : 'Ya lo mandaste todo a tus metas.'}</div>` : ''}
     <div class="prow">
-      ${sinRepartir > 0 ? '<button id="catExtra" class="btn-primary">Repartir el extra entre mis metas</button>' : ''}
+      ${sinRepartir > 0 ? '<button id="catExtra" class="btn-primary">Repartir entre mis metas</button>' : ''}
       ${ing.total > 0 && ing.total !== p.inc ? '<button id="catPlan">Dejar este ingreso como plan</button>' : ''}
     </div>
   </div>`;
@@ -66,7 +74,7 @@ function paintIngreso(root) {
   const bExtra = box.querySelector('#catExtra');
   if (bExtra) bExtra.onclick = () => abrirSelectorExtra(p, sinRepartir, hoyISO(), (t) => {
     renderCategorias(root);
-    toast(t > 0 ? `Repartiste ${money(t, p.cur)} entre tus metas.` : 'El extra quedó sin asignar.');
+    toast(t > 0 ? `Repartiste ${money(t, p.cur)} entre tus metas.` : 'El ingreso extra quedó sin asignar.');
   });
   const bPlan = box.querySelector('#catPlan');
   if (bPlan) bPlan.onclick = () => { p.inc = ing.total; store.save(); renderCategorias(root); };

@@ -4,14 +4,13 @@ import {
   avisoFinDeMes, avisosDeMetas, avisosPendientes, avisosDeDeudas,
 } from './avisos.js';
 
-const INC = 5000000;
 
 function perfil(extra = {}) {
   return {
     cur: 'COP',
     items: [
-      { id: 'ese', n: 'Esenciales', p: 55, r: 'ese', L: [] },
-      { id: 'cor', n: 'Corto', p: 15, r: 'cor', L: [] },
+      { id: 'ese', n: 'Esenciales', m: 2750000, r: 'ese', L: [] },
+      { id: 'cor', n: 'Corto', m: 750000, r: 'cor', L: [] },
     ],
     goals: [],
     movs: [],
@@ -43,32 +42,32 @@ describe('F6.1 aviso de fin de mes', () => {
 
   it('solo sale a 5, 3 y 1 días', () => {
     [25, 27, 29, 31].forEach((d) => {
-      expect(avisoFinDeMes(perfil(), INC, new Date(2026, 7, d))).toBe(null);
+      expect(avisoFinDeMes(perfil(), new Date(2026, 7, d))).toBe(null);
     });
     [26, 28, 30].forEach((d) => {
-      expect(avisoFinDeMes(perfil(), INC, new Date(2026, 7, d))).not.toBe(null);
+      expect(avisoFinDeMes(perfil(), new Date(2026, 7, d))).not.toBe(null);
     });
   });
 
   it('a cinco días dice cuánto llevas registrado de cuánto presupuestado', () => {
     const p = perfil({ movs: [{ fecha: '2026-08-03', tipo: 'gasto', monto: 3200000, itemId: 'ese' }] });
-    const av = avisoFinDeMes(p, INC, hoy);
+    const av = avisoFinDeMes(p, hoy);
     expect(av.titulo).toBe('Quedan 5 días de agosto');
     expect(plano(av.cuerpo)).toContain('$3,2 M registrados');
-    expect(plano(av.cuerpo)).toContain('$3,5 M presupuestados'); // 70% de 5.000.000
+    expect(plano(av.cuerpo)).toContain('$3,5 M presupuestados'); // 2,75 M + 0,75 M asignados
     expect(av.clave).toBe('cierre-5-2026-08');
     expect(av.vistas).toEqual(['dashboard', 'movimientos']);
   });
 
   it('a tres días manda a revisar y no repite las cifras', () => {
-    const av = avisoFinDeMes(perfil(), INC, new Date(2026, 7, 28));
+    const av = avisoFinDeMes(perfil(), new Date(2026, 7, 28));
     expect(av.titulo).toBe('Faltan 3 días para el cierre de agosto');
     expect(av.cuerpo).toBe('Revisa lo que no registraste.');
     expect(av.clave).toBe('cierre-3-2026-08');
   });
 
   it('a un día es urgente y tiene su propia clave', () => {
-    const av = avisoFinDeMes(perfil(), INC, new Date(2026, 7, 30));
+    const av = avisoFinDeMes(perfil(), new Date(2026, 7, 30));
     expect(av.titulo).toBe('Mañana cierro agosto');
     expect(av.cuerpo).toBe('Última oportunidad de cuadrar el mes.');
     expect(av.urgente).toBe(true);
@@ -80,7 +79,7 @@ describe('F6.1 aviso de fin de mes', () => {
       { fecha: '2026-07-30', tipo: 'gasto', monto: 9000000, itemId: 'ese' },
       { fecha: '2026-08-03', tipo: 'gasto', monto: 1000000, itemId: 'ese' },
     ] });
-    expect(plano(avisoFinDeMes(p, INC, hoy).cuerpo)).toContain('$1 M registrados');
+    expect(plano(avisoFinDeMes(p, hoy).cuerpo)).toContain('$1 M registrados');
   });
 });
 
@@ -124,9 +123,9 @@ describe('F6.2 descartar no repite el mismo día', () => {
 
   it('el aviso descartado hoy no vuelve a salir hoy', () => {
     const p = perfil({ avisosVistos: { 'cierre-5-2026-08': '2026-08-26' } });
-    expect(avisosPendientes(p, INC, hoy)).toEqual([]);
+    expect(avisosPendientes(p, hoy)).toEqual([]);
     p.avisosVistos = { 'cierre-5-2026-08': '2026-08-25' };
-    expect(avisosPendientes(p, INC, hoy).length).toBe(1);
+    expect(avisosPendientes(p, hoy).length).toBe(1);
   });
 
   it('cinco dias es el umbral del aviso de meta', () => {
@@ -135,7 +134,7 @@ describe('F6.2 descartar no repite el mismo día', () => {
 
   it('descartar el de cinco no tapa el de tres', () => {
     const p = perfil({ avisosVistos: { 'cierre-5-2026-08': '2026-08-28' } });
-    expect(avisosPendientes(p, INC, new Date(2026, 7, 28)).length).toBe(1);
+    expect(avisosPendientes(p, new Date(2026, 7, 28)).length).toBe(1);
   });
 
   it('el cierre avisa a 5, 3 y 1 días', () => {
@@ -145,7 +144,7 @@ describe('F6.2 descartar no repite el mismo día', () => {
 
 describe('F11 aviso de pago de deuda', () => {
   const conDeuda = (extra = {}) => perfil({ items: [
-    { id: 'deu', n: 'Deudas', p: 10, r: 'deu', L: [
+    { id: 'deu', n: 'Deudas', m: 500000, r: 'deu', L: [
       { id: 'd1', n: 'Tarjeta', saldo: 3000000, minimo: 150000, diaPago: 20, ...extra },
     ] },
   ] });

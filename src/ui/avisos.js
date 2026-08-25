@@ -54,7 +54,7 @@ function avisosDeHoy() {
   }
 
   // F6 — fin de mes y metas con fecha encima
-  avisosPendientes(p, store.incomeRepartir(p)).forEach((av) => {
+  avisosPendientes(p).forEach((av) => {
     lista.push({
       ...av,
       acciones: av.accion ? [{

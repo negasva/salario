@@ -87,7 +87,7 @@ export function traspasoVencido(traspaso, ahora = Date.now()) {
 /* F5.3 — cuándo arranca cada meta de la fila. Una meta en fila hereda la
    asignación de la que tiene delante, así que su plazo se calcula con esa
    plata, no con la que reclama hoy (que es cero mientras espera). */
-export function proyeccion(goals, items, income) {
+export function proyeccion(goals, items) {
   const out = {};
   let previa = null;
   let libreEn = 0;
@@ -95,7 +95,7 @@ export function proyeccion(goals, items, income) {
     const enFila = estadoDe(g) === 'en_fila';
     const a = enFila && previa ? mezclarAsignacion(g.a, previa.a) : g.a;
     const empieza = enFila ? libreEn : 0;
-    const mensual = monthlyToward({ a }, items, income);
+    const mensual = monthlyToward({ a }, items);
     const falta = Math.max(0, (g.t || 0) - (g.s || 0));
     const dura = mensual > 0 ? Math.ceil(falta / mensual) : null;
     const fin = empieza === null || dura === null ? null : empieza + dura;

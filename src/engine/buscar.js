@@ -1,3 +1,4 @@
+import { money } from '../format.js';
 import { normalizar } from './clasificar.js';
 import { nombreCategoria } from './clasificar.js';
 
@@ -15,7 +16,7 @@ export function buscar(p, consulta, limite = 40) {
 
   (p.items || []).forEach((it) => {
     if (coincide(it.n, q)) {
-      res.push({ tipo: 'categoria', id: it.id, titulo: it.n, sub: `Bloque · ${it.p}%`, ruta: 'categorias' });
+      res.push({ tipo: 'categoria', id: it.id, titulo: it.n, sub: `Categoría · ${money(it.m || 0, p.cur)} al mes`, ruta: 'categorias' });
     }
     (it.L || []).forEach((l) => {
       if (coincide(l.n || '', q)) {

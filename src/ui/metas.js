@@ -18,7 +18,7 @@ const estadoFondo = (p) => store.ensureFondoGoal(p);
 
 const escalonDe = (p) => escalonActual({
   minimosDeudaCubiertos: minimosCubiertos(deudasDelPerfil(p.items, p.movs),
-    p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it, store.incomeRepartir(p)), 0)),
+    p.items.filter((it) => it.r === 'deu').reduce((t, it) => t + amount(it), 0)),
   fondoEstado: estadoFondo(p).estado,
   tieneMetasActivas: p.goals.some((g) => !g.special && estadoDe(g) === 'activa'),
 });
@@ -60,13 +60,13 @@ function paint(root) {
   const box = root.querySelector('#metaList');
   const conflictos = conflictosDeMetas(p.goals);
   const lista = ordenadas(p.goals);
-  const proy = proyeccion(p.goals, p.items, inc);
+  const proy = proyeccion(p.goals, p.items);
   const movibles = lista.filter((g) => !g.special);
 
   box.innerHTML = lista.map((g) => {
     const est = estadoDe(g);
     const pct = g.t > 0 ? Math.round(clamp((g.s || 0) / g.t * 100, 0, 100)) : 0;
-    const n = monthsToGoal(g, p.items, inc);
+    const n = monthsToGoal(g, p.items);
     const enConflicto = conflictos.some((c) => c.goals.includes(g));
     const i = movibles.indexOf(g);
     const arrastrable = !g.special && est !== 'completa';
@@ -120,7 +120,7 @@ function textoPlazo(g, est, n, pr, p, inc) {
       : 'En fila. Empieza cuando la pongas activa.';
   }
   return n
-    ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items, inc), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.`
+    ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.`
     : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`;
 }
 
@@ -174,7 +174,7 @@ function openGoalSheet(root, g, warnEscalon) {
 
   function paintSheet() {
     const conflictos = conflictosDeMetas(p.goals).find((c) => c.goals.includes(g));
-    const m = monthlyToward(g, p.items, inc);
+    const m = monthlyToward(g, p.items);
     const co = costoOportunidad(m * 12, p.tasaInteres);
 
     overlay.innerHTML = `
@@ -225,7 +225,7 @@ function openGoalSheet(root, g, warnEscalon) {
         ${g.modo !== 'monto' ? '<div id="gCuota" class="sub"></div>' : ''}
 
         ${conflictos ? (() => {
-          const { paralelo, secuencia } = secuenciaPlazos(conflictos.goals, p.items, inc);
+          const { paralelo, secuencia } = secuenciaPlazos(conflictos.goals, p.items);
           return `<div class="sub" style="color:var(--amber);margin-bottom:12px">Esta meta compite por el mismo bloque con ${conflictos.goals.length - 1} otra(s).
           En paralelo: ${paralelo.map((m) => m ? plazo(m) : 'sin aporte').join(' / ')}.
           En secuencia (por prioridad): ${secuencia.join(' → ')} meses.</div>`;
@@ -304,7 +304,7 @@ function openGoalSheet(root, g, warnEscalon) {
       }
 
       const falta = Math.max(0, (g.t || 0) - (g.s || 0));
-      const disp = monthlyToward(g, p.items, inc);
+      const disp = monthlyToward(g, p.items);
       const brecha = r.cuota - disp;
       cuotaBox.innerHTML = `
         Te faltan ${money(falta, p.cur)}. En ${plazo(r.meses)} son
@@ -351,10 +351,10 @@ function openGoalSheet(root, g, warnEscalon) {
           <div><b>${r.bloque}</b><div class="sub">${r.costo}</div></div>
           <div style="text-align:right"><div class="num" style="font-weight:700">${money(r.monto, p.cur)}</div>
           <button class="mini" style="margin-top:4px">Aplicar</button></div></div>`;
-        // aplicar mueve los porcentajes de verdad; un botón que solo opaca una
+        // aplicar mueve la plata de verdad; un botón que solo opaca una
         // tarjeta es peor que no tener botón
         el.querySelector('button').onclick = () => {
-          if (!aplicarRecorte(r, p.items, inc, g)) {
+          if (!aplicarRecorte(r, p.items, g)) {
             toast('Ese recorte no tiene de dónde salir');
             return;
           }
@@ -370,7 +370,7 @@ function openGoalSheet(root, g, warnEscalon) {
       });
 
       // F7 — tres escenarios comparables
-      const disp = monthlyToward(g, p.items, inc);
+      const disp = monthlyToward(g, p.items);
       const escBox = document.createElement('div');
       escBox.className = 'grid';
       escBox.style.marginTop = '14px';
@@ -396,7 +396,7 @@ function openGoalSheet(root, g, warnEscalon) {
       ];
       box.innerHTML = presets.map((pr) => {
         let m = 0;
-        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += amount(it, inc) * Math.min(pr.map[it.r], freeFor(p.goals, g, it.id)) / 100; });
+        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += amount(it) * Math.min(pr.map[it.r], freeFor(p.goals, g, it.id)) / 100; });
         const f = Math.max(0, (g.t || 0) - (g.s || 0));
         const n = m > 0 ? Math.ceil(f / m) : null;
         return `<div class="opt" data-t="${pr.title}"><b>${pr.title}</b><p>${pr.desc}</p>
@@ -418,7 +418,7 @@ function openGoalSheet(root, g, warnEscalon) {
         const free = freeFor(p.goals, g, it.id);
         const v = g.a[it.id] || 0;
         return `<div class="alloc" data-id="${it.id}">
-          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num alloc-amt">${money(amount(it, inc) * v / 100, p.cur)}</span></div>
+          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num alloc-amt">${money(amount(it) * v / 100, p.cur)}</span></div>
           <input type="range" min="0" max="${free}" step="1" value="${v}">
           ${free < 100 ? `<div class="hint">Otras metas ya usan ${r2(100 - free)}% de este bloque. Tope aquí: ${r2(free)}%.</div>` : ''}
         </div>`;
@@ -430,7 +430,7 @@ function openGoalSheet(root, g, warnEscalon) {
         // el arrastre solo actualiza el monto mostrado, sin re-render en cada tick
         el.querySelector('input').oninput = (e) => {
           const v = r2(clamp(Number(e.target.value), 0, freeFor(p.goals, g, itemId)));
-          amtEl.textContent = money(amount(it, inc) * v / 100, p.cur);
+          amtEl.textContent = money(amount(it) * v / 100, p.cur);
         };
         el.querySelector('input').onchange = (e) => {
           g.a[itemId] = r2(clamp(Number(e.target.value), 0, freeFor(p.goals, g, itemId)));

@@ -1,5 +1,5 @@
 import * as store from '../store.js';
-import { total, r2, diagnosticoEsenciales } from '../engine/reparto.js';
+import { balance, amount, shareOf, r2, diagnosticoEsenciales } from '../engine/reparto.js';
 import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { renglonesQueCrecieron, renglonesSobreTope } from '../engine/alertas.js';
 import { porItem, porLinea } from '../engine/movimientos.js';
@@ -17,11 +17,10 @@ function mesCorto(periodo) {
   return MESES_CORTOS[m - 1] || periodo;
 }
 
-// tasa de ahorro del mes vivo: corto plazo + largo plazo
-function tasaAhorro(p) {
-  const cor = p.items.find((it) => it.r === 'cor')?.p || 0;
-  const lar = p.items.find((it) => it.r === 'lar')?.p || 0;
-  return r2(cor + lar);
+// tasa de ahorro del mes vivo: corto plazo + largo plazo, sobre lo que entra
+function tasaAhorro(p, inc) {
+  return r2(p.items.filter((it) => it.r === 'cor' || it.r === 'lar')
+    .reduce((s, it) => s + shareOf(it, inc), 0));
 }
 
 export function sparkline(rates, extras = [], w = 900, h = 220, pad = 34) {
@@ -168,8 +167,7 @@ export async function renderDashboard(root) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
   const incEse = store.incomeEsenciales(p);
-  const t = total(p.items);
-  const diff = r2(100 - t);
+  const b = balance(p.items, inc);
 
   const ese = p.items.find((it) => it.r === 'ese');
   const diag = ese ? diagnosticoEsenciales(ese, incEse) : null;
@@ -178,11 +176,11 @@ export async function renderDashboard(root) {
   if (creado) store.save();
 
 
-  const estadoMes = Math.abs(diff) < 0.01
-    ? 'Cuadrado. Repartiste el 100%.'
-    : diff > 0
-      ? `Quedan ${diff}% libres, ${money(inc * diff / 100, p.cur)} sin asignar.`
-      : `Te pasaste ${Math.abs(diff)}%, son ${money(inc * Math.abs(diff) / 100, p.cur)} que no tienes.`;
+  const estadoMes = b.cuadrado
+    ? 'Cuadrado. Repartiste todo lo que entra.'
+    : b.falta > 0
+      ? `Te falta repartir ${money(b.falta, p.cur)}.`
+      : `Te pasaste por ${money(b.exceso, p.cur)}: asignaste plata que no tienes.`;
 
   const periodo = periodoDe(hoyISO());
   const ing = ingresoReal(p.movs, periodo);
@@ -193,10 +191,10 @@ export async function renderDashboard(root) {
 
   const bloquesAhorro = p.items.filter((it) => it.r === 'cor' || it.r === 'lar').map((it) => it.id);
   const tasaReal = serieTasaAhorro(p.movs, bloquesAhorro, 1).at(-1)?.tasa ?? 0;
-  const planAhorro = tasaAhorro(p);
+  const planAhorro = tasaAhorro(p, inc);
   const ahorroHoy = ing.total > 0 ? tasaReal : planAhorro;
 
-  const proy = proyeccion(p.goals, p.items, inc);
+  const proy = proyeccion(p.goals, p.items);
 
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
@@ -227,7 +225,7 @@ export async function renderDashboard(root) {
 
     mes: `<div class="card card-ink">
         <span class="label">Tu mes</span>
-        <div class="kpi num">${t}%</div>
+        <div class="kpi num">${money(b.asignado, p.cur)}</div>
         <div class="sub">${estadoMes}</div>
       </div>`,
 
@@ -284,8 +282,8 @@ export async function renderDashboard(root) {
           <div class="repline">
             <span class="dot" style="background:${it.c}"></span>
             <span class="nm" title="${esc(it.n)}">${esc(it.n)}</span>
-            <span class="track"><i style="width:${Math.min(100, it.p)}%;background:${it.c}"></i></span>
-            <span class="pv num">${it.p}%</span>
+            <span class="track"><i style="width:${Math.min(100, shareOf(it, inc))}%;background:${it.c}"></i></span>
+            <span class="pv num">${money(amount(it), p.cur)}</span>
           </div>`).join('') : '<div class="empty">Sin categorías.</div>'}
       </div>`,
 
@@ -295,7 +293,7 @@ export async function renderDashboard(root) {
           ${ordenadas(p.goals).map((g) => {
             const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
             const est = estadoDe(g);
-            const n = monthsToGoal(g, p.items, inc);
+            const n = monthsToGoal(g, p.items);
             const antes = proy[g.id]?.predecesor;
             const segunda = est === 'en_fila'
               ? (antes ? `Empieza cuando termines la ${esc(antes.n)}` : 'En fila')
@@ -405,7 +403,7 @@ function cablearPregunta(root, p, datos) {
       fondoDeEmergencia: `${datos.fondoSaved} de ${datos.target}`,
       esencialesPctDelIngreso: datos.diag ? datos.diag.share : null,
       bloques: p.items.map((it) => ({
-        nombre: it.n, porcentaje: it.p, presupuesto: Math.round(datos.inc * it.p / 100),
+        nombre: it.n, presupuesto: Math.round(amount(it)), porcentaje: shareOf(it, datos.inc),
         gastado: Math.round(porItem(p.movs, periodoDe(hoyISO()))[it.id] || 0),
       })),
       metas: p.goals.map((g) => ({ nombre: g.n, objetivo: g.t, llevas: g.s || 0, estado: g.estado })),

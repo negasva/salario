@@ -5,10 +5,10 @@ const perfil = () => ({
   inc: 1000000,
   cur: 'COP',
   items: [
-    { id: 'i1', n: 'Esenciales', r: 'ese', p: 50, L: [{ id: 'l1', n: 'Arriendo' }, { id: 'l2', n: 'Mercado' }] },
-    { id: 'i2', n: 'Gasto libre', r: 'lib', p: 10, L: [] },
-    { id: 'i3', n: 'Ahorro corto', r: 'cor', p: 25, L: [] },
-    { id: 'i4', n: 'Inversión', r: 'lar', p: 15, L: [] },
+    { id: 'i1', n: 'Esenciales', r: 'ese', m: 500000, L: [{ id: 'l1', n: 'Arriendo' }, { id: 'l2', n: 'Mercado' }] },
+    { id: 'i2', n: 'Gasto libre', r: 'lib', m: 100000, L: [] },
+    { id: 'i3', n: 'Ahorro corto', r: 'cor', m: 250000, L: [] },
+    { id: 'i4', n: 'Inversión', r: 'lar', m: 150000, L: [] },
   ],
   goals: [{ id: 'g1', n: 'Moto', s: 900000 }],
   movs: [

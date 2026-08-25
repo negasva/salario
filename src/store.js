@@ -13,6 +13,8 @@ import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 const KEY = 'reparto:v8';
 const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
 
+// El porcentaje solo vive aquí, como reparto sugerido para un perfil nuevo:
+// en cuanto se crea el perfil se traduce a plata y ya nadie lo vuelve a mirar.
 export const BASE_ITEMS = [
   { n: 'Esenciales', p: 55, r: 'ese', c: 'var(--ink)', d: 'Renta, servicios, comida, transporte. Es el techo, no la meta.' },
   { n: 'Gasto libre', p: 5, r: 'lib', c: 'var(--pink)', d: 'Tuyo para gastarlo sin sentir culpa.' },
@@ -50,15 +52,18 @@ function nid(prefix) {
   return prefix + seq++;
 }
 
-export function freshItems() {
-  return BASE_ITEMS.map((o) => ({ id: nid('i'), n: o.n, p: o.p, r: o.r, c: o.c, d: o.d, locked: false, L: [] }));
+const INGRESO_INICIAL = 5500000;
+
+export function freshItems(inc = INGRESO_INICIAL) {
+  return BASE_ITEMS.map((o) => ({ id: nid('i'), n: o.n, m: Math.round((inc * o.p) / 100),
+    r: o.r, c: o.c, d: o.d, locked: false, L: [] }));
 }
 
 export function freshProfile(name) {
   return {
     id: nid('p'),
     name,
-    inc: 5500000,
+    inc: INGRESO_INICIAL,
     cur: 'COP',
     paleta: DEFAULT_PALETA,
     ingresoTipo: 'fijo',
@@ -66,11 +71,21 @@ export function freshProfile(name) {
     tasaInteres: 10,
     fondoMeses: 4,
     metodoDeuda: 'avalancha',
-    items: freshItems(),
+    items: freshItems(INGRESO_INICIAL),
     goals: [],
     movs: [],
     updated: Date.now(),
   };
+}
+
+/* Cambiar el ingreso del plan cuando el reparto todavía es el de fábrica no
+   puede dejarlo descuadrado: los montos se reescalan en la misma proporción.
+   Solo se usa en el onboarding; después de eso los montos son tuyos y nadie
+   los toca a tus espaldas. */
+export function reescalarItems(p, incAnterior) {
+  if (!(incAnterior > 0) || !(p.inc > 0)) return;
+  const k = p.inc / incAnterior;
+  p.items.forEach((it) => { it.m = Math.round((Number(it.m) || 0) * k); });
 }
 
 // F18 — ingreso variable: promedio para repartir, minimo para calcular esenciales
@@ -128,6 +143,11 @@ export function activeId() {
 function normalizeProfile(p) {
   p.items = p.items || [];
   p.items.forEach((it) => {
+    /* Migración: los perfiles viejos guardaban el reparto en porcentaje. Se
+       traduce una sola vez a plata sobre el ingreso del plan y el porcentaje
+       se borra, para que no queden dos números diciendo cosas distintas. */
+    if (typeof it.m !== 'number') it.m = Math.round(((p.inc || 0) * (Number(it.p) || 0)) / 100);
+    delete it.p;
     it.L = it.L || [];
     it.L.forEach((l) => { if (l.fixed === undefined) l.fixed = true; });
     if (it.locked === undefined) it.locked = false;
@@ -341,7 +361,7 @@ export async function bootAuth(uid) {
     return { migrated: false };
   }
   // sin perfiles remotos: si hay algo local, se sube como perfil inicial (migracion)
-  const hadLocal = db.profiles.length && db.profiles.some((p) => p.items?.some((it) => it.L?.length) || p.goals?.length || p.inc !== 5500000);
+  const hadLocal = db.profiles.length && db.profiles.some((p) => p.items?.some((it) => it.L?.length) || p.goals?.length || p.inc !== INGRESO_INICIAL);
   for (const p of db.profiles) schedulePush(p.id);
   await flushPush();
   return { migrated: hadLocal };
@@ -407,7 +427,7 @@ export function revisarFila(ahora = Date.now()) {
     p.traspaso = {
       desdeId: desde.id,
       haciaId: hacia.id,
-      monto: monthlyToward(desde, p.items, incomeRepartir(p)),
+      monto: monthlyToward(desde, p.items),
       creado: ahora,
     };
     save();

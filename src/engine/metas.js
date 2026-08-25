@@ -5,13 +5,13 @@ export const MES = [
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
 
-export function monthlyToward(goal, items, income) {
-  return items.reduce((s, it) => s + (amount(it, income) * (Number(goal.a?.[it.id]) || 0)) / 100, 0);
+export function monthlyToward(goal, items) {
+  return items.reduce((s, it) => s + (amount(it) * (Number(goal.a?.[it.id]) || 0)) / 100, 0);
 }
 
-export function monthsToGoal(goal, items, income) {
+export function monthsToGoal(goal, items) {
   const faltante = Math.max(0, (goal.t || 0) - (goal.s || 0));
-  const m = monthlyToward(goal, items, income);
+  const m = monthlyToward(goal, items);
   if (m <= 0) return null;
   return Math.ceil(faltante / m);
 }
@@ -70,7 +70,7 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
 
   const libre = items.find((it) => it.r === 'lib');
   if (libre) {
-    const actual = amount(libre, income);
+    const actual = amount(libre);
     const piso = income * 0.02;
     if (actual > piso) {
       recortes.push({ id: 'r-libre', bloque: 'Gasto libre', monto: r2(actual - piso), costo: 'baja tu gasto libre al 2% del ingreso' });
@@ -89,7 +89,7 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
 
   const inv = items.find((it) => it.r === 'lar');
   if (inv) {
-    const monto = amount(inv, income);
+    const monto = amount(inv);
     if (monto > 0) {
       const meses = faltanteMensual > 0 ? Math.ceil(monto / faltanteMensual) : 1;
       recortes.push({ id: 'r-inv', bloque: 'Inversión largo plazo', monto: r2(monto), costo: `pausas la inversión ${plazo(meses)}` });
@@ -99,7 +99,7 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
   if (fondoCompleto) {
     const cor = items.find((it) => it.r === 'cor');
     if (cor) {
-      const monto = amount(cor, income);
+      const monto = amount(cor);
       if (monto > 0) {
         recortes.push({ id: 'r-corto', bloque: 'Ahorro corto plazo', monto: r2(monto), costo: 'usas el ahorro corto plazo, tu fondo ya está completo' });
       }
@@ -109,11 +109,11 @@ export function planRecorte(faltanteMensual, { items, income, fondoCompleto }) {
   return recortes;
 }
 
-/* F7.2 — aplicar un recorte de verdad: baja el porcentaje del bloque de donde
-   sale la plata y se lo suma al bloque desde el que la meta ahorra. El id del
-   recorte dice el origen; el destino es el bloque que la meta más reclama. */
-export function aplicarRecorte(recorte, items, income, goal) {
-  if (!recorte || !(income > 0)) return false;
+/* F7.2 — aplicar un recorte de verdad: le quita plata al bloque de donde sale
+   y se la suma al bloque desde el que la meta ahorra. El id del recorte dice
+   el origen; el destino es el bloque que la meta más reclama. */
+export function aplicarRecorte(recorte, items, goal) {
+  if (!recorte) return false;
   const porRol = (rol) => items.find((it) => it.r === rol);
   const origen = recorte.id === 'r-libre' ? porRol('lib')
     : recorte.id === 'r-inv' ? porRol('lar')
@@ -123,10 +123,10 @@ export function aplicarRecorte(recorte, items, income, goal) {
   const destino = items.find((it) => it.id === destinoId) || porRol('cor');
   if (!origen || !destino || origen === destino) return false;
 
-  const puntos = Math.min(origen.p, r2((recorte.monto / income) * 100));
-  if (!(puntos > 0)) return false;
-  origen.p = r2(origen.p - puntos);
-  destino.p = r2(destino.p + puntos);
+  const monto = Math.min(amount(origen), r2(recorte.monto));
+  if (!(monto > 0)) return false;
+  origen.m = r2(amount(origen) - monto);
+  destino.m = r2(amount(destino) + monto);
   return true;
 }
 
@@ -155,8 +155,8 @@ export function costoOportunidad(monto, tasaAnualPct = 10) {
 }
 
 // F2.2 — cuánto se lleva cada meta de un bloque, al mes
-export function metasEnItem(goals, item, income) {
-  const bloque = amount(item, income);
+export function metasEnItem(goals, item) {
+  const bloque = amount(item);
   return goals
     .filter((g) => g.estado !== 'en_fila' && g.estado !== 'completa')
     .map((g) => ({ goal: g, pct: Number(g.a?.[item.id]) || 0 }))
@@ -179,14 +179,14 @@ export function conflictosDeMetas(goals) {
 
 const RANGO = { alta: 0, media: 1, baja: 2 };
 
-export function secuenciaPlazos(goalsEnConflicto, items, income) {
+export function secuenciaPlazos(goalsEnConflicto, items) {
   const orden = goalsEnConflicto
     .slice()
     .sort((a, b) => (RANGO[a.priority] ?? 1) - (RANGO[b.priority] ?? 1));
   let acumulado = 0;
   return {
-    paralelo: orden.map((g) => monthsToGoal(g, items, income)),
-    secuencia: orden.map((g) => (acumulado += monthsToGoal(g, items, income) || 0)),
+    paralelo: orden.map((g) => monthsToGoal(g, items)),
+    secuencia: orden.map((g) => (acumulado += monthsToGoal(g, items) || 0)),
   };
 }
 

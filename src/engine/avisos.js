@@ -1,5 +1,5 @@
 import { MES } from './metas.js';
-import { amount } from './reparto.js';
+import { total } from './reparto.js';
 import { periodoDe, hoyISO, gastoTotal } from './movimientos.js';
 import { money, moneyCorto } from '../format.js';
 
@@ -36,13 +36,13 @@ export function fueVisto(marcas, clave, hoy = new Date()) {
 }
 
 // A 5, 3 y 1 días del cierre. Nada entre medias: avisar todos los días es no avisar.
-export function avisoFinDeMes(p, income, hoy = new Date()) {
+export function avisoFinDeMes(p, hoy = new Date()) {
   const quedan = diasQueQuedan(hoy);
   if (!DIAS_CIERRE.includes(quedan)) return null;
   const periodo = periodoDe(hoyISO(hoy));
   const mes = MES[hoy.getMonth()];
   const registrado = gastoTotal(p.movs || [], periodo);
-  const presupuestado = (p.items || []).reduce((s, it) => s + amount(it, income), 0);
+  const presupuestado = total(p.items || []);
   const texto = {
     5: {
       titulo: `Quedan ${dias(quedan)} de ${mes}`,
@@ -121,8 +121,8 @@ export function avisosDeDeudas(p, hoy = new Date()) {
     }));
 }
 
-export function avisosPendientes(p, income, hoy = new Date()) {
-  return [avisoFinDeMes(p, income, hoy), ...avisosDeMetas(p, hoy), ...avisosDeDeudas(p, hoy)]
+export function avisosPendientes(p, hoy = new Date()) {
+  return [avisoFinDeMes(p, hoy), ...avisosDeMetas(p, hoy), ...avisosDeDeudas(p, hoy)]
     .filter(Boolean)
     .filter((av) => !fueVisto(p.avisosVistos, av.clave, hoy));
 }

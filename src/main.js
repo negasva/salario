@@ -8,6 +8,7 @@ import { renderMovimientos } from './ui/movimientos.js';
 import { renderHistorial } from './ui/historial.js';
 import { renderAjustes } from './ui/ajustes.js';
 import { pintarAvisos, notificarPendientes } from './ui/avisos.js';
+import { abrirOnboarding, esCuentaNueva } from './ui/onboarding.js';
 import { getSession, onAuthChange } from './auth.js';
 import * as store from './store.js';
 
@@ -63,6 +64,16 @@ async function boot() {
   if (res?.migrated) toast('Tu presupuesto local se subió a tu cuenta.');
   await store.autoCerrar();
   paintRoute();
+
+  // cuenta recién creada: nombre, ingreso y a repartir
+  if (esCuentaNueva()) {
+    abrirOnboarding(() => {
+      route = 'categorias';
+      routeArgs = {};
+      paintRoute();
+    });
+    return;
+  }
   notificarPendientes();
 }
 

@@ -57,8 +57,9 @@ export function fixedVariableSplit(item) {
   return { fixed, variable };
 }
 
-// F5.2 — una meta en fila guarda su `a` pero no consume el bloque: no le baja
-// el tope a las que sí están corriendo.
+/* F5.2 — una meta en fila guarda su `a` pero no consume el bloque: no le baja
+   el tope a las que sí están corriendo. Lo que guarda `a` es plata: cuántos
+   pesos de esa categoría se lleva la meta cada mes. */
 export function claimedBy(goals, itemId, skip) {
   return goals.reduce((s, g) => (g !== skip && g.estado !== 'en_fila' ? s + (Number(g.a?.[itemId]) || 0) : s), 0);
 }
@@ -67,8 +68,9 @@ export function claimedAll(goals, itemId) {
   return claimedBy(goals, itemId, null);
 }
 
-export function freeFor(goals, goal, itemId) {
-  return r2(clamp(100 - claimedBy(goals, itemId, goal), 0, 100));
+export function freeFor(goals, goal, item) {
+  const tope = amount(item);
+  return r2(clamp(tope - claimedBy(goals, item.id, goal), 0, tope));
 }
 
 // F1 — diagnóstico de esenciales

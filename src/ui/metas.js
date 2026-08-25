@@ -184,7 +184,7 @@ function openGoalSheet(root, g, warnEscalon) {
         <div class="fld"><label>Qué quieres comprar</label><input id="gName" value="${esc(g.n)}" ${g.special ? 'disabled' : ''}></div>
         <div class="fld"><label>Cuánto cuesta</label><input id="gCost" value="${plain(g.t, p.cur)}" inputmode="numeric"></div>
         <div class="fld"><label>Cuánto llevas ahorrado</label><input id="gSaved" value="${plain(g.s, p.cur)}" inputmode="numeric">
-          <div class="hint">Los aportes registrados suman ${money(aportesAMeta(p.movs, g.id).total, p.cur)}. Si escribes otro total, la diferencia queda como lo que ya tenías antes.</div>
+          <div class="hint">Escribe aquí el total que ya tienes guardado, venga de donde venga. Los aportes que has registrado en la app suman ${money(aportesAMeta(p.movs, g.id).total, p.cur)}; si el total que escribes es mayor, la diferencia queda como lo que ya tenías desde antes.</div>
         </div>
         <div class="fld"><label>Estado en la fila</label>
           <div class="chips">
@@ -193,7 +193,7 @@ function openGoalSheet(root, g, warnEscalon) {
           </div>
           <div class="hint">${estadoDe(g) === 'en_fila'
             ? 'En fila no consume nada de tus bloques. Su reparto se guarda y arranca cuando termine la meta de adelante.'
-            : 'Activa reclama su porcentaje de los bloques cada mes.'}</div>
+            : 'Activa se lleva cada mes la plata que le asignes de cada categoría.'}</div>
         </div>
         <div class="fld"><label>Prioridad</label>
           <select id="gPriority">
@@ -396,7 +396,7 @@ function openGoalSheet(root, g, warnEscalon) {
       ];
       box.innerHTML = presets.map((pr) => {
         let m = 0;
-        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += amount(it) * Math.min(pr.map[it.r], freeFor(p.goals, g, it.id)) / 100; });
+        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += montoPreset(pr, it); });
         const f = Math.max(0, (g.t || 0) - (g.s || 0));
         const n = m > 0 ? Math.ceil(f / m) : null;
         return `<div class="opt" data-t="${pr.title}"><b>${pr.title}</b><p>${pr.desc}</p>
@@ -405,38 +405,49 @@ function openGoalSheet(root, g, warnEscalon) {
       box.querySelectorAll('.opt').forEach((el, i) => {
         el.onclick = () => {
           const pr = presets[i];
-          p.items.forEach((it) => { g.a[it.id] = it.r && pr.map[it.r] !== undefined ? r2(Math.min(pr.map[it.r], freeFor(p.goals, g, it.id))) : 0; });
+          p.items.forEach((it) => { g.a[it.id] = it.r && pr.map[it.r] !== undefined ? montoPreset(pr, it) : 0; });
           store.save();
           paintAlloc();
         };
       });
     }
 
+    /* Un preset es una receta en porcentajes ("todo el largo plazo"), pero lo
+       que se guarda es plata: se traduce al aplicarlo y nunca pasa del tope. */
+    function montoPreset(pr, it) {
+      return Math.round(Math.min(amount(it) * (pr.map[it.r] / 100), freeFor(p.goals, g, it)));
+    }
+
     function paintAlloc() {
       const box = overlay.querySelector('#gAlloc');
       box.innerHTML = p.items.map((it) => {
-        const free = freeFor(p.goals, g, it.id);
-        const v = g.a[it.id] || 0;
+        const bloque = amount(it);
+        const libre = freeFor(p.goals, g, it);
+        const v = Number(g.a[it.id]) || 0;
+        const tomadoPorOtras = r2(bloque - libre);
         return `<div class="alloc" data-id="${it.id}">
-          <div class="alloc-head"><span>${esc(it.n)}</span><span class="num alloc-amt">${money(amount(it) * v / 100, p.cur)}</span></div>
-          <input type="range" min="0" max="${free}" step="1" value="${v}">
-          ${free < 100 ? `<div class="hint">Otras metas ya usan ${r2(100 - free)}% de este bloque. Tope aquí: ${r2(free)}%.</div>` : ''}
+          <div class="alloc-head"><span>${esc(it.n)}</span>
+            <span class="sub num">de ${money(bloque, p.cur)}</span></div>
+          <div class="alloc-row">
+            <label class="fieldw"><span>${p.cur}</span>
+              <input class="alloc-monto num" inputmode="numeric" value="${v ? plain(v, p.cur) : ''}" placeholder="0"></label>
+            <button class="mini alloc-todo" ${libre > 0 ? '' : 'disabled'}>Todo lo libre</button>
+          </div>
+          <div class="hint">${tomadoPorOtras > 0
+            ? `Otras metas ya se llevan ${money(tomadoPorOtras, p.cur)} de aquí. Te quedan ${money(libre, p.cur)}.`
+            : `Libre para esta meta: ${money(libre, p.cur)}.`}</div>
         </div>`;
       }).join('');
+
       box.querySelectorAll('.alloc').forEach((el) => {
-        const itemId = el.dataset.id;
-        const it = p.items.find((x) => x.id === itemId);
-        const amtEl = el.querySelector('.alloc-amt');
-        // el arrastre solo actualiza el monto mostrado, sin re-render en cada tick
-        el.querySelector('input').oninput = (e) => {
-          const v = r2(clamp(Number(e.target.value), 0, freeFor(p.goals, g, itemId)));
-          amtEl.textContent = money(amount(it) * v / 100, p.cur);
-        };
-        el.querySelector('input').onchange = (e) => {
-          g.a[itemId] = r2(clamp(Number(e.target.value), 0, freeFor(p.goals, g, itemId)));
+        const it = p.items.find((x) => x.id === el.dataset.id);
+        function fijar(v) {
+          g.a[it.id] = Math.round(clamp(v, 0, freeFor(p.goals, g, it)));
           store.save();
           paintAlloc();
-        };
+        }
+        el.querySelector('.alloc-monto').onchange = (e) => fijar(digits(e.target.value));
+        el.querySelector('.alloc-todo').onclick = () => fijar(freeFor(p.goals, g, it));
       });
     }
 

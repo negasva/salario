@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { estadoLinea, resumenItem, resumenMes, agregarPago, pagosDeLinea, quitarPago, movimientosDeAhorro, ahorroRepartido, promedioVariables } from './pagos.js';
+import {
+  estadoLinea, resumenItem, resumenMes, agregarPago, pagosDeLinea, quitarPago,
+  movimientosDeAhorro, ahorroRepartido, promedioVariables,
+  arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior,
+} from './pagos.js';
 
 const linea = (id, n, v, extra = {}) => ({ id, n, v, fixed: true, ...extra });
 const gasto = (id, lineId, monto, fecha = '2026-08-10') => ({ id, fecha, tipo: 'gasto', monto, itemId: 'i1', lineId });
@@ -130,5 +134,56 @@ describe('promedioVariables', () => {
 
   it('un solo mes no da promedio', () => {
     expect(promedioVariables([cierre('2026-07', 430000)])).toHaveLength(0);
+  });
+});
+
+
+describe('arrastre de un mes al siguiente', () => {
+  it('sabe cuál es el mes de antes y el de después, con el salto de año', () => {
+    expect(siguientePeriodo('2026-08')).toBe('2026-09');
+    expect(siguientePeriodo('2026-12')).toBe('2027-01');
+    expect(mesAnterior('2026-08')).toBe('2026-07');
+    expect(mesAnterior('2026-01')).toBe('2025-12');
+  });
+
+  it('sin arrastre el renglón vale su plan de siempre', () => {
+    expect(planDeLinea({ v: 480000 }, '2026-08')).toBe(480000);
+    expect(arrastreDe({ v: 480000 }, '2026-08')).toBe(0);
+  });
+
+  it('lo que no se pagó se pasa al mes siguiente y allá el renglón vale el doble', () => {
+    const l = { id: 'l1', v: 480000 };
+    pasarAlSiguiente(l, '2026-08', 480000);
+    expect(planDeLinea(l, '2026-09')).toBe(960000);
+    expect(planDeLinea(l, '2026-08')).toBe(480000);
+  });
+
+  it('dos meses seguidos sin pagar se acumulan', () => {
+    const l = { id: 'l1', v: 480000 };
+    pasarAlSiguiente(l, '2026-08', 480000);
+    pasarAlSiguiente(l, '2026-08', 200000);
+    expect(arrastreDe(l, '2026-09')).toBe(680000);
+  });
+
+  it('pasar cero o negativo no hace nada', () => {
+    const l = { id: 'l1', v: 480000 };
+    expect(pasarAlSiguiente(l, '2026-08', 0)).toBe(0);
+    expect(arrastreDe(l, '2026-09')).toBe(0);
+  });
+
+  it('un arrastre puesto por error se puede quitar', () => {
+    const l = { id: 'l1', v: 480000 };
+    pasarAlSiguiente(l, '2026-08', 480000);
+    quitarArrastre(l, '2026-09');
+    expect(planDeLinea(l, '2026-09')).toBe(480000);
+  });
+
+  it('el resumen del mes cobra el arrastre y dice cuánto falta', () => {
+    const l = { id: 'l1', n: 'Administración', v: 480000, arrastre: { '2026-09': 480000 } };
+    const [fila] = resumenItem({ L: [l] }, { l1: 300000 }, '2026-09').filas;
+    expect(fila.plan).toBe(960000);
+    expect(fila.arrastre).toBe(480000);
+    expect(fila.pendiente).toBe(660000);
+    expect(fila.estado).toBe('parcial');
   });
 });

@@ -5,6 +5,43 @@
 import { r2 } from './reparto.js';
 import { periodoDe } from './movimientos.js';
 
+/* Un mes que no alcanzó para pagar un renglón no se borra: lo que quedó
+   debiendo se pasa al mes siguiente y ahí el renglón vale el doble. `l.arrastre`
+   guarda, por periodo, cuánta plata llega arrastrada de atrás. */
+export function siguientePeriodo(periodo) {
+  const [a, m] = String(periodo).split('-').map(Number);
+  return m >= 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, '0')}`;
+}
+
+export function mesAnterior(periodo) {
+  const [a, m] = String(periodo).split('-').map(Number);
+  return m <= 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`;
+}
+
+export function arrastreDe(l, periodo) {
+  return Number(l?.arrastre?.[periodo]) || 0;
+}
+
+// Lo que ese renglón cuesta este mes: su plan de siempre más lo que viene debiendo
+export function planDeLinea(l, periodo) {
+  return r2((Number(l?.v) || 0) + arrastreDe(l, periodo));
+}
+
+export function pasarAlSiguiente(l, periodo, monto) {
+  const m = r2(monto);
+  if (!(m > 0)) return 0;
+  l.arrastre = l.arrastre || {};
+  const destino = siguientePeriodo(periodo);
+  l.arrastre[destino] = r2(arrastreDe(l, destino) + m);
+  return l.arrastre[destino];
+}
+
+export function quitarArrastre(l, periodo) {
+  if (!l?.arrastre) return false;
+  delete l.arrastre[periodo];
+  return true;
+}
+
 export function estadoLinea(pagado, plan, cerrado) {
   if (plan > 0 && pagado > plan) return 'excedido';
   if (cerrado || (plan > 0 && pagado >= plan)) return 'pagado';
@@ -15,9 +52,11 @@ const CERRADAS = ['pagado', 'excedido'];
 
 export function resumenItem(it, pagadoPorLinea = {}, periodo) {
   const filas = (it.L || []).map((l) => {
-    const plan = Number(l.v) || 0;
+    const arrastre = arrastreDe(l, periodo);
+    const plan = planDeLinea(l, periodo);
     const pagado = r2(pagadoPorLinea[l.id] || 0);
-    return { l, plan, pagado, diferencia: r2(plan - pagado),
+    return { l, plan, arrastre, pagado, diferencia: r2(plan - pagado),
+      pendiente: Math.max(0, r2(plan - pagado)),
       estado: estadoLinea(pagado, plan, l.pagadoEn === periodo) };
   });
   const plan = r2(filas.reduce((s, f) => s + f.plan, 0));

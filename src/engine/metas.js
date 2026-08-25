@@ -5,8 +5,11 @@ export const MES = [
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
 
+/* Lo que la meta guarda al mes: la suma de lo que reclama de cada categoría.
+   Nunca puede llevarse más de lo que la categoría tiene asignado; si le bajas
+   el monto al bloque, la meta se frena, que es la verdad. */
 export function monthlyToward(goal, items) {
-  return items.reduce((s, it) => s + (amount(it) * (Number(goal.a?.[it.id]) || 0)) / 100, 0);
+  return items.reduce((s, it) => s + Math.min(amount(it), Number(goal.a?.[it.id]) || 0), 0);
 }
 
 export function monthsToGoal(goal, items) {
@@ -159,17 +162,16 @@ export function metasEnItem(goals, item) {
   const bloque = amount(item);
   return goals
     .filter((g) => g.estado !== 'en_fila' && g.estado !== 'completa')
-    .map((g) => ({ goal: g, pct: Number(g.a?.[item.id]) || 0 }))
-    .filter((x) => x.pct > 0)
-    .map((x) => ({ ...x, monto: r2((bloque * x.pct) / 100) }));
+    .map((g) => ({ goal: g, monto: r2(Math.min(bloque, Number(g.a?.[item.id]) || 0)) }))
+    .filter((x) => x.monto > 0);
 }
 
 // F9 — metas en competencia
 export function conflictosDeMetas(goals) {
   const map = {};
   goals.filter((g) => !g.special && (g.estado || 'activa') === 'activa').forEach((g) => {
-    Object.entries(g.a || {}).forEach(([itemId, pct]) => {
-      if (pct > 0) (map[itemId] = map[itemId] || []).push(g);
+    Object.entries(g.a || {}).forEach(([itemId, monto]) => {
+      if (monto > 0) (map[itemId] = map[itemId] || []).push(g);
     });
   });
   return Object.entries(map)

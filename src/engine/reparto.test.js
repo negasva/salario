@@ -57,10 +57,17 @@ describe('fijo/variable', () => {
 });
 
 describe('metas en competencia (freeFor)', () => {
-  it('el tope baja cuando otra meta ya reclamó parte del bloque', () => {
-    const g1 = { a: { i1: 60 } };
+  const item = { id: 'i1', m: 1000000 };
+
+  it('el tope baja con la plata que otra meta ya reclamó del bloque', () => {
+    const g1 = { a: { i1: 600000 } };
     const g2 = { a: { i1: 0 } };
-    expect(freeFor([g1, g2], g2, 'i1')).toBe(40);
+    expect(freeFor([g1, g2], g2, item)).toBe(400000);
+  });
+
+  it('un bloque ya repartido del todo no deja nada libre', () => {
+    const g1 = { a: { i1: 1200000 } };
+    expect(freeFor([g1], { a: {} }, item)).toBe(0);
   });
 });
 

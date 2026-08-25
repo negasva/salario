@@ -5,7 +5,8 @@ import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { renglonesSobreTope } from '../engine/alertas.js';
-import { resumenItem, agregarPago, pagosDeLinea, quitarPago } from '../engine/pagos.js';
+import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
+  pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
@@ -134,12 +135,14 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
   // a día 25 gastarse el 90% del bloque va bien; a día 5 va fatal
   const ritmo = ritmoDelMes(real, budget);
   const share = shareOf(it, store.incomeRepartir(p));
+  const arrastrado = res.filas.reduce((t, f) => t + f.arrastre, 0);
   return `
   <div class="card cat-card" data-id="${it.id}">
     <div class="cat-top">
       <span class="dot" style="background:${it.c}"></span>
       <input class="cat-name" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}>
-      <button class="mini cat-lock" title="${it.locked ? 'Desbloquear' : 'Bloquear'}">${icon('candado', 'ic-sm')}</button>
+      <button class="mini cat-lock ${it.locked ? 'on' : ''}" aria-pressed="${!!it.locked}"
+        title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
       <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
     </div>
     <div class="sub cat-desc" contenteditable="${!it.locked}">${esc(it.d || '')}</div>
@@ -150,7 +153,7 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
     </div>
     <div class="sub cat-share">${share > 0 ? `Es el ${share}% de lo que entra este mes.` : 'Sin plata asignada todavía.'}
       ${sp > 0 && Math.abs(sp - budget) >= 1
-        ? `<button class="mini cat-ajustar">Ajustar al plan de renglones (${money(sp, p.cur)})</button>`
+        ? `<button class="mini cat-ajustar" title="Suma lo que escribiste en cada concepto de la lista de abajo y lo pone como monto de la categoría">Igualar a la suma de sus conceptos (${money(sp, p.cur)})</button>`
         : ''}</div>
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
@@ -177,7 +180,8 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
             : `vas ${Math.abs(ritmo.pct)}% por debajo, ${money(-ritmo.delta, p.cur)} de margen.`}
       </div>` : ''}
       ${it.r === 'deu' ? tarjetaDeuda(it, p, budget) : ''}
-      ${it.L.length ? `<div class="sub">Planeado ${money(sp, p.cur)} · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}</div>` : ''}
+      ${it.L.length ? `<div class="sub">Planeado ${money(sp, p.cur)} · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}${
+        arrastrado > 0 ? ` · más ${money(arrastrado, p.cur)} que vienen debiéndose de antes` : ''}</div>` : ''}
     </div>
   </div>`;
 }
@@ -185,11 +189,10 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
 // El dinero de una meta no se edita desde aquí: texto plano, sin borrar,
 // sin toggle fijo/variable.
 function lineasMeta(metas, it, p) {
-  return metas.map(({ goal, pct, monto }) => {
+  return metas.map(({ goal, monto }) => {
     const ap = aporteDelMes(p, goal.id);
     return `<div class="line line-meta ${goal.special ? 'line-fondo' : ''}" data-gid="${goal.id}">
       <span class="lm-n">${esc(goal.n)}${goal.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
-      <span class="badge lm-p">${r2(pct)}%</span>
       <span class="num lm-v">${money(monto, p.cur)}</span>
       ${ap
         ? `<button class="mini lm-ok" title="Deshacer el aporte">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
@@ -230,11 +233,56 @@ function listaPagos(l, p, periodo) {
   if (!pagos.length) return '';
   return `<div class="pagos-lista" data-lid="${l.id}">
     ${pagos.map((m) => `<span class="pago-chip" data-mid="${m.id}">
-      <b class="num">${money(m.monto, p.cur)}</b>
-      <span class="sub">${diaCorto(m.fecha)}</span>
+      <button class="pago-abrir" title="Cambiarle la fecha, el monto o el nombre">
+        <b class="num">${money(m.monto, p.cur)}</b>
+        <span class="sub">${diaCorto(m.fecha)}</span>
+        ${notaPropia(m, l) ? `<span class="sub pago-nota">${esc(m.nota)}</span>` : ''}
+      </button>
       <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
     </span>`).join('')}
   </div>`;
+}
+
+// la nota automática ya se lee en el nombre del renglón: solo se muestra la tuya
+function notaPropia(m, l) {
+  return m.nota && m.nota !== `Pago ${l.n || 'sin nombre'}`;
+}
+
+/* Un pago mal tecleado se corrige, no se borra y se vuelve a escribir: monto,
+   fecha y un nombre para acordarte de qué fue. */
+function abrirPago(mov, l, p, alGuardar) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay on';
+  overlay.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-head"><h3>Pago de ${esc(l.n || 'este renglón')}</h3>
+        <button class="btn-del" id="pgClose">${icon('cerrar')}</button></div>
+      <div class="fld"><label>Cuánto</label>
+        <input id="pgMonto" class="num" inputmode="numeric" value="${plain(mov.monto, p.cur)}"></div>
+      <div class="fld"><label>Cuándo</label>
+        <input id="pgFecha" type="date" value="${mov.fecha}"></div>
+      <div class="fld"><label>De qué fue</label>
+        <input id="pgNota" value="${esc(notaPropia(mov, l) ? mov.nota : '')}" placeholder="Ej: recibo de agosto, mercado del sábado">
+        <div class="hint">Para acordarte después. Si lo dejas vacío queda como "Pago ${esc(l.n || 'sin nombre')}".</div></div>
+      <button class="wide btn-primary" id="pgSave" style="margin-top:16px">Guardar</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  function close() { overlay.remove(); document.body.style.overflow = ''; }
+  overlay.querySelector('#pgClose').onclick = close;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#pgSave').onclick = () => {
+    const monto = digits(overlay.querySelector('#pgMonto').value);
+    if (!(monto > 0)) { toast('El pago tiene que ser mayor que cero'); return; }
+    mov.monto = monto;
+    mov.fecha = overlay.querySelector('#pgFecha').value || mov.fecha;
+    mov.nota = overlay.querySelector('#pgNota').value.trim() || `Pago ${l.n || 'sin nombre'}`;
+    store.save();
+    close();
+    alGuardar();
+  };
 }
 
 const ESTADOS = {
@@ -246,7 +294,7 @@ const ESTADOS = {
 
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, pagado, diferencia, estado }) => {
+  return res.filas.map(({ l, plan, arrastre, pagado, pendiente, diferencia, estado }) => {
     const tope = Number(l.tope) || 0;
     const est = ESTADOS[estado];
     return `
@@ -271,6 +319,7 @@ function lines(it, p, res) {
         : ''}
       ${plan > 0 && diferencia === 0 && pagado > 0 ? '<span class="sub ln-dif">clavado al plan</span>' : ''}
     </div>
+    ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
     ${listaPagos(l, p, res.periodo)}
     <div class="line-tope" data-lid="${l.id}">
       <label class="fieldw"><span>Tope del mes</span>
@@ -279,6 +328,34 @@ function lines(it, p, res) {
     </div>
     ${it.r === 'deu' ? filaDeuda(l, p) : ''}`;
   }).join('');
+}
+
+/* El mes que no alcanzó. Si al renglón le falta plata por pagar, un botón lo
+   pasa al mes siguiente: allá el renglón vale su plan más lo que quedó
+   debiendo. Y cuando la deuda llega, se dice de dónde viene y se puede
+   devolver, que un arrastre puesto por error no puede quedar amarrado. */
+function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
+  const yaPasado = arrastreDe(l, siguientePeriodo(periodo));
+  /* Solo los renglones fijos generan deuda: un arriendo sin pagar se debe, un
+     mercado en el que gastaste menos no. Lo que ya viene arrastrado sí se
+     puede seguir moviendo, sea del tipo que sea. */
+  const esDeuda = l.fixed !== false || arrastre > 0;
+  if (!arrastre && !yaPasado && !(pendiente > 0 && esDeuda)) return '';
+  const mes = (per) => `${MESES[Number(per.split('-')[1]) - 1]}`;
+  return `<div class="line-arrastre" data-lid="${l.id}">
+    ${arrastre > 0
+      ? `<span class="sub">Vienen <b class="num">${money(arrastre, p.cur)}</b> sin pagar de ${mes(mesAnterior(periodo))}:
+         este mes el renglón vale <b class="num">${money(plan, p.cur)}</b>.</span>
+         <button class="mini arr-quitar">Quitar esa deuda</button>`
+      : ''}
+    ${pendiente > 0 && esDeuda
+      ? `<button class="mini arr-pasar">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
+      : ''}
+    ${yaPasado > 0
+      ? `<span class="sub">Ya pasaste <b class="num">${money(yaPasado, p.cur)}</b> a ${mes(siguientePeriodo(periodo))}.</span>
+         <button class="mini arr-deshacer">Deshacer</button>`
+      : ''}
+  </div>`;
 }
 
 /* Cada renglon lleva su barra de lo gastado. Si hay tope, ese manda; si no,
@@ -505,7 +582,7 @@ function wireCard(root, it, p) {
         l.pagadoEn = null;
       } else {
         // autocompleta solo si todavía no hay ningún pago; con plata puesta, la respeta
-        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, Number(l.v) || 0, hoyISO());
+        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO());
         l.pagadoEn = periodo;
       }
       store.save();
@@ -514,7 +591,12 @@ function wireCard(root, it, p) {
   });
 
   card.querySelectorAll('.pagos-lista').forEach((el) => {
+    const linea = it.L.find((x) => x.id === el.dataset.lid);
     el.querySelectorAll('.pago-chip').forEach((chip) => {
+      chip.querySelector('.pago-abrir').onclick = () => {
+        const mov = p.movs.find((m) => m.id === chip.dataset.mid);
+        if (mov && linea) abrirPago(mov, linea, p, () => renderCategorias(root));
+      };
       chip.querySelector('.pago-x').onclick = () => {
         const mov = p.movs.find((m) => m.id === chip.dataset.mid);
         const { undo } = store.stageDelete(
@@ -531,10 +613,10 @@ function wireCard(root, it, p) {
      golpe y cada renglón se sigue pudiendo corregir a mano. */
   card.querySelector('.cat-fijos').onclick = () => {
     const pagados = porLinea(p.movs, periodo);
-    const fijos = it.L.filter((l) => l.fixed !== false && Number(l.v) > 0 && !pagados[l.id]);
+    const fijos = it.L.filter((l) => l.fixed !== false && planDeLinea(l, periodo) > 0 && !pagados[l.id]);
     if (!fijos.length) { toast('Los fijos de este mes ya están al día'); return; }
     const antes = JSON.parse(JSON.stringify(p.movs));
-    fijos.forEach((l) => { agregarPago(p.movs, it, l, Number(l.v), hoyISO()); l.pagadoEn = periodo; });
+    fijos.forEach((l) => { agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO()); l.pagadoEn = periodo; });
     store.save();
     renderCategorias(root);
     toast(`${fijos.length} fijo${fijos.length > 1 ? 's' : ''} marcado${fijos.length > 1 ? 's' : ''} como pagado`, () => {
@@ -544,6 +626,49 @@ function wireCard(root, it, p) {
       renderCategorias(root);
     });
   };
+
+  /* Lo que no alcanzaste a pagar este mes se pasa al siguiente. Es un botón y
+     no algo automático a propósito: la app no cierra meses sola cuando estás
+     sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. */
+  card.querySelectorAll('.line-arrastre').forEach((el) => {
+    const l = it.L.find((x) => x.id === el.dataset.lid);
+    if (!l) return;
+    const siguiente = siguientePeriodo(periodo);
+
+    el.querySelector('.arr-pasar')?.addEventListener('click', () => {
+      const pagados = porLinea(p.movs, periodo);
+      const falta = Math.max(0, planDeLinea(l, periodo) - (pagados[l.id] || 0));
+      if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
+      pasarAlSiguiente(l, periodo, falta);
+      store.save();
+      renderCategorias(root);
+      toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
+        quitarArrastre(l, siguiente);
+        store.save();
+        renderCategorias(root);
+      });
+    });
+
+    el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
+      quitarArrastre(l, siguiente);
+      store.save();
+      renderCategorias(root);
+      toast('Ya no pasa nada al mes siguiente');
+    });
+
+    el.querySelector('.arr-quitar')?.addEventListener('click', () => {
+      const monto = arrastreDe(l, periodo);
+      quitarArrastre(l, periodo);
+      store.save();
+      renderCategorias(root);
+      toast(`Quitaste ${money(monto, p.cur)} de deuda vieja`, () => {
+        l.arrastre = l.arrastre || {};
+        l.arrastre[periodo] = monto;
+        store.save();
+        renderCategorias(root);
+      });
+    });
+  });
 
   // el tope vive fuera de la fila del renglón, en su propia línea
   card.querySelectorAll('.line-tope').forEach((el) => {

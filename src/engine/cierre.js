@@ -1,4 +1,5 @@
 import { amount, shareOf, r2 } from './reparto.js';
+import { planDeLinea } from './pagos.js';
 import { periodoDe, hoyISO, porItem, porLinea, ingresoReal, aportesAMeta } from './movimientos.js';
 
 /* El cierre de mes. Los snapshots viejos traen cuatro campos y no llevan
@@ -52,7 +53,7 @@ export function construirSnapshot(p, periodo, income, previo = {}) {
     // cuenta para el promedio, y sin `plan` no hay contra que compararlo
     lineas: Object.fromEntries(p.items.flatMap((it) => (it.L || [])
       .filter((l) => lineas[l.id] || Number(l.v) > 0)
-      .map((l) => [l.id, { nombre: l.n, itemId: it.id, plan: Number(l.v) || 0,
+      .map((l) => [l.id, { nombre: l.n, itemId: it.id, plan: planDeLinea(l, periodo),
         fixed: l.fixed !== false, real: r2(lineas[l.id] || 0) }]))),
     metas: p.goals.map((g) => ({
       goalId: g.id, nombre: g.n,

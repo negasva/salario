@@ -42,8 +42,18 @@ Import del repo en Vercel, framework preset "Vite", variables de entorno arriba.
 La app clasifica gastos sin red con el diccionario de `src/engine/clasificar.js`. La IA solo afina lo que queda en "otros" y responde la tarjeta de preguntas del dashboard.
 
 ```
+./scripts/ia.sh
+```
+
+El script instala el CLI si falta, saca el ref del proyecto de tu `.env`, te pide la llave por teclado (no queda en el historial ni en ningún archivo) y despliega. A mano son los mismos cuatro pasos:
+
+```
+npm i -g supabase && supabase login
+supabase link --project-ref TU_REF
 supabase secrets set NVIDIA_API_KEY=tu-llave
 supabase functions deploy ia
 ```
+
+Para comprobarlo: entra con tu cuenta y usa la tarjeta *Pregúntale a tus números* del dashboard. Si algo falla, `supabase functions logs ia` dice qué: `sin-llave` (falta el secreto), `proveedor-401` (llave inválida), `proveedor-404` (ese modelo no está en tu cuenta), `sin-sesion` (no habías entrado a la app).
 
 La llave nunca llega al navegador. Sin la función desplegada la app funciona igual, y lo dice donde corresponde.

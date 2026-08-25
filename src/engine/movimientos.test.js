@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, aportesAMeta, podar, hoyISO, serieAhorro } from './movimientos.js';
+  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, aportesAMeta, podar, hoyISO, serieAhorro, serieTasaAhorro, ritmoDelMes } from './movimientos.js';
 
 const MOVS = [
   { id: 'm1', fecha: '2026-08-03', tipo: 'gasto', monto: 85000, itemId: 'i1', lineId: 'l1' },
@@ -107,5 +107,32 @@ describe('serie de ahorro', () => {
     expect(serieAhorro(movs, 'meta:g1', 1, [], hoy)[0].monto).toBe(200);
     expect(serieAhorro(movs, 'item:cor', 1, [], hoy)[0].monto).toBe(300);
     expect(serieAhorro(movs, 'deuda', 1, [], hoy)[0].monto).toBe(400);
+  });
+});
+
+describe('tasa de ahorro desde el libro', () => {
+  const hoy = new Date(2026, 7, 15);
+  it('es lo ahorrado sobre lo que entró, mes a mes', () => {
+    const movs = [
+      { id: 'i1', fecha: '2026-08-01', tipo: 'ingreso', monto: 5000000 },
+      { id: 'g1', fecha: '2026-08-02', tipo: 'gasto', monto: 1000000, itemId: 'cor' },
+    ];
+    expect(serieTasaAhorro(movs, ['cor'], 1, hoy)).toEqual([{ periodo: '2026-08', tasa: 20 }]);
+  });
+
+  it('un mes sin ingresos no divide por cero', () => {
+    expect(serieTasaAhorro([], ['cor'], 1, hoy)[0].tasa).toBe(0);
+  });
+});
+
+describe('ritmo del mes', () => {
+  it('a mitad de mes se espera la mitad del bloque', () => {
+    const r = ritmoDelMes(600000, 1000000, new Date(2026, 7, 16)); // agosto: 31 días
+    expect(Math.round(r.esperado)).toBe(516129);
+    expect(r.pct).toBe(16);
+  });
+
+  it('sin presupuesto no inventa porcentaje', () => {
+    expect(ritmoDelMes(100, 0, new Date(2026, 7, 16)).pct).toBe(0);
   });
 });

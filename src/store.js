@@ -152,6 +152,7 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
+  p.recurrentes ??= [];
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
   p.alertasSilenciadas ??= {};
@@ -213,6 +214,7 @@ async function flushPush() {
         items: p.items, goals: p.goals, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
+        recurrentes: p.recurrentes || [],
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();

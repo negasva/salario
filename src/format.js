@@ -36,7 +36,17 @@ export function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
+/* Lee un monto tecleado sin importar cómo separe el usuario. La regla que
+   desempata: tres cifras después del separador son miles, una o dos son
+   decimales. Es lo que hace la gente en es-CO y en en-US por igual. */
 export function digits(v) {
-  const c = String(v).replace(/[^\d]/g, '');
-  return c ? Number(c) : 0;
+  const limpio = String(v).replace(/[^\d.,]/g, '');
+  if (!limpio) return 0;
+  const ultimo = Math.max(limpio.lastIndexOf('.'), limpio.lastIndexOf(','));
+  const decimales = ultimo >= 0 ? limpio.length - ultimo - 1 : 0;
+  if (ultimo >= 0 && decimales > 0 && decimales < 3) {
+    const entero = limpio.slice(0, ultimo).replace(/[.,]/g, '');
+    return Number(`${entero || 0}.${limpio.slice(ultimo + 1)}`) || 0;
+  }
+  return Number(limpio.replace(/[.,]/g, '')) || 0;
 }

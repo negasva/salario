@@ -310,6 +310,10 @@
 .hint{font-size:11px;color:var(--ink-lighter);margin-top:5px}
 
 /* ── historial ────────────────────────────────────────────────────────── */
+.rec-list{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)}
+.rec-item{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
+.rec-item .nm{display:flex;align-items:center;gap:6px;flex:1;min-width:120px}
+.rec-item .sub{margin-top:0}
 .hist-list{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)}
 .hist-row{display:flex;align-items:center;gap:var(--space-3)}
 .hist-row .sub{flex:none;width:60px;margin-top:0}

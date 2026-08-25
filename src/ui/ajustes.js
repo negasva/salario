@@ -11,8 +11,11 @@ export function renderAjustes(root) {
     <div class="grid">
       <div class="card">
         <span class="label">Perfiles</span>
+        <div class="fld" style="margin-top:10px"><label>Nombre del perfil activo</label>
+          <input id="ajNombre" value="${esc(p.name)}" aria-label="Nombre del perfil activo"></div>
         <div class="chips" id="ajChips" style="margin-top:10px">
-          ${store.profiles().map((pr) => `<button class="chip ${pr.id === store.activeId() ? 'on' : ''}" data-id="${pr.id}">${esc(pr.name)}</button>`).join('')}
+          ${store.profiles().filter((pr) => pr.id !== store.activeId())
+            .map((pr) => `<button class="chip" data-id="${pr.id}">${esc(pr.name)}</button>`).join('')}
         </div>
         <div class="prow">
           <button id="ajNew">+ Nuevo perfil</button>
@@ -54,16 +57,22 @@ export function renderAjustes(root) {
           <button id="ajExport">Exportar</button>
           <label class="btn-file">Importar<input type="file" id="ajImport" accept="application/json" hidden></label>
         </div>
+        <div id="ajImportar"></div>
       </div>
     </div>`;
 
   root.querySelectorAll('#ajChips .chip').forEach((b) => {
     b.onclick = () => { store.setActive(b.dataset.id); renderAjustes(root); };
   });
-  root.querySelector('#ajNew').onclick = () => {
-    const name = prompt('Nombre del perfil nuevo') || `Perfil ${store.profiles().length + 1}`;
-    store.addProfile(name, false);
+  root.querySelector('#ajNombre').onchange = (e) => {
+    store.renameProfile(store.activeId(), e.target.value);
     renderAjustes(root);
+  };
+  // sin prompt(): nombre por defecto y el foco en el input, que en móvil se puede usar
+  root.querySelector('#ajNew').onclick = () => {
+    store.addProfile(`Perfil ${store.profiles().length + 1}`, false);
+    renderAjustes(root);
+    root.querySelector('#ajNombre').select();
   };
   root.querySelector('#ajDup').onclick = () => {
     store.addProfile(`${p.name} (copia)`, true);
@@ -147,10 +156,22 @@ export function renderAjustes(root) {
       try { parsed = JSON.parse(reader.result); } catch { toast('Archivo inválido'); return; }
       if (!parsed.profiles?.length) { toast('El archivo no tiene perfiles'); return; }
       const nombres = parsed.profiles.map((pr) => pr.name).join(', ');
-      const reemplazar = confirm(`Contiene ${parsed.profiles.length} perfil(es): ${nombres}.\nAceptar = reemplazar todo. Cancelar = fusionar.`);
-      store.importProfiles(parsed.profiles, reemplazar);
-      renderAjustes(root);
-      toast('Importación completa');
+      // reemplazar borra todo: se pregunta con dos botones que dicen qué hace cada uno
+      const box = root.querySelector('#ajImportar');
+      box.innerHTML = `<div class="sub">Contiene ${parsed.profiles.length} perfil(es): ${esc(nombres)}.</div>
+        <div class="prow">
+          <button id="ajImpFusion">Agregarlos a los míos</button>
+          <button id="ajImpReemplazo">Borrar los míos y dejar solo estos</button>
+          <button id="ajImpCancel">Cancelar</button>
+        </div>`;
+      const aplicar = (reemplazar) => {
+        store.importProfiles(parsed.profiles, reemplazar);
+        renderAjustes(root);
+        toast('Importación completa');
+      };
+      box.querySelector('#ajImpFusion').onclick = () => aplicar(false);
+      box.querySelector('#ajImpReemplazo').onclick = () => aplicar(true);
+      box.querySelector('#ajImpCancel').onclick = () => { box.innerHTML = ''; };
     };
     reader.readAsText(file);
   };

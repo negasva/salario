@@ -266,6 +266,15 @@ export function importProfiles(incoming, replace) {
   save();
 }
 
+export function renameProfile(id, nombre) {
+  const p = db.profiles.find((x) => x.id === id);
+  const n = String(nombre || '').trim();
+  if (!p || !n) return false;
+  p.name = n;
+  save();
+  return true;
+}
+
 export function removeProfile(id) {
   if (db.profiles.length < 2) return false;
   db.profiles = db.profiles.filter((p) => p.id !== id);

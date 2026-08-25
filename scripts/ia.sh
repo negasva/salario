@@ -39,4 +39,4 @@ supabase functions deploy ia
 
 echo
 echo "Listo. Entra a la app con tu cuenta y prueba la tarjeta 'Pregúntale a tus números'."
-echo "Si algo falla:  supabase functions logs ia"
+echo "Si algo falla, los logs: Dashboard → Edge Functions → ia → Logs"

@@ -54,6 +54,10 @@ supabase secrets set NVIDIA_API_KEY=tu-llave
 supabase functions deploy ia
 ```
 
-Para comprobarlo: entra con tu cuenta y usa la tarjeta *Pregúntale a tus números* del dashboard. Si algo falla, `supabase functions logs ia` dice qué: `sin-llave` (falta el secreto), `proveedor-401` (llave inválida), `proveedor-404` (ese modelo no está en tu cuenta), `sin-sesion` (no habías entrado a la app).
+Para comprobarlo: entra con tu cuenta y usa la tarjeta *Pregúntale a tus números* del dashboard.
+
+Si algo falla, los logs están en el panel: **Dashboard → Edge Functions → ia → Logs** (`supabase functions logs` no existe en el CLI 2.x). Lo que devuelve la función: `sin-llave` (falta el secreto), `proveedor-401` (llave inválida), `proveedor-404` (ese modelo no está en tu cuenta), `sin-sesion` (no habías entrado a la app).
+
+El modelo se cambia sin tocar código: `supabase secrets set IA_MODELO=meta/llama-3.3-70b-instruct`.
 
 La llave nunca llega al navegador. Sin la función desplegada la app funciona igual, y lo dice donde corresponde.

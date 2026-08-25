@@ -6,8 +6,7 @@ import {
 import { claimedBy, freeFor } from './reparto.js';
 import { metasEnItem, conflictosDeMetas } from './metas.js';
 
-const items = [{ id: 'cor', n: 'Ahorro corto plazo', p: 20, r: 'cor', L: [] }];
-const INC = 5000000; // el bloque son 1.000.000 al mes
+const items = [{ id: 'cor', n: 'Ahorro corto plazo', m: 1000000, r: 'cor', L: [] }];
 
 function metas() {
   return [
@@ -66,7 +65,7 @@ describe('F5.2 una meta en fila no consume bloque', () => {
   it('no aparece como comprometida en el bloque', () => {
     const gs = metas();
     gs[2].a = { cor: 50 };
-    expect(metasEnItem(gs, items[0], INC).map((x) => x.goal.id)).toEqual(['moto']);
+    expect(metasEnItem(gs, items[0]).map((x) => x.goal.id)).toEqual(['moto']);
   });
 
   it('no pelea con nadie: una meta en fila no esta en conflicto', () => {
@@ -127,7 +126,7 @@ describe('F5.2 traspaso', () => {
 describe('F5.3 proyeccion de la fila', () => {
   it('la meta en fila arranca cuando termina la de adelante', () => {
     const gs = metas();
-    const pr = proyeccion(gs, items, INC);
+    const pr = proyeccion(gs, items);
     // moto: 24.000.000 a 800.000 al mes = 30 meses
     expect(pr.moto.dura).toBe(30);
     expect(pr.viaje.empieza).toBe(30);
@@ -140,7 +139,7 @@ describe('F5.3 proyeccion de la fila', () => {
   it('sin aporte no hay fecha, ni para la que espera', () => {
     const gs = metas();
     gs[1].a = {};
-    const pr = proyeccion(gs, items, INC);
+    const pr = proyeccion(gs, items);
     expect(pr.moto.dura).toBe(null);
     expect(pr.viaje.empieza).toBe(null);
   });
@@ -148,6 +147,6 @@ describe('F5.3 proyeccion de la fila', () => {
   it('las metas completas no ocupan puesto en la fila', () => {
     const gs = metas();
     gs[1].estado = 'completa';
-    expect(proyeccion(gs, items, INC).moto).toBe(undefined);
+    expect(proyeccion(gs, items).moto).toBe(undefined);
   });
 });

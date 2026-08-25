@@ -10,12 +10,35 @@ export function lines(item) {
   return item.L || (item.L = []);
 }
 
-export function total(items) {
-  return r2(items.reduce((s, it) => s + (Number(it.p) || 0), 0));
+/* El reparto se define en plata, no en porcentajes: `it.m` es lo que asignas
+   a la categoría este mes y es la única fuente de verdad. El porcentaje sigue
+   existiendo, pero como número derivado para leer de un vistazo. */
+export function amount(item) {
+  return Number(item?.m) || 0;
 }
 
-export function amount(item, income) {
-  return (income * (Number(item.p) || 0)) / 100;
+export function total(items) {
+  return r2(items.reduce((s, it) => s + amount(it), 0));
+}
+
+export function shareOf(item, income) {
+  return income > 0 ? r2((amount(item) / income) * 100) : 0;
+}
+
+/* La cuenta del mes: lo repartido contra lo que entra. Si sobra, dice cuánto
+   falta por repartir; si no alcanza, por cuánto te pasaste. Un peso de
+   diferencia no es un descuadre, así que el margen es de una unidad. */
+export function balance(items, income) {
+  const asignado = total(items);
+  const dif = r2((Number(income) || 0) - asignado);
+  return {
+    asignado,
+    ingreso: Number(income) || 0,
+    dif,
+    falta: Math.max(0, dif),
+    exceso: Math.max(0, -dif),
+    cuadrado: Math.abs(dif) <= 1,
+  };
 }
 
 export function spentInItem(item) {

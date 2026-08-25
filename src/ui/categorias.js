@@ -1,5 +1,5 @@
 import * as store from '../store.js';
-import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
+import { balance, amount, shareOf, spentInItem, fixedVariableSplit, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porItem, porLinea, ingresoReal, enPeriodo, ritmoDelMes } from '../engine/movimientos.js';
 import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
@@ -26,12 +26,12 @@ export function renderCategorias(root) {
 
   root.querySelector('#catAdd').onclick = () => openNewCategory(root);
   root.querySelector('#catEqual').onclick = () => {
-    const d = r2(100 - total(p.items));
-    if (Math.abs(d) < 0.01) { toast('Ya está en 100%'); return; }
+    const b = balance(p.items, store.incomeRepartir(p));
+    if (b.cuadrado) { toast('Ya está todo repartido'); return; }
     const unlocked = p.items.filter((it) => !it.locked);
     if (!unlocked.length) { toast('Todas las categorías están bloqueadas'); return; }
-    const e = d / unlocked.length;
-    unlocked.forEach((it) => { it.p = r2(clamp(it.p + e, 0, 100)); });
+    const e = b.dif / unlocked.length;
+    unlocked.forEach((it) => { it.m = Math.max(0, Math.round(amount(it) + e)); });
     store.save();
     renderCategorias(root);
   };
@@ -40,9 +40,9 @@ export function renderCategorias(root) {
   paintIngreso(root);
 }
 
-/* El reparto ya no se hace sobre un número tecleado: los porcentajes reparten
-   lo que de verdad entró este mes, y cada ingreso nuevo mueve el monto de
-   todos los bloques. Aquí se ve de dónde sale ese número. */
+/* Arriba de todo, la cuenta del mes: cuánto entra, cuánto tienes repartido y
+   la diferencia con nombre y apellido. Si falta plata por repartir dice cuánta;
+   si asignaste más de lo que entra, por cuánto te pasaste. */
 function paintIngreso(root) {
   const p = store.active();
   const periodo = periodoDe(hoyISO());
@@ -56,13 +56,16 @@ function paintIngreso(root) {
   const sobrante = Math.max(0, ing.total - p.inc);
   const sinRepartir = Math.max(0, sobrante - aportadoEsteMes(p, periodo));
 
+  const b = balance(p.items, base);
+
   box.innerHTML = `<div class="card" style="margin-bottom:var(--space-5)">
     <span class="label">Lo que repartes este mes</span>
     <div class="kpi num">${money(base, p.cur)}</div>
     <div class="sub">${ing.total > 0
       ? `Nómina ${money(ing.nomina, p.cur)}${ing.extra > 0 ? ` · extra ${money(ing.extra, p.cur)}` : ''}
-         · plan ${money(p.inc, p.cur)}. Los porcentajes de abajo reparten este número.`
+         · plan ${money(p.inc, p.cur)}. Abajo repartes este número en plata, categoría por categoría.`
       : `Todavía no registras ingresos de ${MESES[Number(periodo.split('-')[1]) - 1]}, así que reparto el plan.`}</div>
+    ${cuentaReparto(b, p)}
     ${sobrante > 0 ? `<div class="sub">Entraron <b class="num">${money(sobrante, p.cur)}</b> por encima del plan.
       ${sinRepartir > 0
         ? `Te quedan <b class="num">${money(sinRepartir, p.cur)}</b> sin mandar a ninguna meta.`
@@ -80,6 +83,23 @@ function paintIngreso(root) {
   });
   const bPlan = box.querySelector('#catPlan');
   if (bPlan) bPlan.onclick = () => { p.inc = ing.total; store.save(); renderCategorias(root); };
+}
+
+/* La frase que cierra el reparto. Sin porcentajes: la pregunta es cuánta plata
+   falta por repartir o por cuánta te pasaste, y esa se contesta en pesos. */
+function cuentaReparto(b, p) {
+  const estado = b.cuadrado
+    ? `<b class="ok">Cuadrado.</b> Repartiste todo lo que entra.`
+    : b.falta > 0
+      ? `Te falta repartir <b class="num">${money(b.falta, p.cur)}</b>.`
+      : `<b class="over">Te pasaste por ${money(b.exceso, p.cur)}</b>: asignaste plata que no tienes.`;
+  const ancho = b.ingreso > 0 ? Math.min(100, (b.asignado / b.ingreso) * 100) : 0;
+  const color = b.exceso > 0 ? 'var(--danger)' : b.cuadrado ? 'var(--success)' : 'var(--warning)';
+  return `<div class="cat-balance">
+    <div class="sub">Repartido <b class="num">${money(b.asignado, p.cur)}</b> de ${money(b.ingreso, p.cur)}</div>
+    <span class="hist-track"><i style="width:${ancho}%;background:${color}"></i></span>
+    <div class="sub">${estado}</div>
+  </div>`;
 }
 
 // lo del extra que ya salió hacia metas este mes
@@ -102,17 +122,18 @@ function paintList(root) {
 
 function catCard(it, p, gastado, gastadoLinea, periodo) {
   const res = resumenItem(it, gastadoLinea, periodo);
-  const budget = amount(it, store.incomeRepartir(p));
+  const budget = amount(it);
   const real = gastado[it.id] || 0;
   const sp = spentInItem(it);
   const { fixed, variable } = fixedVariableSplit(it);
-  const metas = metasEnItem(p.goals, it, store.incomeRepartir(p));
+  const metas = metasEnItem(p.goals, it);
   // lo ya aportado este mes vive en `real` como gasto: contarlo otra vez como
   // compromiso restaría dos veces el mismo dinero
   const comprometido = metas.reduce((t, m) => t + (aporteDelMes(p, m.goal.id) ? 0 : m.monto), 0);
   const libre = r2(budget - real - comprometido);
   // a día 25 gastarse el 90% del bloque va bien; a día 5 va fatal
   const ritmo = ritmoDelMes(real, budget);
+  const share = shareOf(it, store.incomeRepartir(p));
   return `
   <div class="card cat-card" data-id="${it.id}">
     <div class="cat-top">
@@ -124,10 +145,13 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
     <div class="sub cat-desc" contenteditable="${!it.locked}">${esc(it.d || '')}</div>
     ${res.total ? cabeceraPagos(res, p) : ''}
     <div class="cat-fields">
-      <label class="fieldw"><span>${p.cur}</span><input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}" ${it.locked ? 'disabled' : ''}></label>
-      <label class="fieldw pcent"><input class="cat-pct num" type="text" inputmode="decimal" value="${it.p}" ${it.locked ? 'disabled' : ''}><span>%</span></label>
+      <label class="fieldw"><span>Asignas al mes · ${p.cur}</span>
+        <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}" ${it.locked ? 'disabled' : ''}></label>
     </div>
-    <input type="range" class="cat-range" min="0" max="100" step="0.5" value="${it.p}" ${it.locked ? 'disabled' : ''}>
+    <div class="sub cat-share">${share > 0 ? `Es el ${share}% de lo que entra este mes.` : 'Sin plata asignada todavía.'}
+      ${sp > 0 && Math.abs(sp - budget) >= 1
+        ? `<button class="mini cat-ajustar">Ajustar al plan de renglones (${money(sp, p.cur)})</button>`
+        : ''}</div>
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
       <div class="detail-head"><span class="label">Detalle</span>
@@ -339,38 +363,32 @@ function wireCard(root, it, p) {
   const card = root.querySelector(`.cat-card[data-id="${it.id}"]`);
   if (!card) return;
 
-  function setPct(v) {
-    it.p = r2(clamp(v, 0, 100));
+  // la plata asignada es lo único que se edita: el porcentaje sale de ella
+  function setMonto(v) {
+    it.m = Math.max(0, Math.round(v));
     store.save();
     renderCategorias(root);
   }
 
-  // el arrastre solo actualiza los campos visibles, sin re-render ni guardado en cada tick
-  function liveDrag(v) {
-    it.p = r2(clamp(v, 0, 100));
-    const pctEl = card.querySelector('.cat-pct');
-    const montoEl = card.querySelector('.cat-monto');
-    if (document.activeElement !== pctEl) pctEl.value = it.p;
-    if (document.activeElement !== montoEl) montoEl.value = plain(amount(it, store.incomeRepartir(p)), p.cur);
-  }
-
   card.querySelector('.cat-name').oninput = (e) => { it.n = e.target.value; store.save(); };
   card.querySelector('.cat-desc').oninput = (e) => { it.d = e.target.textContent; store.save(); };
-  card.querySelector('.cat-range').oninput = (e) => liveDrag(Number(e.target.value));
-  card.querySelector('.cat-range').onchange = (e) => setPct(Number(e.target.value));
-  card.querySelector('.cat-pct').onchange = (e) => setPct(Number(String(e.target.value).replace(',', '.')) || 0);
-  card.querySelector('.cat-monto').onchange = (e) => {
-    const inc = store.incomeRepartir(p);
-    setPct(inc > 0 ? (digits(e.target.value) / inc) * 100 : 0);
-  };
+  card.querySelector('.cat-monto').onchange = (e) => setMonto(digits(e.target.value));
+
+  // el plan de renglones ya está sumado abajo: un clic lo sube al presupuesto
+  card.querySelector('.cat-ajustar')?.addEventListener('click', () => {
+    if (it.locked) { toast('Desbloquea la categoría para cambiarle el monto'); return; }
+    setMonto(spentInItem(it));
+  });
 
   const fixBtn = card.querySelector('.cat-fix');
-  const diff = r2(100 - total(p.items));
-  if (!it.locked && Math.abs(diff) >= 0.01) {
-    fixBtn.textContent = diff > 0 ? `Sumar ${diff}% aquí` : `Quitar ${Math.abs(diff)}% de aquí`;
-    fixBtn.onclick = () => setPct(it.p + diff);
+  const b = balance(p.items, store.incomeRepartir(p));
+  if (!it.locked && !b.cuadrado) {
+    fixBtn.textContent = b.falta > 0
+      ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
+      : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`;
+    fixBtn.onclick = () => setMonto(amount(it) + b.dif);
   } else {
-    fixBtn.textContent = 'Cuadrado';
+    fixBtn.textContent = b.cuadrado ? 'Cuadrado' : 'Bloqueada';
     fixBtn.disabled = true;
   }
 
@@ -410,7 +428,7 @@ function wireCard(root, it, p) {
   card.querySelectorAll('.line-meta').forEach((el) => {
     const goal = p.goals.find((g) => g.id === el.dataset.gid);
     if (!goal) return;
-    const { monto } = metasEnItem([goal], it, store.incomeRepartir(p))[0] || {};
+    const { monto } = metasEnItem([goal], it)[0] || {};
 
     el.querySelector('.lm-pagar')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -562,7 +580,7 @@ function wireCard(root, it, p) {
   });
 }
 
-// F12 — plantillas + F16 — de donde sale el porcentaje de una categoria nueva
+// F12 — plantillas + F16 — de dónde sale la plata de una categoría nueva
 function openNewCategory(root) {
   const p = store.active();
   const overlay = document.createElement('div');
@@ -579,11 +597,11 @@ function openNewCategory(root) {
         <button class="chip" data-r="cor">Ahorro corto</button>
         <button class="chip on" data-r="">Saltar plantilla</button>
       </div>
-      <div class="label" style="margin:14px 0 8px">De dónde sale el porcentaje</div>
+      <div class="label" style="margin:14px 0 8px">De dónde sale la plata</div>
       <div class="chips" id="ncSrc">
-        <button class="chip on" data-s="sobra">Lo que sobra sin asignar</button>
-        <button class="chip" data-s="prop">Proporcional de bloques desbloqueados</button>
-        <button class="chip" data-s="bloque">De un bloque específico</button>
+        <button class="chip on" data-s="sobra">Lo que falta por repartir</button>
+        <button class="chip" data-s="prop">Un 10% de cada categoría desbloqueada</button>
+        <button class="chip" data-s="bloque">De una categoría específica</button>
       </div>
       <select id="ncBloque" style="margin-top:8px;display:none;width:100%">
         ${p.items.map((it) => `<option value="${it.id}">${esc(it.n)}</option>`).join('')}
@@ -615,21 +633,24 @@ function openNewCategory(root) {
     const name = overlay.querySelector('#ncName').value.trim() || 'Nueva categoría';
     const lines2 = (store.PLANTILLAS[tpl] || []).map((n) => ({ id: 'l' + Math.random().toString(36).slice(2, 8), n, v: 0, fixed: true }));
 
-    let pct = 0;
+    let monto = 0;
     if (src === 'sobra') {
-      pct = Math.max(0, r2(100 - total(p.items)));
+      monto = balance(p.items, store.incomeRepartir(p)).falta;
     } else if (src === 'prop') {
       const unlocked = p.items.filter((it) => !it.locked);
-      const t = total(unlocked);
-      pct = t > 0 ? r2(t * 0.1) : 5; // ponytail: 10% proporcional simple, ajustable a mano despues
-      unlocked.forEach((it) => { it.p = r2(it.p * 0.9); });
+      // ponytail: 10% de cada una, simple y ajustable a mano después
+      unlocked.forEach((it) => {
+        const cede = Math.round(amount(it) * 0.1);
+        it.m = amount(it) - cede;
+        monto += cede;
+      });
     } else if (src === 'bloque') {
       const id = overlay.querySelector('#ncBloque').value;
       const donor = p.items.find((it) => it.id === id);
-      if (donor && !donor.locked) { pct = Math.min(10, donor.p); donor.p = r2(donor.p - pct); }
+      if (donor && !donor.locked) { monto = Math.round(amount(donor) * 0.1); donor.m = amount(donor) - monto; }
     }
 
-    p.items.push({ id: 'i' + Math.random().toString(36).slice(2, 8), n: name, p: pct, r: tpl || null,
+    p.items.push({ id: 'i' + Math.random().toString(36).slice(2, 8), n: name, m: Math.round(monto), r: tpl || null,
       c: PALETTE[p.items.length % PALETTE.length], d: '', locked: false, L: lines2 });
     store.save();
     close();

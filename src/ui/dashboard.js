@@ -172,10 +172,6 @@ export async function renderDashboard(root) {
   const { target, saved: fondoSaved, estado: fondoEstado, creado } = store.ensureFondoGoal(p);
   if (creado) store.save();
 
-  const bloquesAhorro = p.items.filter((it) => it.r === 'cor' || it.r === 'lar').map((it) => it.id);
-  const tasaReal = serieTasaAhorro(p.movs, bloquesAhorro, 1).at(-1)?.tasa ?? 0;
-  const planAhorro = tasaAhorro(p);
-  const ahorroHoy = ing.total > 0 ? tasaReal : planAhorro;
 
   const estadoMes = Math.abs(diff) < 0.01
     ? 'Cuadrado. Repartiste el 100%.'
@@ -189,6 +185,11 @@ export async function renderDashboard(root) {
   const brecha = p.inc > 0 ? (ing.nomina - p.inc) / p.inc : 0;
   const [anio, mes] = periodo.split('-');
   const tituloIngreso = `Ingreso neto · ${MESES[Number(mes) - 1]} ${anio}`;
+
+  const bloquesAhorro = p.items.filter((it) => it.r === 'cor' || it.r === 'lar').map((it) => it.id);
+  const tasaReal = serieTasaAhorro(p.movs, bloquesAhorro, 1).at(-1)?.tasa ?? 0;
+  const planAhorro = tasaAhorro(p);
+  const ahorroHoy = ing.total > 0 ? tasaReal : planAhorro;
 
   const proy = proyeccion(p.goals, p.items, inc);
 

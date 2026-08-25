@@ -4,7 +4,6 @@ import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { excedente } from '../engine/consejo.js';
 import { ordenadas } from '../engine/fila.js';
-import { aplicarAporte, revertirAporte } from '../engine/metas.js';
 import { pendientes, movDesde } from '../engine/recurrentes.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
@@ -37,7 +36,6 @@ function registrarAporteExtra(p, goal, monto, fecha) {
     itemId: null, lineId: null, goalId: goal.id,
     nota: `Aporte de ingreso extra a ${goal.n}`, extra: false,
   });
-  aplicarAporte(goal, monto, new Date(`${fecha}T12:00:00`));
 }
 
 function metasActivas(p) {
@@ -216,6 +214,8 @@ export function renderMovimientos(root, args = {}) {
   function guardar() {
     const monto = digits(montoEl.value);
     if (monto <= 0) { montoEl.focus(); return; }
+    // se lee antes de limpiar el formulario, que apaga la casilla
+    const esRecurrente = recEl.checked;
     const datos = {
       fecha: fechaEl.value || hoyISO(),
       tipo,
@@ -228,24 +228,15 @@ export function renderMovimientos(root, args = {}) {
       abono: tipo === 'gasto' && !$('#mvAbonoWrap').hidden && abonoEl.checked,
     };
     const previo = editId && p.movs.find((m) => m.id === editId);
-    if (previo) {
-      sincronizarMeta(previo, null);
-      Object.assign(previo, datos);
-      sincronizarMeta(null, previo);
-    } else {
-      const nuevo = { id: nuevoId(), ...datos };
-      p.movs.push(nuevo);
-      sincronizarMeta(null, nuevo);
-    }
+    const mov = previo || { id: nuevoId(), ...datos };
+    if (previo) Object.assign(previo, datos);
+    else p.movs.push(mov);
+    // el movimiento que estrena el recurrente ya cuenta como el de este mes
+    if (esRecurrente) mov.recId = guardarRecurrente(datos);
     store.save();
     periodo = periodoDe(datos.fecha);
     limpiar();
     pintarCuerpo();
-
-    if (recEl.checked) {
-      guardarRecurrente(datos);
-      recEl.checked = false;
-    }
 
     if (datos.extra && !previo) {
       const exc = excedente(monto, 0);
@@ -294,30 +285,19 @@ export function renderMovimientos(root, args = {}) {
     }
   }
 
-  /* El select de meta del libro mueve goal.s igual que "Ya lo guardé" de
-     Categorías: una sola puerta, un solo comportamiento. */
-  function sincronizarMeta(quitar, poner) {
-    if (quitar?.goalId) {
-      const g = p.goals.find((x) => x.id === quitar.goalId);
-      if (g) revertirAporte(g, quitar);
-    }
-    if (poner?.goalId) {
-      const g = p.goals.find((x) => x.id === poner.goalId);
-      if (g) aplicarAporte(g, poner.monto, new Date(`${poner.fecha}T12:00:00`));
-    }
-  }
-
   /* Un recurrente es la plantilla, no el movimiento: guarda el día del mes y
      cada mes se agrega con un clic. Nada se crea solo. */
   function guardarRecurrente(datos) {
+    const id = 'r' + Math.random().toString(36).slice(2, 9);
     p.recurrentes.push({
-      id: 'r' + Math.random().toString(36).slice(2, 9),
+      id,
       tipo: datos.tipo, monto: datos.monto, itemId: datos.itemId, lineId: datos.lineId,
       goalId: datos.goalId, nota: datos.nota, abono: datos.abono,
       dia: Number(datos.fecha.slice(8, 10)),
     });
     store.save();
     toast('Guardado como recurrente. Cada mes lo agregas con un clic.');
+    return id;
   }
 
   function nombreRecurrente(r) {
@@ -352,11 +332,7 @@ export function renderMovimientos(root, args = {}) {
       </div>
     </div>`;
 
-    const agregar = (rec) => {
-      const nuevo = movDesde(rec, periodo, nuevoId());
-      p.movs.push(nuevo);
-      sincronizarMeta(null, nuevo);
-    };
+    const agregar = (rec) => p.movs.push(movDesde(rec, periodo, nuevoId()));
     box.querySelectorAll('.rec-add').forEach((b) => {
       b.onclick = () => {
         agregar(p.recurrentes.find((r) => r.id === b.dataset.r));
@@ -475,9 +451,7 @@ export function renderMovimientos(root, args = {}) {
       el.querySelector('.mov-ed').onclick = () => editar(m);
       el.querySelector('.mov-del').onclick = () => {
         const idx = p.movs.indexOf(m);
-        const { undo } = store.stageDelete(
-          () => { p.movs.splice(idx, 1); sincronizarMeta(m, null); },
-          () => { p.movs.splice(idx, 0, m); sincronizarMeta(null, m); });
+        const { undo } = store.stageDelete(() => p.movs.splice(idx, 1), () => p.movs.splice(idx, 0, m));
         if (editId === m.id) limpiar();
         pintarCuerpo();
         toast('Movimiento eliminado', () => { undo(); pintarCuerpo(); });

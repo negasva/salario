@@ -38,7 +38,8 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
   traspaso,                        // F5: el traspaso de fila esperando respuesta
   avisosVistos, avisosEnviados,    // F6: qué aviso se descartó y cuál se notificó, por día
   alertasSilenciadas,              // F7: qué alertas de renglón se silenciaron
-  dashLayout,                      // F9: { widgetId: { orden, ancho } } del dashboard
+  dashLayout,                      // F9: { widgetId: { orden, ancho, oculto } } del dashboard
+  recurrentes,                     // F10: plantillas de movimientos que se repiten cada mes
   updated,
 }
 ```
@@ -166,7 +167,7 @@ La autenticación es correo y contraseña de Supabase, con recuperación por enl
 
 **Metas** es la vista con más lógica. Las metas se reordenan arrastrando la tarjeta —`draggable` del navegador, sin librería— y con un par de flechas arriba/abajo, que es lo que se usa en el celular. Las que están en fila se pintan atenuadas y dicen `Empieza cuando termines la meta Moto, hacia septiembre de 2027`. Cada meta se puede calcular por monto, en N meses, o para una fecha. Hay tres rutas sugeridas de un clic (con tus ahorros, sin tocar la inversión, acelerado) y debajo el ajuste bloque por bloque con sliders. Ahí aparece el plan de recorte, los escenarios, y el costo de oportunidad.
 
-**Movimientos** es el libro. Una fila fija arriba para meter un gasto en tres toques: el foco arranca en el monto y `Enter` guarda y limpia sin soltarlo, para cargar varios seguidos. Un toggle cambia a ingreso y saca la casilla de ingreso extra. Debajo, el resumen del mes con presupuesto contra real por bloque, y la lista agrupada por día. Selector de mes con flechas.
+**Movimientos** es el libro. Arriba, los **recurrentes**: cualquier movimiento se puede guardar como plantilla marcando *Se repite todos los meses*, y cada mes se agregan con un clic —uno a uno o todos los que falten—. No se crean solos: un movimiento que aparece sin que lo pidas es un movimiento que nadie revisa. Una fila fija arriba para meter un gasto en tres toques: el foco arranca en el monto y `Enter` guarda y limpia sin soltarlo, para cargar varios seguidos. Un toggle cambia a ingreso y saca la casilla de ingreso extra. Debajo, el resumen del mes con presupuesto contra real por bloque, y la lista agrupada por día. Selector de mes con flechas.
 
 **Historial** cierra el mes y guarda el snapshot. Muestra la tasa de ahorro mes a mes, los esenciales como porcentaje del ingreso con semáforo, la comparación contra el promedio de los tres meses anteriores, y por cada cierre las barras enfrentadas de plan contra real con la brecha dicha en una frase.
 
@@ -178,7 +179,7 @@ La paleta visual se cambia desde el botón de colores del menú lateral. Se cons
 
 Vite con JavaScript plano, sin React ni nada parecido. El estado completo cabe en un módulo y no justifica un framework. Las vistas son funciones que reciben un nodo y le escriben `innerHTML`, con los handlers cableados a mano después. Si una vista necesita mandar a otra, despacha un `CustomEvent` (`ir-a-meta`, `ir-a-vista`) y `main.js` navega: así ninguna vista monta una hoja sobre el root de otra.
 
-Los gráficos son SVG escrito a mano. Cinco tipos de gráfico no justifican traerse una librería de charts.
+Los iconos son de Lucide (ISC), inlineados en un sprite; no hay dependencia de iconos en el bundle. Los gráficos son SVG escrito a mano. Cinco tipos de gráfico no justifican traerse una librería de charts.
 
 Una sola dependencia en producción: `@supabase/supabase-js`. Vitest para las pruebas del motor.
 
@@ -200,11 +201,7 @@ Para el backend: creas el proyecto en supabase.com, corres `supabase/schema.sql`
 
 Vale la pena decirlo en voz alta, porque el código no lo dice.
 
-**El progreso de una meta se cuenta por dos caminos.** `goal.s` y `goal.aportes` por un lado, y los movimientos con `goalId` por el otro. Desde la Fase 9 las dos puertas escriben en los dos sitios: Categorías con `Ya lo guardé` y el libro con su select de meta, que llama a `aplicarAporte()` al guardar y a `revertirAporte()` al editar o borrar. Lo limpio es que `goal.s` salga de `aportesAMeta()` y `goal.aportes` desaparezca; eso cambia cómo se calcula el progreso de toda meta, así que no se ha tocado.
-
-**El botón "Aplicar" del plan de recorte no aplica nada.** Mueve un contador visual y opaca la tarjeta, pero no toca los porcentajes.
-
-**`digits()` se come los decimales.** Todo campo de dinero parsea con `digits()`, que descarta lo que no sea dígito. En COP, CLP y ARS da igual porque no se usan decimales, pero en USD o EUR un `85,000.50` se lee como `8500050`. Es consistente en toda la app, y por eso mismo es un solo arreglo cuando toque hacerlo.
+**El progreso de una meta ya tiene una sola fuente.** `goal.aportes` desapareció. Cada meta guarda `base` —lo que tenías antes de registrar aportes— y `goal.s` se recalcula en cada guardado como `base` más los movimientos con su `goalId`. Registrar un aporte es crear un movimiento y nada más, venga de Categorías, del libro o de la hoja de la meta. Al podar el libro a 24 meses, lo podado se suma a `base` para que el progreso no se caiga. Lo limpio es que `goal.s` salga de `aportesAMeta()` y `goal.aportes` desaparezca; eso cambia cómo se calcula el progreso de toda meta, así que no se ha tocado.
 
 **WhatsApp no es posible desde una app web.** Mandar un mensaje requiere la Cloud API de Meta: número verificado, servidor propio que guarde el token y plantillas aprobadas una por una. Un backend entero para reemplazar lo que el navegador ya hace gratis. La vía realista, si algún día se quiere, es un servicio externo con un cron en Supabase Edge Functions, y eso es otro proyecto.
 

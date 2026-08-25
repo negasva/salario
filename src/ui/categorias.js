@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { total, amount, spentInItem, fixedVariableSplit, clamp, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porItem, ingresoReal, enPeriodo, ritmoDelMes } from '../engine/movimientos.js';
-import { plazo, whenText, metasEnItem, aplicarAporte, revertirAporte } from '../engine/metas.js';
+import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { icon } from './icons.js';
@@ -300,18 +300,16 @@ function wireCard(root, it, p) {
     renderCategorias(root);
   };
 
-  // El aporte se escribe en dos sitios: el libro de movimientos y goal.aportes.
-  // Deshacer tiene que revertir los dos.
+  // El aporte es un movimiento y nada más: el progreso de la meta se recalcula
+  // solo al guardar, así que no hay dos sitios que mantener a la par.
   function anotarAporte(goal, monto) {
     const fecha = hoyISO();
     p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha, tipo: 'gasto',
       monto, itemId: it.id, lineId: null, goalId: goal.id, nota: `Aporte a ${goal.n}`, extra: false });
-    aplicarAporte(goal, monto, new Date(`${fecha}T12:00:00`));
   }
 
   function borrarAporte(goal, mov) {
     p.movs.splice(p.movs.indexOf(mov), 1);
-    revertirAporte(goal, mov);
   }
 
   card.querySelectorAll('.line-meta').forEach((el) => {

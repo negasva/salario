@@ -631,7 +631,7 @@ function wireCard(root, it, p) {
   });
 
   card.querySelectorAll('.line:not(.line-meta)').forEach((lineEl) => {
-    const lid = lineEl.dataset.lid;
+    const lid = lineEl.dataset.lid || lineEl.closest('.concepto-card')?.dataset.lid;
     const l = it.L.find((x) => x.id === lid);
     if (!l) return;
     lineEl.querySelector('.ln').oninput = (e) => { l.n = e.target.value; store.save(); };

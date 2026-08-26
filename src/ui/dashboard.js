@@ -8,7 +8,8 @@ import { preguntarIA, explicar } from '../ia.js';
 import { icon } from './icons.js';
 import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
-import { periodoDe, hoyISO, ingresoReal, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, ingresoReal, resumenFlujo, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
+import { tarjetaResumenFlujo } from './resumen.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -184,6 +185,7 @@ export async function renderDashboard(root) {
 
   const periodo = periodoDe(hoyISO());
   const ing = ingresoReal(p.movs, periodo);
+  const flujo = resumenFlujo(p.movs, periodo);
   const hayNomina = ing.nomina > 0;
   const brecha = p.inc > 0 ? (ing.nomina - p.inc) / p.inc : 0;
   const [anio, mes] = periodo.split('-');
@@ -317,6 +319,7 @@ export async function renderDashboard(root) {
   // que es la única forma de poder volver a encenderlo
   const visibles = edicion ? orden : orden.filter((id) => !ocultoDe(p, id));
   root.innerHTML = `
+    ${tarjetaResumenFlujo(flujo, p.cur)}
     <div class="dash-tools">
       <button class="mini" id="dAcomodar">${edicion ? 'Listo' : 'Acomodar'}</button>
       ${edicion ? '<button class="mini" id="dReset">Restablecer</button>' : ''}

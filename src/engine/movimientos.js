@@ -44,6 +44,13 @@ export function gastoTotal(movs, periodo) {
     .reduce((s, m) => s + m.monto, 0);
 }
 
+// Flujo real del mes: cada movimiento se cuenta una sola vez.
+export function resumenFlujo(movs, periodo) {
+  const ingresos = ingresoReal(movs, periodo).total;
+  const gastos = gastoTotal(movs, periodo);
+  return { ingresos, gastos, saldo: ingresos - gastos };
+}
+
 export function aportesAMeta(movs, goalId) {
   const propios = movs.filter((m) => m.goalId === goalId);
   return {

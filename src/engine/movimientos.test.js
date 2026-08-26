@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, aportesAMeta, podar, hoyISO, serieAhorro, serieTasaAhorro, ritmoDelMes } from './movimientos.js';
+  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, resumenFlujo, aportesAMeta, podar, hoyISO, serieAhorro, serieTasaAhorro, ritmoDelMes } from './movimientos.js';
 
 const MOVS = [
   { id: 'm1', fecha: '2026-08-03', tipo: 'gasto', monto: 85000, itemId: 'i1', lineId: 'l1' },
@@ -42,6 +42,19 @@ describe('agregados del mes', () => {
 describe('ingreso real', () => {
   it('separa nómina de extra', () => {
     expect(ingresoReal(MOVS, '2026-08')).toEqual({ nomina: 5500000, extra: 800000, total: 6300000 });
+  });
+});
+
+describe('resumen del flujo mensual', () => {
+  it('suma ingresos, gastos y saldo del mismo periodo', () => {
+    expect(resumenFlujo(MOVS, '2026-08')).toEqual({ ingresos: 6300000, gastos: 340000, saldo: 5960000 });
+  });
+
+  it('puede quedar negativo', () => {
+    expect(resumenFlujo([
+      { fecha: '2026-08-01', tipo: 'ingreso', monto: 100 },
+      { fecha: '2026-08-02', tipo: 'gasto', monto: 250 },
+    ], '2026-08')).toEqual({ ingresos: 100, gastos: 250, saldo: -150 });
   });
 });
 

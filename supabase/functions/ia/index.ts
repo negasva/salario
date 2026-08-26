@@ -11,7 +11,7 @@
    una frase corta sobre números que le manda la app ya calculados. */
 
 const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const MODELO = Deno.env.get('IA_MODELO') || 'deepseek-ai/deepseek-v4-flash-0731';
+const MODELO = Deno.env.get('IA_MODELO') || 'meta/llama-3.1-8b-instruct';
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ORIGEN_PERMITIDO') || '*',

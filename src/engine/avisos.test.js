@@ -49,12 +49,11 @@ describe('F6.1 aviso de fin de mes', () => {
     });
   });
 
-  it('a cinco días dice cuánto llevas registrado de cuánto presupuestado', () => {
+  it('a cinco días no muestra el resumen redundante de cifras', () => {
     const p = perfil({ movs: [{ fecha: '2026-08-03', tipo: 'gasto', monto: 3200000, itemId: 'ese' }] });
     const av = avisoFinDeMes(p, hoy);
     expect(av.titulo).toBe('Quedan 5 días de agosto');
-    expect(plano(av.cuerpo)).toContain('$3,2 M registrados');
-    expect(plano(av.cuerpo)).toContain('$3,5 M asignados a categorías'); // 2,75 M + 0,75 M asignados
+    expect(av.cuerpo).toBe('');
     expect(av.clave).toBe('cierre-5-2026-08');
     expect(av.vistas).toEqual(['dashboard', 'movimientos']);
   });
@@ -74,12 +73,12 @@ describe('F6.1 aviso de fin de mes', () => {
     expect(av.clave).toBe('cierre-1-2026-08');
   });
 
-  it('solo cuenta los gastos del mes vivo', () => {
+  it('mantiene el aviso sin cifras del mes', () => {
     const p = perfil({ movs: [
       { fecha: '2026-07-30', tipo: 'gasto', monto: 9000000, itemId: 'ese' },
       { fecha: '2026-08-03', tipo: 'gasto', monto: 1000000, itemId: 'ese' },
     ] });
-    expect(plano(avisoFinDeMes(p, hoy).cuerpo)).toContain('$1 M registrados');
+    expect(avisoFinDeMes(p, hoy).cuerpo).toBe('');
   });
 });
 

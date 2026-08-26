@@ -25,7 +25,7 @@ export function explicar(error) {
   if (String(error).startsWith('proveedor-')) {
     const codigo = String(error).slice(10);
     if (codigo === '401' || codigo === '403') return 'La llave del proveedor no sirve o expiró.';
-    if (codigo === '404') return 'Ese modelo no existe en tu cuenta. Cambia IA_MODELO.';
+    if (codigo === '404') return 'El modelo de NVIDIA no existe o no está habilitado. Configura IA_MODELO=meta/llama-3.1-8b-instruct y vuelve a desplegar la función.';
     if (codigo === '429') return 'Te pasaste de la cuota del proveedor por ahora.';
     return `El proveedor respondió ${codigo}.`;
   }

@@ -15,7 +15,7 @@ export function anuncio({ titulo, cuerpo, acciones = [], urgente = false, clave,
   el.innerHTML = `
     <button class="anuncio-x" aria-label="Descartar">${icon('cerrar', 'ic-sm')}</button>
     <h3>${esc(titulo)}</h3>
-    <p>${esc(cuerpo)}</p>
+    ${cuerpo ? `<p>${esc(cuerpo)}</p>` : ''}
     ${acciones.length ? `<div class="anuncio-acts">
       ${acciones.map((a, i) => `<button class="${i === 0 ? 'an-primary' : ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}
     </div>` : ''}`;

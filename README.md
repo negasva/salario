@@ -58,6 +58,6 @@ Para comprobarlo: entra con tu cuenta y usa la tarjeta *Pregúntale a tus númer
 
 Si algo falla, los logs están en el panel: **Dashboard → Edge Functions → ia → Logs** (`supabase functions logs` no existe en el CLI 2.x). Lo que devuelve la función: `sin-llave` (falta el secreto), `proveedor-401` (llave inválida), `proveedor-404` (ese modelo no está en tu cuenta), `sin-sesion` (no habías entrado a la app).
 
-El modelo se cambia sin tocar código: `supabase secrets set IA_MODELO=meta/llama-3.3-70b-instruct`.
+El modelo se cambia sin tocar código: `supabase secrets set IA_MODELO=meta/llama-3.1-8b-instruct`. Después vuelve a desplegar la función con `supabase functions deploy ia`.
 
 La llave nunca llega al navegador. Sin la función desplegada la app funciona igual, y lo dice donde corresponde.

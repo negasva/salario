@@ -1,7 +1,6 @@
 import { MES } from './metas.js';
-import { total } from './reparto.js';
-import { periodoDe, hoyISO, gastoTotal } from './movimientos.js';
-import { money, moneyCorto } from '../format.js';
+import { periodoDe, hoyISO } from './movimientos.js';
+import { money } from '../format.js';
 
 /* F6 — los dos avisos. El problema de estas apps no es que estén mal hechas,
    es que la gente las abre dos veces y las olvida. Todo puro: recibe el
@@ -41,12 +40,10 @@ export function avisoFinDeMes(p, hoy = new Date()) {
   if (!DIAS_CIERRE.includes(quedan)) return null;
   const periodo = periodoDe(hoyISO(hoy));
   const mes = MES[hoy.getMonth()];
-  const registrado = gastoTotal(p.movs || [], periodo);
-  const presupuestado = total(p.items || []);
   const texto = {
     5: {
       titulo: `Quedan ${dias(quedan)} de ${mes}`,
-      cuerpo: `Llevas ${moneyCorto(registrado, p.cur)} registrados de ${moneyCorto(presupuestado, p.cur)} asignados a categorías.`,
+      cuerpo: '',
     },
     3: {
       titulo: `Faltan ${dias(quedan)} para el cierre de ${mes}`,

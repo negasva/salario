@@ -189,6 +189,11 @@
 .cats-head{display:flex;gap:var(--space-2);flex-wrap:wrap}
 .cats-head #catAdd{flex:1;min-width:200px}
 .cat-card{margin-bottom:0}
+.resumen-flujo{display:flex;gap:var(--space-5);flex-wrap:wrap;margin-bottom:var(--space-5)}
+.resumen-flujo-cifra{display:flex;flex-direction:column;gap:2px;min-width:145px}
+.resumen-flujo-cifra b{font-size:var(--text-base);font-weight:var(--fw-bold)}
+.resumen-flujo-cifra.positivo b{color:var(--success)}
+.resumen-flujo-cifra.negativo b{color:var(--danger)}
 .cat-card.locked{border-color:var(--danger)}
 .cat-top{display:flex;align-items:center;gap:var(--space-2)}
 .dot{width:10px;height:10px;border-radius:3px;flex:none}

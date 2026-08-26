@@ -1,6 +1,6 @@
 import * as store from '../store.js';
 import { balance, amount, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, porLinea, ingresoReal, enPeriodo } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo, enPeriodo } from '../engine/movimientos.js';
 import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
@@ -11,6 +11,7 @@ import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeL
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
+import { tarjetaResumenFlujo } from './resumen.js';
 
 const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
   'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
@@ -49,6 +50,7 @@ function paintIngreso(root) {
   const p = store.active();
   const periodo = periodoDe(hoyISO());
   const ing = ingresoReal(p.movs, periodo);
+  const flujo = resumenFlujo(p.movs, periodo);
   const box = root.querySelector('#catIngreso');
   const base = store.incomeRepartir(p);
   /* Lo repartible aparte no es solo el ingreso marcado como extra: cualquier
@@ -58,7 +60,7 @@ function paintIngreso(root) {
   const sobrante = Math.max(0, ing.total - p.inc);
   const sinRepartir = Math.max(0, sobrante - aportadoEsteMes(p, periodo));
 
-  box.innerHTML = `<div class="card" style="margin-bottom:var(--space-5)">
+  box.innerHTML = `${tarjetaResumenFlujo(flujo, p.cur)}<div class="card" style="margin-bottom:var(--space-5)">
     <span class="label">Lo que repartes este mes</span>
     <div class="kpi num">${money(base, p.cur)}</div>
     <div class="prow">

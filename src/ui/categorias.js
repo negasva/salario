@@ -194,7 +194,7 @@ function explicacionAuto(res, p) {
 function cabeceraPagos(res, p) {
   const ahorro = res.diferencia >= 0;
   return `<div class="pagos-head">
-    <div class="ph-cifra"><span class="label">Planeado en conceptos</span><b class="num">${money(res.plan, p.cur)}</b></div>
+    <div class="ph-cifra"><span class="label">Total planeado</span><b class="num">${money(res.plan, p.cur)}</b></div>
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
     ${res.plan > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
       <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(res.diferencia), p.cur)}</b></div>` : ''}
@@ -272,7 +272,7 @@ function openPagoEditor(root, it, p, mov = null) {
 
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, arrastre, pendiente }) => {
+  return res.filas.map(({ l, plan, pagado, arrastre, pendiente }) => {
     return `
     <div class="concepto-card" data-lid="${l.id}">
       <div class="line">
@@ -290,11 +290,25 @@ function lines(it, p, res) {
         <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
           aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
       </div>
-      ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
       ${listaPagos(l, p, res.periodo)}
+      ${barraGasto(pagado, plan, p)}
       ${it.r === 'deu' ? filaDeuda(l, p) : ''}
+      ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
     </div>`;
   }).join('');
+}
+
+function barraGasto(pagado, plan, p) {
+  const porcentaje = plan > 0 ? Math.round((pagado / plan) * 100) : pagado > 0 ? 100 : 0;
+  const ancho = Math.min(100, Math.max(0, porcentaje));
+  const color = plan > 0 && pagado > plan ? 'var(--danger)' : 'var(--pink)';
+  return `<div class="line-progreso">
+    <div class="line-progreso-head">
+      <span class="sub">Gastado <b class="num">${money(pagado, p.cur)}</b>${plan > 0 ? ` de <b class="num">${money(plan, p.cur)}</b>` : ''}</span>
+      <b class="num ${plan > 0 && pagado > plan ? 'over' : ''}">${porcentaje}%</b>
+    </div>
+    <div class="hist-track"><i style="width:${ancho}%;background:${color}"></i></div>
+  </div>`;
 }
 
 /* El mes que no alcanzó. Si al renglón le falta plata por pagar, un botón lo

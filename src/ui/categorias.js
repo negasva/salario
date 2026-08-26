@@ -1,12 +1,13 @@
 import * as store from '../store.js';
-import { balance, amount, shareOf, spentInItem, fixedVariableSplit, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, porItem, porLinea, ingresoReal, enPeriodo, ritmoDelMes } from '../engine/movimientos.js';
+import { balance, amount, r2 } from '../engine/reparto.js';
+import { periodoDe, hoyISO, porLinea, ingresoReal, enPeriodo } from '../engine/movimientos.js';
 import { plazo, whenText, metasEnItem } from '../engine/metas.js';
 import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { renglonesSobreTope } from '../engine/alertas.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
-  pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior } from '../engine/pagos.js';
+  pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
+  pagosLibresDeItem } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
@@ -57,20 +58,9 @@ function paintIngreso(root) {
   const sobrante = Math.max(0, ing.total - p.inc);
   const sinRepartir = Math.max(0, sobrante - aportadoEsteMes(p, periodo));
 
-  const b = balance(p.items, base);
-
   box.innerHTML = `<div class="card" style="margin-bottom:var(--space-5)">
     <span class="label">Lo que repartes este mes</span>
     <div class="kpi num">${money(base, p.cur)}</div>
-    <div class="sub">${ing.total > 0
-      ? `Nómina ${money(ing.nomina, p.cur)}${ing.extra > 0 ? ` · extra ${money(ing.extra, p.cur)}` : ''}
-         · plan ${money(p.inc, p.cur)}. Abajo repartes este número en plata, categoría por categoría.`
-      : `Todavía no registras ingresos de ${MESES[Number(periodo.split('-')[1]) - 1]}, así que reparto el plan.`}</div>
-    ${cuentaReparto(b, p)}
-    ${sobrante > 0 ? `<div class="sub">Entraron <b class="num">${money(sobrante, p.cur)}</b> por encima del plan.
-      ${sinRepartir > 0
-        ? `Te quedan <b class="num">${money(sinRepartir, p.cur)}</b> sin mandar a ninguna meta.`
-        : 'Ya lo mandaste todo a tus metas.'}</div>` : ''}
     <div class="prow">
       ${sinRepartir > 0 ? '<button id="catExtra" class="btn-primary">Repartir entre mis metas</button>' : ''}
       ${ing.total > 0 && ing.total !== p.inc ? '<button id="catPlan">Dejar este ingreso como plan</button>' : ''}
@@ -86,23 +76,6 @@ function paintIngreso(root) {
   if (bPlan) bPlan.onclick = () => { p.inc = ing.total; store.save(); renderCategorias(root); };
 }
 
-/* La frase que cierra el reparto. Sin porcentajes: la pregunta es cuánta plata
-   falta por repartir o por cuánta te pasaste, y esa se contesta en pesos. */
-function cuentaReparto(b, p) {
-  const estado = b.cuadrado
-    ? `<b class="ok">Cuadrado.</b> Repartiste todo lo que entra.`
-    : b.falta > 0
-      ? `Te falta repartir <b class="num">${money(b.falta, p.cur)}</b>.`
-      : `<b class="over">Te pasaste por ${money(b.exceso, p.cur)}</b>: asignaste plata que no tienes.`;
-  const ancho = b.ingreso > 0 ? Math.min(100, (b.asignado / b.ingreso) * 100) : 0;
-  const color = b.exceso > 0 ? 'var(--danger)' : b.cuadrado ? 'var(--success)' : 'var(--warning)';
-  return `<div class="cat-balance">
-    <div class="sub">Repartido <b class="num">${money(b.asignado, p.cur)}</b> de ${money(b.ingreso, p.cur)}</div>
-    <span class="hist-track"><i style="width:${ancho}%;background:${color}"></i></span>
-    <div class="sub">${estado}</div>
-  </div>`;
-}
-
 // lo del extra que ya salió hacia metas este mes
 function aportadoEsteMes(p, periodo) {
   return enPeriodo(p.movs, periodo)
@@ -114,39 +87,28 @@ function paintList(root) {
   const p = store.active();
   const box = root.querySelector('#catList');
   const periodo = periodoDe(hoyISO());
-  const gastado = porItem(p.movs, periodo);
   const gastadoLinea = porLinea(p.movs, periodo);
-  box.innerHTML = p.items.map((it) => catCard(it, p, gastado, gastadoLinea, periodo)).join('');
+  box.innerHTML = p.items.map((it) => catCard(it, p, gastadoLinea, periodo)).join('');
 
   p.items.forEach((it) => wireCard(root, it, p));
 }
 
-function catCard(it, p, gastado, gastadoLinea, periodo) {
-  const res = resumenItem(it, gastadoLinea, periodo);
+function catCard(it, p, gastadoLinea, periodo) {
+  const pagosLibres = pagosLibresDeItem(p.movs, it.id, periodo);
+  const res = resumenItem(it, gastadoLinea, periodo,
+    pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
-  const real = gastado[it.id] || 0;
-  const sp = spentInItem(it);
-  const { fixed, variable } = fixedVariableSplit(it);
   const metas = metasEnItem(p.goals, it);
-  // lo ya aportado este mes vive en `real` como gasto: contarlo otra vez como
-  // compromiso restaría dos veces el mismo dinero
-  const comprometido = metas.reduce((t, m) => t + (aporteDelMes(p, m.goal.id) ? 0 : m.monto), 0);
-  const libre = r2(budget - real - comprometido);
-  // a día 25 gastarse el 90% del bloque va bien; a día 5 va fatal
-  const ritmo = ritmoDelMes(real, budget);
-  const share = shareOf(it, store.incomeRepartir(p));
-  const arrastrado = res.filas.reduce((t, f) => t + f.arrastre, 0);
   return `
-  <div class="card cat-card" data-id="${it.id}">
+  <div class="card cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
     <div class="cat-top">
       <span class="dot" style="background:${it.c}"></span>
       <input class="cat-name" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}>
-      <button class="mini cat-lock ${it.locked ? 'on' : ''}" aria-pressed="${!!it.locked}"
+      <button class="mini cat-lock ${it.locked ? 'on is-locked' : ''}" aria-pressed="${!!it.locked}"
         title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
       <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
     </div>
-    <div class="sub cat-desc" contenteditable="${!it.locked}">${esc(it.d || '')}</div>
-    ${res.total ? cabeceraPagos(res, p) : ''}
+    ${cabeceraPagos(res, p)}
     <div class="cat-fields">
       <label class="fieldw"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
         <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
@@ -157,38 +119,25 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
           title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
       </div>
     </div>
-    <div class="sub cat-share">
-      <span>${it.auto ? explicacionAuto(res, p) : (share > 0 ? `Es el ${share}% de lo que entra este mes.` : 'Sin plata asignada todavía.')}</span>
+    ${(it.auto || (!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1)) ? `<div class="sub cat-share">
+      ${it.auto ? `<span>${explicacionAuto(res, p)}</span>` : ''}
       ${!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1
         ? `<button class="mini cat-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>`
-        : ''}</div>
+        : ''}</div>` : ''}
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
       <div class="detail-head"><span class="label">Detalle</span>
         <button class="mini cat-fijos" title="Marca como pagados los renglones fijos de este mes">Fijos al día</button>
+        <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
         <button class="btn-plus cat-plus">+</button></div>
       <div class="lines">${lines(it, p, res)}</div>
+      ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
+        ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
+      </div>` : ''}
       ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
         <span class="label">Comprometido por metas</span></div>
         <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
-      <div class="sub cat-cuenta" style="margin-top:10px">
-        Presupuesto <b class="num">${money(budget, p.cur)}</b> ·
-        gastos <b class="num">${money(real, p.cur)}</b> ·
-        metas <b class="num">${money(comprometido, p.cur)}</b> ·
-        libre <b class="num${libre < 0 ? ' over' : ''}">${money(libre, p.cur)}</b>
-        ${libre < 0 ? '<b class="over"> Te pasaste del bloque.</b>' : ''}
-      </div>
-      ${budget > 0 && real > 0 ? `<div class="sub">A estas alturas del mes tocaría llevar
-        <b class="num">${money(ritmo.esperado, p.cur)}</b>:
-        ${Math.abs(ritmo.pct) < 5
-          ? 'vas en el ritmo justo.'
-          : ritmo.delta > 0
-            ? `<b class="over">vas ${ritmo.pct}% por encima del ritmo</b>, ${money(ritmo.delta, p.cur)} de más.`
-            : `vas ${Math.abs(ritmo.pct)}% por debajo, ${money(-ritmo.delta, p.cur)} de margen.`}
-      </div>` : ''}
       ${it.r === 'deu' ? tarjetaDeuda(it, p, budget) : ''}
-      ${it.L.length ? `<div class="sub">Planeado ${money(sp, p.cur)} · fijo ${money(fixed, p.cur)} · variable ${money(variable, p.cur)}${
-        arrastrado > 0 ? ` · más ${money(arrastrado, p.cur)} que vienen debiéndose de antes` : ''}</div>` : ''}
     </div>
   </div>`;
 }
@@ -247,7 +196,7 @@ function cabeceraPagos(res, p) {
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
     <div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
       <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(res.diferencia), p.cur)}</b></div>
-    <span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>
+    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>` : ''}
   </div>`;
 }
 
@@ -258,71 +207,72 @@ function listaPagos(l, p, periodo) {
   const pagos = pagosDeLinea(p.movs, l.id, periodo);
   if (!pagos.length) return '';
   return `<div class="pagos-lista" data-lid="${l.id}">
-    ${pagos.map((m) => `<span class="pago-chip" data-mid="${m.id}">
-      <button class="pago-abrir" title="Cambiarle la fecha, el monto o el nombre">
-        <b class="num">${money(m.monto, p.cur)}</b>
-        <span class="sub">${diaCorto(m.fecha)}</span>
-        ${notaPropia(m, l) ? `<span class="sub pago-nota">${esc(m.nota)}</span>` : ''}
-      </button>
-      <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
-    </span>`).join('')}
+    ${pagos.map((m) => pagoChip(m, p)).join('')}
   </div>`;
 }
 
-// la nota automática ya se lee en el nombre del renglón: solo se muestra la tuya
-function notaPropia(m, l) {
-  return m.nota && m.nota !== `Pago ${l.n || 'sin nombre'}`;
+function pagoChip(m, p) {
+  return `<span class="pago-chip" data-mid="${m.id}">
+    <b class="num">${money(m.monto, p.cur)}</b>
+    <span class="sub">${diaCorto(m.fecha)}</span>
+    ${!m.lineId && m.nota ? `<span class="sub pago-nota">${esc(m.nota)}</span>` : ''}
+    <button class="pago-ed" title="Editar pago">Editar</button>
+    <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
+  </span>`;
 }
 
-/* Un pago mal tecleado se corrige, no se borra y se vuelve a escribir: monto,
-   fecha y un nombre para acordarte de qué fue. */
-function abrirPago(mov, l, p, alGuardar) {
+function openPagoEditor(root, it, p, mov = null) {
+  const line = mov?.lineId ? it.L.find((l) => l.id === mov.lineId) : null;
   const overlay = document.createElement('div');
   overlay.className = 'overlay on';
-  overlay.innerHTML = `
-    <div class="sheet">
-      <div class="sheet-head"><h3>Pago de ${esc(l.n || 'este renglón')}</h3>
-        <button class="btn-del" id="pgClose">${icon('cerrar')}</button></div>
-      <div class="fld"><label>Cuánto</label>
-        <input id="pgMonto" class="num" inputmode="numeric" value="${plain(mov.monto, p.cur)}"></div>
-      <div class="fld"><label>Cuándo</label>
-        <input id="pgFecha" type="date" value="${mov.fecha}"></div>
-      <div class="fld"><label>De qué fue</label>
-        <input id="pgNota" value="${esc(notaPropia(mov, l) ? mov.nota : '')}" placeholder="Ej: recibo de agosto, mercado del sábado">
-        <div class="hint">Para acordarte después. Si lo dejas vacío queda como "Pago ${esc(l.n || 'sin nombre')}".</div></div>
-      <button class="wide btn-primary" id="pgSave" style="margin-top:16px">Guardar</button>
-    </div>`;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
+  overlay.innerHTML = `
+    <div class="sheet pago-sheet">
+      <div class="sheet-head">
+        <h3>${mov ? 'Editar pago' : 'Agregar pago'}</h3>
+        <button class="btn-del" id="pagoClose" aria-label="Cerrar">${icon('cerrar')}</button>
+      </div>
+      <div class="pago-form">
+        <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(mov?.nota || line?.n || '')}" placeholder="Ej. almuerzo"></label>
+        <label class="fieldw"><span>Monto</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
+        <label class="fieldw"><span>Fecha</span><input id="pagoFecha" type="date" value="${mov?.fecha || hoyISO()}"></label>
+      </div>
+      <button class="wide btn-primary" id="pagoSave">${mov ? 'Guardar cambios' : 'Guardar pago'}</button>
+      <button class="wide" id="pagoCancel">Cancelar</button>
+    </div>`;
 
-  function close() { overlay.remove(); document.body.style.overflow = ''; }
-  overlay.querySelector('#pgClose').onclick = close;
+  const close = () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  };
+  overlay.querySelector('#pagoClose').onclick = close;
+  overlay.querySelector('#pagoCancel').onclick = close;
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
-  overlay.querySelector('#pgSave').onclick = () => {
-    const monto = digits(overlay.querySelector('#pgMonto').value);
-    if (!(monto > 0)) { toast('El pago tiene que ser mayor que cero'); return; }
-    mov.monto = monto;
-    mov.fecha = overlay.querySelector('#pgFecha').value || mov.fecha;
-    mov.nota = overlay.querySelector('#pgNota').value.trim() || `Pago ${l.n || 'sin nombre'}`;
+  overlay.querySelector('#pagoSave').onclick = () => {
+    const monto = digits(overlay.querySelector('#pagoMonto').value);
+    if (monto <= 0) {
+      overlay.querySelector('#pagoMonto').focus();
+      return;
+    }
+    const datos = {
+      fecha: overlay.querySelector('#pagoFecha').value || hoyISO(),
+      monto,
+      nota: overlay.querySelector('#pagoNombre').value.trim() || (line?.n || 'Pago'),
+    };
+    if (mov) Object.assign(mov, datos);
+    else agregarPagoLibre(p.movs, it, datos.monto, datos.fecha, datos.nota);
     store.save();
     close();
-    alGuardar();
+    renderCategorias(root);
+    toast(mov ? 'Pago actualizado' : 'Pago guardado');
   };
 }
 
-const ESTADOS = {
-  pendiente: { t: 'pendiente', c: '' },
-  parcial: { t: 'parcial', c: 'warn' },
-  pagado: { t: 'pagado', c: 'ok' },
-  excedido: { t: 'excedido', c: 'bad' },
-};
-
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, arrastre, pagado, pendiente, diferencia, estado }) => {
+  return res.filas.map(({ l, plan, arrastre, pendiente }) => {
     const tope = Number(l.tope) || 0;
-    const est = ESTADOS[estado];
     return `
     <div class="line" data-lid="${l.id}">
       <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
@@ -334,23 +284,14 @@ function lines(it, p, res) {
       <label class="fieldw"><span>Agregar pago</span>
         <input class="lpag num" inputmode="numeric" placeholder="0"></label>
       <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
-      <span class="sub ln-tot">Pagado <b class="num">${money(pagado, p.cur)}</b></span>
       <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
         aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-      <span class="badge ${est.c}">${est.t}</span>
-      ${plan > 0 && pagado > 0 && diferencia !== 0
-        ? `<span class="sub ln-dif ${diferencia > 0 ? 'ok' : 'over'}">${diferencia > 0
-            ? `ahorras ${money(diferencia, p.cur)}`
-            : `sobrecosto ${money(-diferencia, p.cur)}`}</span>`
-        : ''}
-      ${plan > 0 && diferencia === 0 && pagado > 0 ? '<span class="sub ln-dif">clavado al plan</span>' : ''}
     </div>
     ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
     ${listaPagos(l, p, res.periodo)}
     <div class="line-tope" data-lid="${l.id}">
       <label class="fieldw"><span>Tope del mes</span>
         <input class="ltope num" inputmode="numeric" value="${tope ? plain(tope, p.cur) : ''}" placeholder="sin tope"></label>
-      ${barraGasto(pagado, tope, plan, p)}
     </div>
     ${it.r === 'deu' ? filaDeuda(l, p) : ''}`;
   }).join('');
@@ -381,29 +322,6 @@ function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
       ? `<span class="sub">Ya pasaste <b class="num">${money(yaPasado, p.cur)}</b> a ${mes(siguientePeriodo(periodo))}.</span>
          <button class="mini arr-deshacer">Deshacer</button>`
       : ''}
-  </div>`;
-}
-
-/* Cada renglon lleva su barra de lo gastado. Si hay tope, ese manda; si no,
-   el valor planeado sirve de referencia. Sin ninguno de los dos solo se
-   dice cuanto llevas, que una barra sin base no significa nada. */
-function barraGasto(real, tope, planeado, p) {
-  const base = tope || planeado;
-  if (!base) {
-    return real > 0
-      ? `<div class="sub">Llevas <b class="num">${money(real, p.cur)}</b> este mes.</div>`
-      : '';
-  }
-  const pct = Math.round((real / base) * 100);
-  const color = pct > 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
-  return `<div class="sub linea-barra">
-    <span>Llevas <b class="num">${money(real, p.cur)}</b> de ${money(base, p.cur)}${tope ? '' : ' planeado'}</span>
-    <span class="hist-track"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></span>
-    <span class="${pct > 100 ? 'over' : ''}"><b>${pct}%</b>${pct > 100
-      ? ' · te pasaste'
-      : pct === 100
-        ? ' · completo'
-        : ` · quedan ${money(r2(base - real), p.cur)}`}</span>
   </div>`;
 }
 
@@ -476,7 +394,6 @@ function wireCard(root, it, p) {
   }
 
   card.querySelector('.cat-name').oninput = (e) => { it.n = e.target.value; store.save(); };
-  card.querySelector('.cat-desc').oninput = (e) => { it.d = e.target.textContent; store.save(); };
   card.querySelector('.cat-monto').onchange = (e) => setMonto(digits(e.target.value));
 
   // el plan de renglones ya está sumado abajo: un clic lo sube al presupuesto
@@ -526,6 +443,7 @@ function wireCard(root, it, p) {
     store.save();
     renderCategorias(root);
   };
+  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(root, it, p);
 
   // El aporte es un movimiento y nada más: el progreso de la meta se recalcula
   // solo al guardar, así que no hay dos sitios que mantener a la par.
@@ -630,9 +548,9 @@ function wireCard(root, it, p) {
   card.querySelectorAll('.pagos-lista').forEach((el) => {
     const linea = it.L.find((x) => x.id === el.dataset.lid);
     el.querySelectorAll('.pago-chip').forEach((chip) => {
-      chip.querySelector('.pago-abrir').onclick = () => {
+      chip.querySelector('.pago-ed').onclick = () => {
         const mov = p.movs.find((m) => m.id === chip.dataset.mid);
-        if (mov && linea) abrirPago(mov, linea, p, () => renderCategorias(root));
+        if (mov) openPagoEditor(root, it, p, mov);
       };
       chip.querySelector('.pago-x').onclick = () => {
         const mov = p.movs.find((m) => m.id === chip.dataset.mid);

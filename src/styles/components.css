@@ -223,11 +223,17 @@
 .detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2)}
 .btn-plus{width:32px;height:30px;padding:0;font-size:var(--text-base);font-weight:var(--fw-bold)}
 .lines{display:flex;flex-direction:column;gap:7px}
+.concepto-card{padding:var(--space-3);border:1px solid var(--border-hairline);border-radius:var(--radius-md);background:var(--white)}
+.concepto-card+.concepto-card{margin-top:var(--space-3)}
+.concepto-card>.line:first-child{margin-top:0}
 .line{display:flex;gap:6px;align-items:center}
 .line .ln{flex:1;min-width:0;font-size:var(--text-sm);padding:8px 10px}
-.line .lv{width:110px;flex:none;text-align:right;font-size:var(--text-sm);padding:8px 10px}
-.line .fixedtoggle{font-size:11px;padding:7px 9px;flex:none}
-.line .fixedtoggle.on{color:var(--ink);border-color:var(--pink);background:var(--pink-wash)}
+.money-input{display:flex;align-items:center;gap:2px;width:110px;flex:none;padding:7px 10px;background:var(--pink-wash);
+  border:1px solid var(--pink-lighter);border-radius:var(--radius-sm)}
+.money-input .money-symbol{color:var(--ink-lighter);font-size:var(--text-sm);font-weight:var(--fw-bold)}
+.money-input input{width:100%;min-width:0;border:0;background:transparent;text-align:right;font-size:var(--text-sm);padding:0}
+.money-input input:focus{outline:none}
+.money-symbol{color:var(--ink-lighter)!important;font-size:var(--text-base)!important;font-weight:var(--fw-bold)!important}
 .line .lx{width:30px;height:30px;padding:0;flex:none;display:flex;align-items:center;justify-content:center}
 .line-meta{background:var(--pink-wash);border-left:3px solid var(--pink);cursor:pointer;
   padding:8px 10px;border-radius:var(--radius-sm)}
@@ -324,10 +330,8 @@
 /* ── historial ────────────────────────────────────────────────────────── */
 .line-arrastre{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:6px}
 .line-arrastre .sub{margin-top:0}
-.line-tope{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;
-  padding:0 0 var(--space-2) 0}
-.line-tope .fieldw{max-width:180px}
-.line-tope .sub{margin-top:0}
+.arr-pasar{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
+.arr-pasar:hover{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
 .deu-plazo-tipo{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
 .ob-sheet .sheet-head{margin-bottom:0}
 .ob-pasos{display:flex;gap:6px;margin-bottom:var(--space-4)}
@@ -435,7 +439,7 @@
      sale encima del resto: se parte en dos filas y se acabó el desorden */
   .line,.line-meta,.rec-item,.busca-item,.mov-line{flex-wrap:wrap;row-gap:6px}
   .line .ln,.line-meta .lm-n,.busca-item .nm,.mov-line .mov-line-txt{flex:1 1 100%}
-  .line .lv{flex:1 1 auto;width:auto;text-align:left}
+  .line .money-input{flex:1 1 auto;width:auto}
   .line-meta .lm-v,.rec-item .num,.mov-line .mov-line-n{margin-right:auto}
   .line-meta .badge,.rec-item .badge{margin-top:0}
   .rec-item .nm{flex:1 1 100%}
@@ -467,7 +471,7 @@
 .pago-chip{display:inline-flex;align-items:center;gap:2px;padding:4px 4px 4px 4px;
   border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--border-hairline)}
 .pago-chip .sub{margin-top:0;font-size:11px}
-.pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:11px;padding:2px 4px}
+.pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:20px;line-height:18px;padding:0 5px;min-width:24px}
 .pago-ed:hover{color:var(--ink);background:var(--white)}
 .pago-nota{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pago-x{width:22px;height:22px;padding:0;border:0;background:transparent;cursor:pointer;

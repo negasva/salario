@@ -330,8 +330,15 @@
 /* ── historial ────────────────────────────────────────────────────────── */
 .line-arrastre{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:6px}
 .line-arrastre .sub{margin-top:0}
+.line-arrastre .arr-pasar{margin-left:auto}
 .arr-pasar{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
 .arr-pasar:hover{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
+.line-progreso{margin-top:var(--space-2)}
+.line-progreso-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)}
+.line-progreso-head .sub{margin-top:0}
+.line-progreso-head>.num{font-size:var(--text-xs)}
+.line-progreso .hist-track{width:100%;flex:none;height:7px;margin-top:5px}
+.line-progreso .hist-track i{background:var(--pink)}
 .deu-plazo-tipo{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
 .ob-sheet .sheet-head{margin-bottom:0}
 .ob-pasos{display:flex;gap:6px;margin-bottom:var(--space-4)}

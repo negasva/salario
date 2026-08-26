@@ -1,10 +1,8 @@
 import * as store from '../store.js';
 import { balance, amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo, enPeriodo } from '../engine/movimientos.js';
-import { plazo, whenText, metasEnItem } from '../engine/metas.js';
-import { mesesParaLiquidar, interesTotal, deudasDelPerfil, plan, saldoVivo } from '../engine/deudas.js';
+import { metasEnItem } from '../engine/metas.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
-import { renglonesSobreTope } from '../engine/alertas.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
   pagosLibresDeItem } from '../engine/pagos.js';
@@ -139,7 +137,6 @@ function catCard(it, p, gastadoLinea, periodo) {
       ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
         <span class="label">Comprometido por metas</span></div>
         <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
-      ${it.r === 'deu' ? tarjetaDeuda(it, p, budget) : ''}
     </div>
   </div>`;
 }
@@ -293,7 +290,6 @@ function lines(it, p, res) {
       </div>
       ${listaPagos(l, p, res.periodo)}
       ${barraGasto(pagado, plan, p)}
-      ${it.r === 'deu' ? filaDeuda(l, p) : ''}
       ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
     </div>`;
   }).join('');
@@ -337,63 +333,6 @@ function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
       ? `<span class="sub">Ya pasaste <b class="num">${money(yaPasado, p.cur)}</b> a ${mes(siguientePeriodo(periodo))}.</span>
          <button class="mini arr-deshacer">Deshacer</button>`
       : ''}
-  </div>`;
-}
-
-// Un renglón de deuda gana tres campos. Vacíos, se comporta como cualquier otro.
-function filaDeuda(l, p) {
-  const cuota = Number(l.minimo) || 0;
-  const declarado = Number(l.saldo) || 0;
-  const saldo = saldoVivo(l, p.movs);
-  const abonadoMes = p.movs
-    .filter((m) => m.abono && m.lineId === l.id && periodoDe(m.fecha) === periodoDe(hoyISO()))
-    .reduce((s, m) => s + m.monto, 0);
-  const meses = saldo > 0 ? mesesParaLiquidar(saldo, l.tasa, cuota) : null;
-  const intereses = meses ? interesTotal(saldo, l.tasa, cuota) : null;
-  return `<div class="deu-fila" data-lid="${l.id}">
-    <label class="fieldw money-field"><span>Saldo</span><span class="money-symbol" aria-hidden="true">$</span><input class="dv num" data-k="saldo" inputmode="numeric" value="${saldo ? plain(saldo, p.cur) : ''}" placeholder="0"></label>
-    <label class="fieldw"><span>Tasa %</span><input class="dv num" data-k="tasa" inputmode="decimal" value="${l.tasa ?? ''}" placeholder="0"></label>
-    <label class="fieldw money-field"><span>Mínimo</span><span class="money-symbol" aria-hidden="true">$</span><input class="dv num" data-k="minimo" inputmode="numeric" value="${cuota ? plain(cuota, p.cur) : ''}" placeholder="0"></label>
-    <label class="fieldw"><span>Día de pago</span><input class="dv num" data-k="diaPago" inputmode="numeric" value="${l.diaPago || ''}" placeholder="—"></label>
-    <div class="chips deu-plazo-tipo">
-      <button class="mini deu-tipo ${l.fechaLimite ? '' : 'on'}" data-lid="${l.id}" data-tipo="indefinida">Sin fecha final</button>
-      <button class="mini deu-tipo ${l.fechaLimite ? 'on' : ''}" data-lid="${l.id}" data-tipo="fecha">Con fecha límite</button>
-      ${l.fechaLimite ? `<input type="date" class="deu-fecha" data-lid="${l.id}" value="${l.fechaLimite}">` : ''}
-    </div>
-    ${declarado > 0 ? `<div class="sub deu-plazo">Saldo ${money(declarado, p.cur)} · abonado este mes ${money(abonadoMes, p.cur)} · quedan ${money(saldo, p.cur)}</div>` : ''}
-    ${saldo > 0 ? `<div class="sub deu-plazo">${meses
-      ? `Se liquida en ${plazo(meses)}, hacia ${whenText(meses)}. Intereses: ${money(intereses, p.cur)}.`
-      : '<b class="over">Esta cuota nunca la paga: no cubre ni los intereses.</b>'}</div>` : ''}
-  </div>`;
-}
-
-// La bola de nieve cuesta más plata y el usuario tiene derecho a elegirla igual
-function tarjetaDeuda(it, p, budget) {
-  const deudas = deudasDelPerfil([it], p.movs);
-  if (!deudas.length) return '';
-  const av = plan(deudas, budget, 'avalancha');
-  const bn = plan(deudas, budget, 'bolaDeNieve');
-  if (!av.cubreMinimos) {
-    return `<div class="card-2 deu-comp"><span class="label">Salir de deudas</span>
-      <div class="sub"><b class="over">El bloque no alcanza para los mínimos.</b>
-      Súbelo o renegocia antes de pensar en el orden de ataque.</div></div>`;
-  }
-  const linea = (r) => (r.meses
-    ? `libre en ${plazo(r.meses)}, pagas ${money(r.interes, p.cur)} de intereses`
-    : `con ${money(budget, p.cur)} al mes no se liquida nunca`);
-  return `<div class="card-2 deu-comp">
-    <span class="label">Salir de deudas</span>
-    <div class="sub"><b>Avalancha</b> (mayor tasa primero): ${linea(av)}.</div>
-    <div class="sub"><b>Bola de nieve</b> (menor saldo primero): ${linea(bn)}.</div>
-    ${av.meses && bn.meses && bn.interes > av.interes
-      ? `<div class="sub">La bola de nieve te cuesta ${money(r2(bn.interes - av.interes), p.cur)} más. Se elige por cabeza, no por plata, y eso también cuenta.</div>`
-      : ''}
-    <div class="chips deu-metodo" style="margin-top:10px">
-      <button class="chip ${p.metodoDeuda !== 'bolaDeNieve' ? 'on' : ''}" data-m="avalancha">Avalancha</button>
-      <button class="chip ${p.metodoDeuda === 'bolaDeNieve' ? 'on' : ''}" data-m="bolaDeNieve">Bola de nieve</button>
-    </div>
-    <div class="sub">${(p.metodoDeuda === 'bolaDeNieve' ? bn : av).deudas
-      .map((d) => `${esc(d.n || 'sin nombre')}: ${d.fecha || 'no se liquida'}`).join(' · ')}</div>
   </div>`;
 }
 

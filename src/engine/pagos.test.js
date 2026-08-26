@@ -187,3 +187,56 @@ describe('arrastre de un mes al siguiente', () => {
     expect(fila.estado).toBe('parcial');
   });
 });
+
+
+describe('lo que la categoria cuesta de verdad', () => {
+  const it2 = (extra) => ({ L: [
+    linea('l1', 'Arriendo', 1000000),
+    linea('l2', 'Mercado', 600000),
+    linea('l3', 'Internet', 100000),
+    ...extra,
+  ] });
+
+  it('sin pagos el costo es el plan entero', () => {
+    const r = resumenItem(it2([]), {}, '2026-08');
+    expect(r.costo).toBe(1700000);
+    expect(r.ahorrado).toBe(0);
+    expect(r.excedido).toBe(0);
+  });
+
+  it('un renglon cerrado por debajo del plan baja el costo', () => {
+    // el arriendo se cierra con 900.000: 100.000 ahorrados
+    const item = it2([]);
+    item.L[0].pagadoEn = '2026-08';
+    const r = resumenItem(item, { l1: 900000 }, '2026-08');
+    expect(r.ahorrado).toBe(100000);
+    expect(r.costo).toBe(1600000);
+  });
+
+  it('un renglon cerrado por encima del plan sube el costo', () => {
+    const r = resumenItem(it2([]), { l1: 1200000 }, '2026-08');
+    expect(r.excedido).toBe(200000);
+    expect(r.costo).toBe(1900000);
+  });
+
+  it('un renglon a medio pagar todavia cuenta por su plan', () => {
+    const r = resumenItem(it2([]), { l2: 200000 }, '2026-08');
+    expect(r.ahorrado).toBe(0);
+    expect(r.costo).toBe(1700000);
+  });
+
+  it('mezcla ahorros y excesos en la misma categoria', () => {
+    const item = it2([]);
+    item.L[0].pagadoEn = '2026-08';
+    const r = resumenItem(item, { l1: 900000, l3: 130000 }, '2026-08');
+    expect(r.ahorrado).toBe(100000);
+    expect(r.excedido).toBe(30000);
+    expect(r.costo).toBe(1630000);
+  });
+
+  it('la deuda arrastrada entra en el plan y por tanto en el costo', () => {
+    const item = it2([]);
+    item.L[0].arrastre = { '2026-08': 1000000 };
+    expect(resumenItem(item, {}, '2026-08').costo).toBe(2700000);
+  });
+});

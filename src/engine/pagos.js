@@ -61,8 +61,19 @@ export function resumenItem(it, pagadoPorLinea = {}, periodo) {
   });
   const plan = r2(filas.reduce((s, f) => s + f.plan, 0));
   const pagado = r2(filas.reduce((s, f) => s + f.pagado, 0));
+  const cerradas = filas.filter((f) => CERRADAS.includes(f.estado));
+
+  /* Lo que la categoría cuesta de verdad este mes: el plan de cada renglón
+     corregido por la realidad en los que ya se cerraron. Un renglón pagado
+     aporta lo que pagaste —de menos o de más—; uno que sigue abierto aporta
+     lo planeado, porque de ese todavía no hay noticia. Sale igual que
+     plan − lo ahorrado + lo que se pasó, contando solo los ya pagados. */
+  const ahorrado = r2(cerradas.reduce((s, f) => s + Math.max(0, f.diferencia), 0));
+  const excedido = r2(cerradas.reduce((s, f) => s + Math.max(0, -f.diferencia), 0));
+
   return { periodo, filas, plan, pagado, diferencia: r2(plan - pagado),
-    cerradas: filas.filter((f) => CERRADAS.includes(f.estado)).length, total: filas.length };
+    ahorrado, excedido, costo: r2(plan - ahorrado + excedido),
+    cerradas: cerradas.length, total: filas.length };
 }
 
 export function resumenMes(items, pagadoPorLinea = {}, periodo) {

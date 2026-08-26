@@ -54,7 +54,7 @@ describe('F6.1 aviso de fin de mes', () => {
     const av = avisoFinDeMes(p, hoy);
     expect(av.titulo).toBe('Quedan 5 días de agosto');
     expect(plano(av.cuerpo)).toContain('$3,2 M registrados');
-    expect(plano(av.cuerpo)).toContain('$3,5 M presupuestados'); // 2,75 M + 0,75 M asignados
+    expect(plano(av.cuerpo)).toContain('$3,5 M asignados a categorías'); // 2,75 M + 0,75 M asignados
     expect(av.clave).toBe('cierre-5-2026-08');
     expect(av.vistas).toEqual(['dashboard', 'movimientos']);
   });

@@ -192,11 +192,10 @@ function explicacionAuto(res, p) {
 function cabeceraPagos(res, p) {
   const ahorro = res.diferencia >= 0;
   return `<div class="pagos-head">
-    <div class="ph-cifra"><span class="label">Planeado</span><b class="num">${money(res.plan, p.cur)}</b></div>
+    <div class="ph-cifra"><span class="label">Planeado en conceptos</span><b class="num">${money(res.plan, p.cur)}</b></div>
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
-    <div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
-      <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(res.diferencia), p.cur)}</b></div>
-    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>` : ''}
+    ${res.plan > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
+      <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(res.diferencia), p.cur)}</b></div>` : ''}
   </div>`;
 }
 

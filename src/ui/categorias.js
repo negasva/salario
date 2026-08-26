@@ -112,7 +112,8 @@ function catCard(it, p, gastadoLinea, periodo) {
     </div>
     ${cabeceraPagos(res, p)}
     <div class="cat-fields">
-      <label class="fieldw"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
+      <label class="fieldw money-field"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
         <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
           ${it.locked || it.auto ? 'disabled' : ''}></label>
       <div class="chips cat-modo">
@@ -129,7 +130,6 @@ function catCard(it, p, gastadoLinea, periodo) {
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
       <div class="detail-head"><span class="label">Detalle</span>
-        <button class="mini cat-fijos" title="Marca como pagados los renglones fijos de este mes">Fijos al día</button>
         <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
         <button class="btn-plus cat-plus">+</button></div>
       <div class="lines">${lines(it, p, res)}</div>
@@ -217,7 +217,7 @@ function pagoChip(m, p) {
     <b class="num">${money(m.monto, p.cur)}</b>
     <span class="sub">${diaCorto(m.fecha)}</span>
     ${!m.lineId && m.nota ? `<span class="sub pago-nota">${esc(m.nota)}</span>` : ''}
-    <button class="pago-ed" title="Editar pago">Editar</button>
+    <button class="pago-ed" title="Editar pago" aria-label="Editar pago">⋮</button>
     <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
   </span>`;
 }
@@ -236,7 +236,7 @@ function openPagoEditor(root, it, p, mov = null) {
       </div>
       <div class="pago-form">
         <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(mov?.nota || line?.n || '')}" placeholder="Ej. almuerzo"></label>
-        <label class="fieldw"><span>Monto</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
+        <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
         <label class="fieldw"><span>Fecha</span><input id="pagoFecha" type="date" value="${mov?.fecha || hoyISO()}"></label>
       </div>
       <button class="wide btn-primary" id="pagoSave">${mov ? 'Guardar cambios' : 'Guardar pago'}</button>
@@ -273,28 +273,27 @@ function openPagoEditor(root, it, p, mov = null) {
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
   return res.filas.map(({ l, plan, arrastre, pendiente }) => {
-    const tope = Number(l.tope) || 0;
     return `
-    <div class="line" data-lid="${l.id}">
-      <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
-      <input class="lv num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0">
-      <button class="mini fixedtoggle ${l.fixed ? 'on' : ''}" title="Fijo/variable">${l.fixed ? 'Fijo' : 'Variable'}</button>
-      <button class="mini lx">${icon('cerrar', 'ic-sm')}</button>
-    </div>
-    <div class="line-pago" data-lid="${l.id}">
-      <label class="fieldw"><span>Agregar pago</span>
-        <input class="lpag num" inputmode="numeric" placeholder="0"></label>
-      <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
-      <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
-        aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-    </div>
-    ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
-    ${listaPagos(l, p, res.periodo)}
-    <div class="line-tope" data-lid="${l.id}">
-      <label class="fieldw"><span>Tope del mes</span>
-        <input class="ltope num" inputmode="numeric" value="${tope ? plain(tope, p.cur) : ''}" placeholder="sin tope"></label>
-    </div>
-    ${it.r === 'deu' ? filaDeuda(l, p) : ''}`;
+    <div class="concepto-card" data-lid="${l.id}">
+      <div class="line">
+        <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
+        <label class="money-input" title="Monto planeado">
+          <span class="money-symbol" aria-hidden="true">$</span>
+          <input class="lv num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0">
+        </label>
+        <button class="mini lx" title="Eliminar concepto" aria-label="Eliminar concepto">${icon('cerrar', 'ic-sm')}</button>
+      </div>
+      <div class="line-pago" data-lid="${l.id}">
+        <label class="fieldw money-field"><span>Agregar pago</span><span class="money-symbol" aria-hidden="true">$</span>
+          <input class="lpag num" inputmode="numeric" placeholder="0"></label>
+        <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
+        <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
+          aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
+      </div>
+      ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
+      ${listaPagos(l, p, res.periodo)}
+      ${it.r === 'deu' ? filaDeuda(l, p) : ''}
+    </div>`;
   }).join('');
 }
 
@@ -317,7 +316,7 @@ function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
          <button class="mini arr-quitar">Quitar esa deuda</button>`
       : ''}
     ${pendiente > 0 && esDeuda
-      ? `<button class="mini arr-pasar">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
+      ? `<button class="mini arr-pasar danger-action">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
       : ''}
     ${yaPasado > 0
       ? `<span class="sub">Ya pasaste <b class="num">${money(yaPasado, p.cur)}</b> a ${mes(siguientePeriodo(periodo))}.</span>
@@ -337,9 +336,9 @@ function filaDeuda(l, p) {
   const meses = saldo > 0 ? mesesParaLiquidar(saldo, l.tasa, cuota) : null;
   const intereses = meses ? interesTotal(saldo, l.tasa, cuota) : null;
   return `<div class="deu-fila" data-lid="${l.id}">
-    <label class="fieldw"><span>Saldo</span><input class="dv num" data-k="saldo" inputmode="numeric" value="${saldo ? plain(saldo, p.cur) : ''}" placeholder="0"></label>
+    <label class="fieldw money-field"><span>Saldo</span><span class="money-symbol" aria-hidden="true">$</span><input class="dv num" data-k="saldo" inputmode="numeric" value="${saldo ? plain(saldo, p.cur) : ''}" placeholder="0"></label>
     <label class="fieldw"><span>Tasa %</span><input class="dv num" data-k="tasa" inputmode="decimal" value="${l.tasa ?? ''}" placeholder="0"></label>
-    <label class="fieldw"><span>Mínimo</span><input class="dv num" data-k="minimo" inputmode="numeric" value="${cuota ? plain(cuota, p.cur) : ''}" placeholder="0"></label>
+    <label class="fieldw money-field"><span>Mínimo</span><span class="money-symbol" aria-hidden="true">$</span><input class="dv num" data-k="minimo" inputmode="numeric" value="${cuota ? plain(cuota, p.cur) : ''}" placeholder="0"></label>
     <label class="fieldw"><span>Día de pago</span><input class="dv num" data-k="diaPago" inputmode="numeric" value="${l.diaPago || ''}" placeholder="—"></label>
     <div class="chips deu-plazo-tipo">
       <button class="mini deu-tipo ${l.fechaLimite ? '' : 'on'}" data-lid="${l.id}" data-tipo="indefinida">Sin fecha final</button>
@@ -565,24 +564,6 @@ function wireCard(root, it, p) {
     });
   });
 
-  /* Sin cron no hay "al iniciar el mes": un botón deja los fijos al día de un
-     golpe y cada renglón se sigue pudiendo corregir a mano. */
-  card.querySelector('.cat-fijos').onclick = () => {
-    const pagados = porLinea(p.movs, periodo);
-    const fijos = it.L.filter((l) => l.fixed !== false && planDeLinea(l, periodo) > 0 && !pagados[l.id]);
-    if (!fijos.length) { toast('Los fijos de este mes ya están al día'); return; }
-    const antes = JSON.parse(JSON.stringify(p.movs));
-    fijos.forEach((l) => { agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO()); l.pagadoEn = periodo; });
-    store.save();
-    renderCategorias(root);
-    toast(`${fijos.length} fijo${fijos.length > 1 ? 's' : ''} marcado${fijos.length > 1 ? 's' : ''} como pagado`, () => {
-      p.movs.splice(0, p.movs.length, ...antes);
-      fijos.forEach((l) => { l.pagadoEn = null; });
-      store.save();
-      renderCategorias(root);
-    });
-  };
-
   /* Lo que no alcanzaste a pagar este mes se pasa al siguiente. Es un botón y
      no algo automático a propósito: la app no cierra meses sola cuando estás
      sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. */
@@ -626,17 +607,6 @@ function wireCard(root, it, p) {
     });
   });
 
-  // el tope vive fuera de la fila del renglón, en su propia línea
-  card.querySelectorAll('.line-tope').forEach((el) => {
-    const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-    el.querySelector('.ltope').onchange = (e) => {
-      l.tope = digits(e.target.value);
-      store.save();
-      renderCategorias(root);
-    };
-  });
-
   card.querySelector('.deu-metodo')?.addEventListener('click', (e) => {
     const b = e.target.closest('.chip');
     if (!b) return;
@@ -651,7 +621,6 @@ function wireCard(root, it, p) {
     if (!l) return;
     lineEl.querySelector('.ln').oninput = (e) => { l.n = e.target.value; store.save(); };
     lineEl.querySelector('.lv').onchange = (e) => { l.v = digits(e.target.value); store.save(); renderCategorias(root); };
-    lineEl.querySelector('.fixedtoggle').onclick = () => { l.fixed = !l.fixed; store.save(); renderCategorias(root); };
     lineEl.querySelector('.lx').onclick = () => {
       const idx = it.L.indexOf(l);
       const { undo } = store.stageDelete(() => it.L.splice(idx, 1), () => it.L.splice(idx, 0, l));

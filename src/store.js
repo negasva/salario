@@ -5,7 +5,8 @@ import {
   ordenadas, reasignar, metaCumplida, siguienteEnFila, mover, soltar,
   aplicarTraspaso as traspasar, traspasoVencido,
 } from './engine/fila.js';
-import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta } from './engine/movimientos.js';
+import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
+import { resumenItem } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -76,6 +77,18 @@ export function freshProfile(name) {
     movs: [],
     updated: Date.now(),
   };
+}
+
+/* Una categoría en automático no tiene monto propio: lo saca de sus conceptos,
+   corregido por lo que de verdad pagaste en los que ya cerraste. Se recalcula
+   al guardar y al cargar, así que `it.m` siempre está al día y las demás
+   vistas lo leen igual, sin saber que vino de una suma. */
+export function sincronizarAutomaticas(p, periodo = periodoDe(hoyISO())) {
+  if (!p?.items?.some((it) => it.auto)) return;
+  const pagados = porLinea(p.movs || [], periodo);
+  p.items.forEach((it) => {
+    if (it.auto) it.m = Math.round(resumenItem(it, pagados, periodo).costo);
+  });
 }
 
 /* Cambiar el ingreso del plan cuando el reparto todavía es el de fábrica no
@@ -193,6 +206,7 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
+  sincronizarAutomaticas(p);
   p.recurrentes ??= [];
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
@@ -281,7 +295,7 @@ export function sincronizarMetas(p) {
 
 export function save() {
   const p = active();
-  if (p) { p.updated = Date.now(); sincronizarMetas(p); }
+  if (p) { p.updated = Date.now(); sincronizarAutomaticas(p); sincronizarMetas(p); }
   writeLocal();
   if (p && userId) schedulePush(p.id);
   notify();

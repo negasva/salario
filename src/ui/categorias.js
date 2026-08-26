@@ -29,8 +29,8 @@ export function renderCategorias(root) {
   root.querySelector('#catEqual').onclick = () => {
     const b = balance(p.items, store.incomeRepartir(p));
     if (b.cuadrado) { toast('Ya está todo repartido'); return; }
-    const unlocked = p.items.filter((it) => !it.locked);
-    if (!unlocked.length) { toast('Todas las categorías están bloqueadas'); return; }
+    const unlocked = p.items.filter((it) => !it.locked && !it.auto);
+    if (!unlocked.length) { toast('No hay categorías a las que repartirles'); return; }
     const e = b.dif / unlocked.length;
     unlocked.forEach((it) => { it.m = Math.max(0, Math.round(amount(it) + e)); });
     store.save();
@@ -148,12 +148,19 @@ function catCard(it, p, gastado, gastadoLinea, periodo) {
     <div class="sub cat-desc" contenteditable="${!it.locked}">${esc(it.d || '')}</div>
     ${res.total ? cabeceraPagos(res, p) : ''}
     <div class="cat-fields">
-      <label class="fieldw"><span>Asignas al mes · ${p.cur}</span>
-        <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}" ${it.locked ? 'disabled' : ''}></label>
+      <label class="fieldw"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
+        <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
+          ${it.locked || it.auto ? 'disabled' : ''}></label>
+      <div class="chips cat-modo">
+        <button class="chip ${it.auto ? '' : 'on'}" data-auto="0" ${it.locked ? 'disabled' : ''}>A mano</button>
+        <button class="chip ${it.auto ? 'on' : ''}" data-auto="1" ${it.locked ? 'disabled' : ''}
+          title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
+      </div>
     </div>
-    <div class="sub cat-share">${share > 0 ? `Es el ${share}% de lo que entra este mes.` : 'Sin plata asignada todavía.'}
-      ${sp > 0 && Math.abs(sp - budget) >= 1
-        ? `<button class="mini cat-ajustar" title="Suma lo que escribiste en cada concepto de la lista de abajo y lo pone como monto de la categoría">Igualar a la suma de sus conceptos (${money(sp, p.cur)})</button>`
+    <div class="sub cat-share">
+      <span>${it.auto ? explicacionAuto(res, p) : (share > 0 ? `Es el ${share}% de lo que entra este mes.` : 'Sin plata asignada todavía.')}</span>
+      ${!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1
+        ? `<button class="mini cat-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>`
         : ''}</div>
     <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
     <div class="cat-detail">
@@ -210,6 +217,25 @@ function aporteDelMes(p, goalId) {
 function diaCorto(fecha) {
   const [, m, d] = fecha.split('-').map(Number);
   return `${d} de ${MESES[m - 1]}`;
+}
+
+/* En automático el monto no se teclea, así que la tarjeta tiene que decir de
+   dónde salió: el plan de los conceptos, menos lo ahorrado y más lo que se
+   pasó en los renglones que ya cerraron. */
+function explicacionAuto(res, p) {
+  if (!res.total) return 'Automático: agrega conceptos abajo y el monto sale solo.';
+  const base = `Sale de sus conceptos: <b class="num">${money(res.plan, p.cur)}</b> planeados`;
+  if (!res.cerradas) {
+    return `${base}. Cuando pagues alguno, se ajusta con lo que de verdad te costó.`;
+  }
+  const cuales = res.cerradas === 1 ? 'el renglón que ya pagaste' : `los ${res.cerradas} que ya pagaste`;
+  const ajustes = [
+    res.ahorrado > 0 ? `menos <b class="num">${money(res.ahorrado, p.cur)}</b> que ahorraste` : '',
+    res.excedido > 0 ? `más <b class="num">${money(res.excedido, p.cur)}</b> que se pasaron` : '',
+  ].filter(Boolean).join(' y ');
+  return ajustes
+    ? `${base}, ${ajustes} en ${cuales}.`
+    : `${base}. ${res.cerradas === 1 ? 'El que ya pagaste quedó' : `Los ${res.cerradas} que ya pagaste quedaron`} clavado al plan.`;
 }
 
 /* Encabezado de la categoría: planeado, pagado real y la diferencia con su
@@ -369,13 +395,15 @@ function barraGasto(real, tope, planeado, p) {
       : '';
   }
   const pct = Math.round((real / base) * 100);
-  const color = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+  const color = pct > 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
   return `<div class="sub linea-barra">
     <span>Llevas <b class="num">${money(real, p.cur)}</b> de ${money(base, p.cur)}${tope ? '' : ' planeado'}</span>
     <span class="hist-track"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></span>
-    <span class="${pct >= 100 ? 'over' : ''}"><b>${pct}%</b>${pct >= 100
+    <span class="${pct > 100 ? 'over' : ''}"><b>${pct}%</b>${pct > 100
       ? ' · te pasaste'
-      : ` · quedan ${money(r2(base - real), p.cur)}`}</span>
+      : pct === 100
+        ? ' · completo'
+        : ` · quedan ${money(r2(base - real), p.cur)}`}</span>
   </div>`;
 }
 
@@ -454,18 +482,27 @@ function wireCard(root, it, p) {
   // el plan de renglones ya está sumado abajo: un clic lo sube al presupuesto
   card.querySelector('.cat-ajustar')?.addEventListener('click', () => {
     if (it.locked) { toast('Desbloquea la categoría para cambiarle el monto'); return; }
-    setMonto(spentInItem(it));
+    setMonto(resumenItem(it, porLinea(p.movs, periodoDe(hoyISO())), periodoDe(hoyISO())).costo);
+  });
+
+  card.querySelector('.cat-modo').addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if (!btn || btn.disabled) return;
+    it.auto = btn.dataset.auto === '1';
+    store.save();
+    renderCategorias(root);
+    toast(it.auto ? 'Esta categoría ya se calcula sola' : 'Ahora le pones el monto tú');
   });
 
   const fixBtn = card.querySelector('.cat-fix');
   const b = balance(p.items, store.incomeRepartir(p));
-  if (!it.locked && !b.cuadrado) {
+  if (!it.locked && !it.auto && !b.cuadrado) {
     fixBtn.textContent = b.falta > 0
       ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
       : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`;
     fixBtn.onclick = () => setMonto(amount(it) + b.dif);
   } else {
-    fixBtn.textContent = b.cuadrado ? 'Cuadrado' : 'Bloqueada';
+    fixBtn.textContent = b.cuadrado ? 'Cuadrado' : it.auto ? 'Se calcula sola' : 'Bloqueada';
     fixBtn.disabled = true;
   }
 

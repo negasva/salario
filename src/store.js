@@ -5,7 +5,8 @@ import {
   ordenadas, reasignar, metaCumplida, siguienteEnFila, mover, soltar,
   aplicarTraspaso as traspasar, traspasoVencido,
 } from './engine/fila.js';
-import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta } from './engine/movimientos.js';
+import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
+import { resumenItem } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -13,6 +14,8 @@ import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 const KEY = 'reparto:v8';
 const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
 
+// El porcentaje solo vive aquí, como reparto sugerido para un perfil nuevo:
+// en cuanto se crea el perfil se traduce a plata y ya nadie lo vuelve a mirar.
 export const BASE_ITEMS = [
   { n: 'Esenciales', p: 55, r: 'ese', c: 'var(--ink)', d: 'Renta, servicios, comida, transporte. Es el techo, no la meta.' },
   { n: 'Gasto libre', p: 5, r: 'lib', c: 'var(--pink)', d: 'Tuyo para gastarlo sin sentir culpa.' },
@@ -50,15 +53,18 @@ function nid(prefix) {
   return prefix + seq++;
 }
 
-export function freshItems() {
-  return BASE_ITEMS.map((o) => ({ id: nid('i'), n: o.n, p: o.p, r: o.r, c: o.c, d: o.d, locked: false, L: [] }));
+const INGRESO_INICIAL = 5500000;
+
+export function freshItems(inc = INGRESO_INICIAL) {
+  return BASE_ITEMS.map((o) => ({ id: nid('i'), n: o.n, m: Math.round((inc * o.p) / 100),
+    r: o.r, c: o.c, d: o.d, locked: false, L: [] }));
 }
 
 export function freshProfile(name) {
   return {
     id: nid('p'),
     name,
-    inc: 5500000,
+    inc: INGRESO_INICIAL,
     cur: 'COP',
     paleta: DEFAULT_PALETA,
     ingresoTipo: 'fijo',
@@ -66,11 +72,33 @@ export function freshProfile(name) {
     tasaInteres: 10,
     fondoMeses: 4,
     metodoDeuda: 'avalancha',
-    items: freshItems(),
+    items: freshItems(INGRESO_INICIAL),
     goals: [],
     movs: [],
     updated: Date.now(),
   };
+}
+
+/* Una categoría en automático no tiene monto propio: lo saca de sus conceptos,
+   corregido por lo que de verdad pagaste en los que ya cerraste. Se recalcula
+   al guardar y al cargar, así que `it.m` siempre está al día y las demás
+   vistas lo leen igual, sin saber que vino de una suma. */
+export function sincronizarAutomaticas(p, periodo = periodoDe(hoyISO())) {
+  if (!p?.items?.some((it) => it.auto)) return;
+  const pagados = porLinea(p.movs || [], periodo);
+  p.items.forEach((it) => {
+    if (it.auto) it.m = Math.round(resumenItem(it, pagados, periodo).costo);
+  });
+}
+
+/* Cambiar el ingreso del plan cuando el reparto todavía es el de fábrica no
+   puede dejarlo descuadrado: los montos se reescalan en la misma proporción.
+   Solo se usa en el onboarding; después de eso los montos son tuyos y nadie
+   los toca a tus espaldas. */
+export function reescalarItems(p, incAnterior) {
+  if (!(incAnterior > 0) || !(p.inc > 0)) return;
+  const k = p.inc / incAnterior;
+  p.items.forEach((it) => { it.m = Math.round((Number(it.m) || 0) * k); });
 }
 
 // F18 — ingreso variable: promedio para repartir, minimo para calcular esenciales
@@ -128,13 +156,28 @@ export function activeId() {
 function normalizeProfile(p) {
   p.items = p.items || [];
   p.items.forEach((it) => {
+    /* Migración: los perfiles viejos guardaban el reparto en porcentaje. Se
+       traduce una sola vez a plata sobre el ingreso del plan y el porcentaje
+       se borra, para que no queden dos números diciendo cosas distintas. */
+    if (typeof it.m !== 'number') it.m = Math.round(((p.inc || 0) * (Number(it.p) || 0)) / 100);
+    delete it.p;
     it.L = it.L || [];
     it.L.forEach((l) => { if (l.fixed === undefined) l.fixed = true; });
     if (it.locked === undefined) it.locked = false;
   });
   p.goals = p.goals || [];
+  /* Migración: lo que una meta reclamaba de un bloque era un porcentaje de ese
+     bloque; ahora es plata. Se traduce una sola vez con el monto que el bloque
+     tiene hoy, y la marca queda en el perfil para no volver a convertir. */
+  const metasEnPorcentaje = !p.metasEnPlata;
   p.goals.forEach((g, i) => {
     g.a = g.a || {};
+    if (metasEnPorcentaje) {
+      Object.entries(g.a).forEach(([itemId, pct]) => {
+        const it = p.items.find((x) => x.id === itemId);
+        g.a[itemId] = it ? Math.round(((Number(it.m) || 0) * (Number(pct) || 0)) / 100) : 0;
+      });
+    }
     if (!g.priority) g.priority = 'media';
     // dateMode era booleano; ahora el modo tiene tres estados
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
@@ -143,6 +186,7 @@ function normalizeProfile(p) {
     if (!g.estado) g.estado = 'activa';
     if (typeof g.orden !== 'number') g.orden = g.special ? 0 : i + 1;
   });
+  p.metasEnPlata = true;
   reasignar(ordenadas(p.goals));
   // primero se fija la base con todos los movimientos, y lo que la poda se lleve
   // se suma a esa base: podar dos años de libro no puede borrar tu progreso
@@ -162,6 +206,7 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
+  sincronizarAutomaticas(p);
   p.recurrentes ??= [];
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
@@ -221,7 +266,7 @@ async function flushPush() {
       data: {
         inc: p.inc, cur: p.cur, paleta: p.paleta, ingresoTipo: p.ingresoTipo, ingresoHistorial: p.ingresoHistorial,
         tasaInteres: p.tasaInteres, fondoMeses: p.fondoMeses, metodoDeuda: p.metodoDeuda,
-        items: p.items, goals: p.goals, traspaso: p.traspaso || null,
+        items: p.items, goals: p.goals, metasEnPlata: true, traspaso: p.traspaso || null,
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         recurrentes: p.recurrentes || [],
@@ -250,7 +295,7 @@ export function sincronizarMetas(p) {
 
 export function save() {
   const p = active();
-  if (p) { p.updated = Date.now(); sincronizarMetas(p); }
+  if (p) { p.updated = Date.now(); sincronizarAutomaticas(p); sincronizarMetas(p); }
   writeLocal();
   if (p && userId) schedulePush(p.id);
   notify();
@@ -330,6 +375,7 @@ export async function bootAuth(uid) {
       ingresoHistorial: row.data.ingresoHistorial || [], tasaInteres: row.data.tasaInteres || 10,
       fondoMeses: row.data.fondoMeses || 4, items: row.data.items || [], goals: row.data.goals || [],
       movs: row.data.movs || [], metodoDeuda: row.data.metodoDeuda, traspaso: row.data.traspaso || null,
+      metasEnPlata: row.data.metasEnPlata,
       avisosVistos: row.data.avisosVistos, avisosEnviados: row.data.avisosEnviados,
       alertasSilenciadas: row.data.alertasSilenciadas,
       updated: new Date(row.updated_at).getTime(),
@@ -341,7 +387,7 @@ export async function bootAuth(uid) {
     return { migrated: false };
   }
   // sin perfiles remotos: si hay algo local, se sube como perfil inicial (migracion)
-  const hadLocal = db.profiles.length && db.profiles.some((p) => p.items?.some((it) => it.L?.length) || p.goals?.length || p.inc !== 5500000);
+  const hadLocal = db.profiles.length && db.profiles.some((p) => p.items?.some((it) => it.L?.length) || p.goals?.length || p.inc !== INGRESO_INICIAL);
   for (const p of db.profiles) schedulePush(p.id);
   await flushPush();
   return { migrated: hadLocal };
@@ -407,7 +453,7 @@ export function revisarFila(ahora = Date.now()) {
     p.traspaso = {
       desdeId: desde.id,
       haciaId: hacia.id,
-      monto: monthlyToward(desde, p.items, incomeRepartir(p)),
+      monto: monthlyToward(desde, p.items),
       creado: ahora,
     };
     save();
@@ -435,7 +481,7 @@ export function aplicarTraspasoPendiente(aMano = false) {
   const t = traspasoPendiente();
   p.traspaso = null;
   if (!t) { save(); return null; }
-  traspasar(t.desde, t.hacia, aMano);
+  traspasar(t.desde, t.hacia, aMano, p.items);
   save();
   return t;
 }

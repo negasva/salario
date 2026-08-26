@@ -197,17 +197,21 @@
 .cat-name:focus{outline:none;border-bottom:2px solid var(--pink)}
 .cat-name:disabled{color:var(--ink-lighter)}
 .cat-lock.is-locked{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
-.cat-desc{margin:6px 0 0;color:var(--ink-lighter);font-size:var(--text-xs)}
-.cat-desc:focus{outline:none;color:var(--ink)}
-.cat-fields{display:flex;gap:var(--space-2);margin-top:var(--space-3)}
+.cat-fields{display:flex;gap:var(--space-2);margin-top:var(--space-3);align-items:center;flex-wrap:wrap}
+.cat-modo{flex:none;margin:0}
+.cat-fields .fieldw{flex:1 1 180px}
+.fieldw input:disabled{color:var(--ink-lighter)}
 .fieldw{flex:1;min-width:0;display:flex;align-items:center;gap:4px;background:var(--pink-wash);
   border:1px solid var(--pink-lighter);border-radius:var(--radius-sm);padding:8px 10px}
 .fieldw span{color:var(--ink-lighter);font-size:var(--text-xs);flex:none;font-weight:var(--fw-semibold)}
 .fieldw input{width:100%;background:transparent;border:0;padding:0;font-size:var(--text-base);
   font-weight:var(--fw-bold);text-align:right}
 .fieldw input:focus{outline:none}
-.fieldw.pcent{flex:0 0 100px}
-.cat-range{width:100%;margin-top:var(--space-3)}
+.cat-share{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);
+  margin-top:var(--space-2);flex-wrap:wrap}
+.cat-share>span{flex:1 1 260px}
+.cat-balance{margin-top:var(--space-3);display:flex;flex-direction:column;gap:6px}
+.cat-balance .hist-track{flex:none;height:8px}
 .cat-fix{margin-top:var(--space-2)}
 .ic-sm{width:16px;height:16px}
 .cat-detail{margin-top:var(--space-4);border-top:1px solid var(--border-hairline);padding-top:var(--space-3)}
@@ -308,10 +312,13 @@
 .alloc{margin-bottom:var(--space-4)}
 .alloc-head{display:flex;justify-content:space-between;font-size:var(--text-sm);margin-bottom:5px;gap:8px}
 .alloc-amt{color:var(--ink);font-weight:var(--fw-bold)}
-.alloc input[type=range]{width:100%}
+.alloc-row{display:flex;gap:var(--space-2);align-items:center}
+.alloc-row .fieldw{flex:1}
 .hint{font-size:11px;color:var(--ink-lighter);margin-top:5px}
 
 /* ── historial ────────────────────────────────────────────────────────── */
+.line-arrastre{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:6px}
+.line-arrastre .sub{margin-top:0}
 .line-tope{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;
   padding:0 0 var(--space-2) 0}
 .line-tope .fieldw{max-width:180px}
@@ -452,11 +459,12 @@
 .line-pago .ln-dif,.line-pago .ln-tot{margin-top:0;font-weight:var(--fw-semibold)}
 .line-pago .lpag-add{width:32px;padding:0;font-size:var(--text-base);line-height:1}
 .pagos-lista{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.pago-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;
+.pago-chip{display:inline-flex;align-items:center;gap:2px;padding:4px 4px 4px 4px;
   border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--border-hairline)}
 .pago-chip .sub{margin-top:0;font-size:11px}
 .pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:11px;padding:2px 4px}
 .pago-ed:hover{color:var(--ink);background:var(--white)}
+.pago-nota{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pago-x{width:22px;height:22px;padding:0;border:0;background:transparent;cursor:pointer;
   display:flex;align-items:center;justify-content:center;color:var(--ink-lighter);border-radius:50%}
 .pago-x:hover{background:var(--danger-soft);color:var(--danger)}

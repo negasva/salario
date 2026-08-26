@@ -94,7 +94,9 @@ export function abrirOnboarding(alTerminar) {
       }
       const monto = digits(input.value);
       if (monto <= 0) { err.textContent = 'Escribe cuánto entra al mes.'; input.focus(); return; }
+      const antes = p.inc;
       p.inc = monto;
+      store.reescalarItems(p, antes);
       store.save();
       olvidarMarca();
       overlay.remove();

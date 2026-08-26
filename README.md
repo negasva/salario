@@ -1,6 +1,6 @@
 # Reparto mensual
 
-Presupuesto personal por bloques de porcentaje: esenciales, gasto libre, deudas, ahorro corto plazo, inversión largo plazo. Metas de ahorro que reclaman parte de un bloque, fondo de emergencia automático, plan de recorte cuando falta plata, historial mes a mes.
+Presupuesto personal por categorías, repartido en plata y no en porcentajes: esenciales, gasto libre, deudas, ahorro corto plazo, inversión largo plazo. A cada categoría le asignas cuánto le toca al mes y la app te dice cuánto falta por repartir o por cuánto te pasaste. Metas de ahorro que reclaman parte de un bloque, fondo de emergencia automático, plan de recorte cuando falta plata, historial mes a mes.
 
 ## Correr en local
 

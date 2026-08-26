@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea, pagosLibresDeItem, quitarPago, movimientosDeAhorro, ahorroRepartido, promedioVariables } from './pagos.js';
+import {
+  estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea,
+  pagosLibresDeItem, quitarPago,
+  movimientosDeAhorro, ahorroRepartido, promedioVariables,
+  arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior,
+} from './pagos.js';
 
 const linea = (id, n, v, extra = {}) => ({ id, n, v, fixed: true, ...extra });
 const gasto = (id, lineId, monto, fecha = '2026-08-10') => ({ id, fecha, tipo: 'gasto', monto, itemId: 'i1', lineId });
@@ -145,5 +150,109 @@ describe('promedioVariables', () => {
 
   it('un solo mes no da promedio', () => {
     expect(promedioVariables([cierre('2026-07', 430000)])).toHaveLength(0);
+  });
+});
+
+
+describe('arrastre de un mes al siguiente', () => {
+  it('sabe cuál es el mes de antes y el de después, con el salto de año', () => {
+    expect(siguientePeriodo('2026-08')).toBe('2026-09');
+    expect(siguientePeriodo('2026-12')).toBe('2027-01');
+    expect(mesAnterior('2026-08')).toBe('2026-07');
+    expect(mesAnterior('2026-01')).toBe('2025-12');
+  });
+
+  it('sin arrastre el renglón vale su plan de siempre', () => {
+    expect(planDeLinea({ v: 480000 }, '2026-08')).toBe(480000);
+    expect(arrastreDe({ v: 480000 }, '2026-08')).toBe(0);
+  });
+
+  it('lo que no se pagó se pasa al mes siguiente y allá el renglón vale el doble', () => {
+    const l = { id: 'l1', v: 480000 };
+    pasarAlSiguiente(l, '2026-08', 480000);
+    expect(planDeLinea(l, '2026-09')).toBe(960000);
+    expect(planDeLinea(l, '2026-08')).toBe(480000);
+  });
+
+  it('dos meses seguidos sin pagar se acumulan', () => {
+    const l = { id: 'l1', v: 480000 };
+    pasarAlSiguiente(l, '2026-08', 480000);
+    pasarAlSiguiente(l, '2026-08', 200000);
+    expect(arrastreDe(l, '2026-09')).toBe(680000);
+  });
+
+  it('pasar cero o negativo no hace nada', () => {
+    const l = { id: 'l1', v: 480000 };
+    expect(pasarAlSiguiente(l, '2026-08', 0)).toBe(0);
+    expect(arrastreDe(l, '2026-09')).toBe(0);
+  });
+
+  it('un arrastre puesto por error se puede quitar', () => {
+    const l = { id: 'l1', v: 480000 };
+    pasarAlSiguiente(l, '2026-08', 480000);
+    quitarArrastre(l, '2026-09');
+    expect(planDeLinea(l, '2026-09')).toBe(480000);
+  });
+
+  it('el resumen del mes cobra el arrastre y dice cuánto falta', () => {
+    const l = { id: 'l1', n: 'Administración', v: 480000, arrastre: { '2026-09': 480000 } };
+    const [fila] = resumenItem({ L: [l] }, { l1: 300000 }, '2026-09').filas;
+    expect(fila.plan).toBe(960000);
+    expect(fila.arrastre).toBe(480000);
+    expect(fila.pendiente).toBe(660000);
+    expect(fila.estado).toBe('parcial');
+  });
+});
+
+
+describe('lo que la categoria cuesta de verdad', () => {
+  const it2 = (extra) => ({ L: [
+    linea('l1', 'Arriendo', 1000000),
+    linea('l2', 'Mercado', 600000),
+    linea('l3', 'Internet', 100000),
+    ...extra,
+  ] });
+
+  it('sin pagos el costo es el plan entero', () => {
+    const r = resumenItem(it2([]), {}, '2026-08');
+    expect(r.costo).toBe(1700000);
+    expect(r.ahorrado).toBe(0);
+    expect(r.excedido).toBe(0);
+  });
+
+  it('un renglon cerrado por debajo del plan baja el costo', () => {
+    // el arriendo se cierra con 900.000: 100.000 ahorrados
+    const item = it2([]);
+    item.L[0].pagadoEn = '2026-08';
+    const r = resumenItem(item, { l1: 900000 }, '2026-08');
+    expect(r.ahorrado).toBe(100000);
+    expect(r.costo).toBe(1600000);
+  });
+
+  it('un renglon cerrado por encima del plan sube el costo', () => {
+    const r = resumenItem(it2([]), { l1: 1200000 }, '2026-08');
+    expect(r.excedido).toBe(200000);
+    expect(r.costo).toBe(1900000);
+  });
+
+  it('un renglon a medio pagar todavia cuenta por su plan', () => {
+    const r = resumenItem(it2([]), { l2: 200000 }, '2026-08');
+    expect(r.ahorrado).toBe(0);
+    expect(r.costo).toBe(1700000);
+  });
+
+  it('mezcla ahorros y excesos en la misma categoria', () => {
+    const item = it2([]);
+    item.L[0].pagadoEn = '2026-08';
+    const r = resumenItem(item, { l1: 900000, l3: 130000 }, '2026-08');
+    expect(r.ahorrado).toBe(100000);
+    expect(r.excedido).toBe(30000);
+    expect(r.costo).toBe(1630000);
+  });
+
+  it('la deuda arrastrada entra en el plan y por tanto en el costo', () => {
+    const item = it2([]);
+    item.L[0].arrastre = { '2026-08': 1000000 };
+    expect(resumenItem(item, {}, '2026-08').costo).toBe(2700000);
   });
 });

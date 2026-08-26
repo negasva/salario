@@ -1,4 +1,5 @@
-import { amount, r2 } from './reparto.js';
+import { amount, shareOf, r2 } from './reparto.js';
+import { planDeLinea } from './pagos.js';
 import { periodoDe, hoyISO, porItem, porLinea, ingresoReal, aportesAMeta } from './movimientos.js';
 
 /* El cierre de mes. Los snapshots viejos traen cuatro campos y no llevan
@@ -45,22 +46,22 @@ export function construirSnapshot(p, periodo, income, previo = {}) {
     ingresoReal: ing.total,
     ingresoExtra: ing.extra,
     items: p.items.map((it) => ({
-      itemId: it.id, nombre: it.n, pct: it.p,
-      plan: r2(amount(it, income)), real: r2(gastos[it.id] || 0),
+      itemId: it.id, nombre: it.n, pct: shareOf(it, income),
+      plan: r2(amount(it)), real: r2(gastos[it.id] || 0),
     })),
     // se guarda el renglon aunque no se haya pagado: un mes en cero tambien
     // cuenta para el promedio, y sin `plan` no hay contra que compararlo
     lineas: Object.fromEntries(p.items.flatMap((it) => (it.L || [])
       .filter((l) => lineas[l.id] || Number(l.v) > 0)
-      .map((l) => [l.id, { nombre: l.n, itemId: it.id, plan: Number(l.v) || 0,
+      .map((l) => [l.id, { nombre: l.n, itemId: it.id, plan: planDeLinea(l, periodo),
         fixed: l.fixed !== false, real: r2(lineas[l.id] || 0) }]))),
     metas: p.goals.map((g) => ({
       goalId: g.id, nombre: g.n,
       aportado: r2(aportesAMeta(p.movs, g.id).porPeriodo[periodo] || 0),
       acumulado: r2(g.s || 0),
     })),
-    essentialsShare: ese?.p || 0,
-    ahorroRate: r2((cor?.p || 0) + (lar?.p || 0)),
+    essentialsShare: shareOf(ese, income),
+    ahorroRate: r2(shareOf(cor, income) + shareOf(lar, income)),
     borrador: true,
     nota: '',
     cerradoEn: new Date().toISOString(),

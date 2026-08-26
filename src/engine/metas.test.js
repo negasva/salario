@@ -85,9 +85,9 @@ describe('F5 meta por plazo en meses', () => {
 describe('F6 plan de recorte', () => {
   it('nunca toca renglones fijos ni bloques que no existen', () => {
     const items = [
-      { r: 'lib', p: 10 },
-      { r: 'ese', p: 50, L: [{ v: 100000, fixed: false }] },
-      { r: 'lar', p: 15 },
+      { r: 'lib', m: 100000 },
+      { r: 'ese', m: 500000, L: [{ v: 100000, fixed: false }] },
+      { r: 'lar', m: 150000 },
     ];
     const recortes = planRecorte(50000, { items, income: 1000000, fondoCompleto: false });
     expect(recortes.find((r) => r.id === 'r-corto')).toBeUndefined();
@@ -102,23 +102,27 @@ describe('F8 costo de oportunidad', () => {
 });
 
 describe('F2.2 metas que reclaman un bloque', () => {
-  const item = { id: 'i1', p: 20 };   // 20% de 5.000.000 = 1.000.000 al mes
+  const item = { id: 'i1', m: 1000000 };   // un millón asignado al mes
 
   it('devuelve una fila por meta, con su monto mensual', () => {
-    const moto = { id: 'g1', n: 'Moto', a: { i1: 88 } };
-    const fondo = { id: 'g2', n: 'Fondo', special: 'emergencia', a: { i1: 12 } };
-    expect(metasEnItem([moto, fondo], item, 5000000)).toEqual([
-      { goal: moto, pct: 88, monto: 880000 },
-      { goal: fondo, pct: 12, monto: 120000 },
+    const moto = { id: 'g1', n: 'Moto', a: { i1: 880000 } };
+    const fondo = { id: 'g2', n: 'Fondo', special: 'emergencia', a: { i1: 120000 } };
+    expect(metasEnItem([moto, fondo], item)).toEqual([
+      { goal: moto, monto: 880000 },
+      { goal: fondo, monto: 120000 },
     ]);
   });
 
+  it('una meta no se lleva mas de lo que el bloque tiene asignado', () => {
+    expect(metasEnItem([{ id: 'g1', a: { i1: 9000000 } }], item)[0].monto).toBe(1000000);
+  });
+
   it('un bloque sin metas devuelve vacío', () => {
-    expect(metasEnItem([{ id: 'g1', a: { otro: 50 } }], item, 5000000)).toEqual([]);
+    expect(metasEnItem([{ id: 'g1', a: { otro: 500000 } }], item)).toEqual([]);
   });
 
   it('un pct de 0 no aparece', () => {
-    expect(metasEnItem([{ id: 'g1', a: { i1: 0 } }, { id: 'g2', a: {} }], item, 5000000)).toEqual([]);
+    expect(metasEnItem([{ id: 'g1', a: { i1: 0 } }, { id: 'g2', a: {} }], item)).toEqual([]);
   });
 });
 
@@ -133,16 +137,16 @@ describe('F9 metas en competencia', () => {
 });
 
 describe('F9 orden por prioridad', () => {
-  const items = [{ id: 'i1', p: 100 }];
-  const mk = (id, priority) => ({ id, priority, t: 100000, s: 0, a: { i1: 100 } });
+  const items = [{ id: 'i1', m: 1000000 }];
+  const mk = (id, priority) => ({ id, priority, t: 100000, s: 0, a: { i1: 1000000 } });
 
   it('ordena alta, media, baja sin importar el orden de entrada', () => {
     const baja = { ...mk('baja', 'baja'), t: 300000 };
     const media = { ...mk('media', 'media'), t: 200000 };
     const alta = { ...mk('alta', 'alta'), t: 100000 };
-    // 1.000.000 de ingreso, el bloque i1 es el 100%: 1 mes por cada millon
-    const a = secuenciaPlazos([baja, media, alta], items, 1000000);
-    const b = secuenciaPlazos([alta, baja, media], items, 1000000);
+    // el bloque i1 aporta 1.000.000 al mes: 1 mes por cada millon
+    const a = secuenciaPlazos([baja, media, alta], items);
+    const b = secuenciaPlazos([alta, baja, media], items);
     expect(a.paralelo).toEqual([1, 1, 1]);
     expect(a.secuencia).toEqual([1, 2, 3]);
     expect(b).toEqual(a);
@@ -157,28 +161,28 @@ describe('F9 orden por prioridad', () => {
 
 describe('F7.2 aplicar un recorte', () => {
   const base = () => [
-    { id: 'lib', r: 'lib', p: 10 },
-    { id: 'cor', r: 'cor', p: 15 },
-    { id: 'lar', r: 'lar', p: 15 },
+    { id: 'lib', r: 'lib', m: 500000 },
+    { id: 'cor', r: 'cor', m: 750000 },
+    { id: 'lar', r: 'lar', m: 750000 },
   ];
 
-  it('pasa los puntos del bloque de origen al de la meta', () => {
+  it('pasa la plata del bloque de origen al de la meta', () => {
     const items = base();
-    const ok = aplicarRecorte({ id: 'r-libre', monto: 400000 }, items, 5000000, { a: { cor: 90 } });
+    const ok = aplicarRecorte({ id: 'r-libre', monto: 400000 }, items, { a: { cor: 90 } });
     expect(ok).toBe(true);
-    expect(items[0].p).toBe(2); // 10% menos los 8 puntos de 400.000 sobre 5.000.000
-    expect(items[1].p).toBe(23);
+    expect(items[0].m).toBe(100000);
+    expect(items[1].m).toBe(1150000);
   });
 
   it('no baja un bloque por debajo de cero', () => {
     const items = base();
-    aplicarRecorte({ id: 'r-inv', monto: 99000000 }, items, 5000000, { a: { cor: 100 } });
-    expect(items[2].p).toBe(0);
-    expect(items[1].p).toBe(30);
+    aplicarRecorte({ id: 'r-inv', monto: 99000000 }, items, { a: { cor: 100 } });
+    expect(items[2].m).toBe(0);
+    expect(items[1].m).toBe(1500000); // solo se mueve lo que de verdad había
   });
 
   it('no hace nada si el origen es el destino', () => {
     const items = base();
-    expect(aplicarRecorte({ id: 'r-corto', monto: 100000 }, items, 5000000, { a: { cor: 100 } })).toBe(false);
+    expect(aplicarRecorte({ id: 'r-corto', monto: 100000 }, items, { a: { cor: 100 } })).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import { balance, amount, shareOf, r2, diagnosticoEsenciales } from '../engine/reparto.js';
 import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
 import { renglonesQueCrecieron, renglonesSobreTope } from '../engine/alertas.js';
-import { porItem, porLinea } from '../engine/movimientos.js';
+import { porLinea } from '../engine/movimientos.js';
 import { pintarResultados } from './buscador.js';
 import { preguntarIA, explicar } from '../ia.js';
 import { icon } from './icons.js';
@@ -10,6 +10,7 @@ import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { periodoDe, hoyISO, ingresoReal, resumenFlujo, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
 import { tarjetaResumenFlujo } from './resumen.js';
+import { resumenItem, pagosLibresDeItem } from '../engine/pagos.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -396,6 +397,8 @@ function cablearPregunta(root, p, datos) {
     const q = input.value.trim();
     if (q.length < 4) return;
     salida.textContent = 'Pensando…';
+    const periodo = periodoDe(hoyISO());
+    const pagadoPorLinea = porLinea(p.movs, periodo);
     const contexto = {
       moneda: p.cur,
       ingresoDelMes: datos.ing.total,
@@ -407,7 +410,12 @@ function cablearPregunta(root, p, datos) {
       esencialesPctDelIngreso: datos.diag ? datos.diag.share : null,
       bloques: p.items.map((it) => ({
         nombre: it.n, presupuesto: Math.round(amount(it)), porcentaje: shareOf(it, datos.inc),
-        gastado: Math.round(porItem(p.movs, periodoDe(hoyISO()))[it.id] || 0),
+        gastado: Math.round(resumenItem(
+          it,
+          pagadoPorLinea,
+          periodo,
+          pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0),
+        ).pagado),
       })),
       metas: p.goals.map((g) => ({ nombre: g.n, objetivo: g.t, llevas: g.s || 0, estado: g.estado })),
     };

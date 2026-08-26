@@ -110,7 +110,7 @@ function catCard(it, p, gastadoLinea, periodo) {
         title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
       <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
     </div>
-    ${cabeceraPagos(res, p)}
+    ${cabeceraPagos(res, p, budget)}
     <div class="cat-fields">
       <label class="fieldw money-field"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
         <span class="money-symbol" aria-hidden="true">$</span>
@@ -189,15 +189,16 @@ function explicacionAuto(res, p) {
     : `${base}. ${res.cerradas === 1 ? 'El que ya pagaste quedó' : `Los ${res.cerradas} que ya pagaste quedaron`} clavado al plan.`;
 }
 
-/* Encabezado de la categoría: planeado, pagado real y la diferencia con su
-   nombre. Un ahorro que se llama "diferencia" no se celebra igual. */
-function cabeceraPagos(res, p) {
-  const ahorro = res.diferencia >= 0;
+/* Encabezado de la categoría: el plan es la asignación mensual que define el
+   usuario; los conceptos sirven para desglosarla, no para reemplazarla. */
+function cabeceraPagos(res, p, planeado) {
+  const diferencia = r2(planeado - res.pagado);
+  const ahorro = diferencia >= 0;
   return `<div class="pagos-head">
-    <div class="ph-cifra"><span class="label">Total planeado</span><b class="num">${money(res.plan, p.cur)}</b></div>
+    <div class="ph-cifra"><span class="label" title="La asignación mensual que esperas gastar">Total planeado</span><b class="num">${money(planeado, p.cur)}</b></div>
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
-    ${res.plan > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
-      <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(res.diferencia), p.cur)}</b></div>` : ''}
+    ${planeado > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
+      <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(diferencia), p.cur)}</b></div>` : ''}
   </div>`;
 }
 

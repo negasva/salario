@@ -51,7 +51,13 @@ describe('F6.1 aviso de fin de mes', () => {
   });
 
   it('a cinco días dice cuánto llevas registrado de cuánto presupuestado', () => {
-    const p = perfil({ movs: [{ fecha: '2026-08-03', tipo: 'gasto', monto: 3200000, itemId: 'ese' }] });
+    const p = perfil({
+      items: [
+        { id: 'ese', n: 'Esenciales', p: 55, r: 'ese', L: [{ v: 3000000 }] },
+        { id: 'cor', n: 'Corto', p: 15, r: 'cor', L: [{ v: 500000 }] },
+      ],
+      movs: [{ fecha: '2026-08-03', tipo: 'gasto', monto: 3200000, itemId: 'ese' }],
+    });
     const av = avisoFinDeMes(p, INC, hoy);
     expect(av.titulo).toBe('Quedan 5 días de agosto');
     expect(plano(av.cuerpo)).toContain('$3,2 M registrados');

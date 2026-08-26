@@ -1,5 +1,5 @@
 import { MES } from './metas.js';
-import { amount } from './reparto.js';
+import { spentInItem } from './reparto.js';
 import { periodoDe, hoyISO, gastoTotal } from './movimientos.js';
 import { money, moneyCorto } from '../format.js';
 
@@ -42,7 +42,7 @@ export function avisoFinDeMes(p, income, hoy = new Date()) {
   const periodo = periodoDe(hoyISO(hoy));
   const mes = MES[hoy.getMonth()];
   const registrado = gastoTotal(p.movs || [], periodo);
-  const presupuestado = (p.items || []).reduce((s, it) => s + amount(it, income), 0);
+  const presupuestado = (p.items || []).reduce((s, it) => s + spentInItem(it), 0);
   const texto = {
     5: {
       titulo: `Quedan ${dias(quedan)} de ${mes}`,

@@ -189,12 +189,14 @@
 .cats-head{display:flex;gap:var(--space-2);flex-wrap:wrap}
 .cats-head #catAdd{flex:1;min-width:200px}
 .cat-card{margin-bottom:0}
+.cat-card.locked{border-color:var(--danger)}
 .cat-top{display:flex;align-items:center;gap:var(--space-2)}
 .dot{width:10px;height:10px;border-radius:3px;flex:none}
 .cat-name{flex:1;min-width:0;background:transparent;border:0;font-size:var(--text-base);
   font-weight:var(--fw-bold);padding:2px 0}
 .cat-name:focus{outline:none;border-bottom:2px solid var(--pink)}
 .cat-name:disabled{color:var(--ink-lighter)}
+.cat-lock.is-locked{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
 .cat-desc{margin:6px 0 0;color:var(--ink-lighter);font-size:var(--text-xs)}
 .cat-desc:focus{outline:none;color:var(--ink)}
 .cat-fields{display:flex;gap:var(--space-2);margin-top:var(--space-3)}
@@ -453,6 +455,8 @@
 .pago-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;
   border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--border-hairline)}
 .pago-chip .sub{margin-top:0;font-size:11px}
+.pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:11px;padding:2px 4px}
+.pago-ed:hover{color:var(--ink);background:var(--white)}
 .pago-x{width:22px;height:22px;padding:0;border:0;background:transparent;cursor:pointer;
   display:flex;align-items:center;justify-content:center;color:var(--ink-lighter);border-radius:50%}
 .pago-x:hover{background:var(--danger-soft);color:var(--danger)}

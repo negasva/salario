@@ -13,7 +13,7 @@ export function estadoLinea(pagado, plan, cerrado) {
 
 const CERRADAS = ['pagado', 'excedido'];
 
-export function resumenItem(it, pagadoPorLinea = {}, periodo) {
+export function resumenItem(it, pagadoPorLinea = {}, periodo, pagadoLibre = 0) {
   const filas = (it.L || []).map((l) => {
     const plan = Number(l.v) || 0;
     const pagado = r2(pagadoPorLinea[l.id] || 0);
@@ -21,7 +21,7 @@ export function resumenItem(it, pagadoPorLinea = {}, periodo) {
       estado: estadoLinea(pagado, plan, l.pagadoEn === periodo) };
   });
   const plan = r2(filas.reduce((s, f) => s + f.plan, 0));
-  const pagado = r2(filas.reduce((s, f) => s + f.pagado, 0));
+  const pagado = r2(filas.reduce((s, f) => s + f.pagado, 0) + (Number(pagadoLibre) || 0));
   return { periodo, filas, plan, pagado, diferencia: r2(plan - pagado),
     cerradas: filas.filter((f) => CERRADAS.includes(f.estado)).length, total: filas.length };
 }
@@ -48,6 +48,21 @@ export function agregarPago(movs, it, l, monto, fecha, nota) {
     goalId: null, nota: nota || `Pago ${l.n || 'sin nombre'}`, extra: false };
   movs.push(mov);
   return mov;
+}
+
+export function agregarPagoLibre(movs, it, monto, fecha, nota) {
+  const m = r2(monto);
+  if (!(m > 0)) return null;
+  const mov = { id: nid(), fecha, tipo: 'gasto', monto: m, itemId: it.id, lineId: null,
+    goalId: null, nota: nota || 'Pago', extra: false };
+  movs.push(mov);
+  return mov;
+}
+
+export function pagosLibresDeItem(movs, itemId, periodo) {
+  return movs
+    .filter((m) => m.tipo === 'gasto' && m.itemId === itemId && !m.lineId && !m.goalId && periodoDe(m.fecha) === periodo)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 // Los pagos de ese renglón en ese mes, del más viejo al más nuevo

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { estadoLinea, resumenItem, resumenMes, agregarPago, pagosDeLinea, quitarPago, movimientosDeAhorro, ahorroRepartido, promedioVariables } from './pagos.js';
+import { estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea, pagosLibresDeItem, quitarPago, movimientosDeAhorro, ahorroRepartido, promedioVariables } from './pagos.js';
 
 const linea = (id, n, v, extra = {}) => ({ id, n, v, fixed: true, ...extra });
 const gasto = (id, lineId, monto, fecha = '2026-08-10') => ({ id, fecha, tipo: 'gasto', monto, itemId: 'i1', lineId });
@@ -33,6 +33,12 @@ describe('resumen', () => {
     const r = resumenItem(it1, { l1: 300000, l2: 520000 }, '2026-08');
     expect(r.cerradas).toBe(2);
     expect(r.total).toBe(3);
+  });
+
+  it('suma pagos libres al pagado del bloque', () => {
+    const r = resumenItem(it1, { l1: 280000 }, '2026-08', 40000);
+    expect(r.plan).toBe(920000);
+    expect(r.pagado).toBe(320000);
   });
 
   it('el mes agrega todas las categorias', () => {
@@ -77,6 +83,15 @@ describe('pagos por transacción', () => {
     expect(agregarPago(movs, item, l, 0, '2026-08-03')).toBe(null);
     expect(agregarPago(movs, item, l, -5000, '2026-08-03')).toBe(null);
     expect(movs).toHaveLength(0);
+  });
+
+  it('permite pagos sin concepto y los filtra por bloque y mes', () => {
+    const movs = [];
+    const item = { id: 'i1' };
+    agregarPagoLibre(movs, item, 70000, '2026-08-03', 'Taxi');
+    agregarPagoLibre(movs, item, 50000, '2026-07-03', 'Anterior');
+    expect(pagosLibresDeItem(movs, 'i1', '2026-08').map((m) => m.nota)).toEqual(['Taxi']);
+    expect(movs[0]).toMatchObject({ itemId: 'i1', lineId: null, nota: 'Taxi' });
   });
 
   it('lista solo los pagos de ese renglón y ese mes, en orden', () => {

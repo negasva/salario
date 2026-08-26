@@ -1,26 +1,26 @@
 /* ── layout: la app vive dentro de un panel blanco flotante ───────────── */
 .shell{min-height:100vh;background:var(--pink-wash);display:flex;justify-content:center;
   padding:var(--space-6) var(--space-5)}
-.shell-panel{width:100%;max-width:1220px;display:flex;background:var(--white);
+.shell-panel{width:100%;max-width:1220px;display:flex;flex-direction:column;background:var(--white);
   border-radius:var(--radius-xl);box-shadow:var(--shadow-xl);overflow:hidden}
 
-.sidebar{width:88px;flex:none;background:var(--ink);display:flex;flex-direction:column;position:relative;
-  align-items:center;padding:var(--space-6) 0 var(--space-4);gap:var(--space-2)}
+.sidebar{width:100%;height:72px;flex:none;background:var(--ink);display:flex;flex-direction:row;position:sticky;
+  top:0;z-index:30;align-items:center;padding:var(--space-2) var(--space-4);gap:var(--space-2)}
 .sidebar .brand{width:44px;height:44px;border-radius:var(--radius-pill);background:var(--pink);
   color:var(--on-pink);display:flex;align-items:center;justify-content:center;
   font-weight:var(--fw-black);font-size:var(--text-sm);letter-spacing:var(--tracking-tight);
-  margin-bottom:var(--space-6);flex:none}
-.sidebar nav{display:flex;flex-direction:column;gap:var(--space-2);flex:1}
+  margin:0;flex:none}
+.sidebar nav{display:flex;flex-direction:row;gap:var(--space-2);flex:1;overflow-x:auto}
 .sidebar .navlink{width:40px;height:40px;padding:0;border:none;background:transparent;
   color:var(--text-on-ink-muted);border-radius:var(--radius-sm);
   display:flex;align-items:center;justify-content:center}
 .sidebar .navlink:hover{background:var(--ink-light);border:none;color:var(--white)}
 .sidebar .navlink.on{background:var(--pink);color:var(--on-pink)}
 .sidebar .navlink.on:hover{background:var(--pink);color:var(--on-pink)}
-.sidebar .logout{margin-top:auto}
+.sidebar .logout{margin:0 0 0 auto}
 .palette-control{position:relative;flex:none}
-.palette-trigger{margin-top:var(--space-2)}
-.palette-menu{position:absolute;left:calc(100% + 12px);bottom:0;width:230px;padding:var(--space-3);
+.palette-trigger{margin:0}
+.palette-menu{position:absolute;left:auto;right:0;bottom:auto;top:calc(100% + 8px);width:230px;padding:var(--space-3);
   background:var(--white);border:1px solid var(--border-card);border-radius:var(--radius-md);
   box-shadow:var(--shadow-xl);z-index:40}
 .palette-menu[hidden]{display:none}
@@ -365,13 +365,13 @@
 
 @media (max-width:720px){
   .shell{padding:0}
-  .shell-panel{border-radius:0;flex-direction:column;box-shadow:none;min-height:100vh}
-  .sidebar{width:100%;flex-direction:row;padding:var(--space-2) var(--space-3);align-items:center}
+  .shell-panel{border-radius:0;box-shadow:none;min-height:100vh}
+  .sidebar{height:56px;padding:var(--space-2) var(--space-3)}
   .sidebar .brand{margin-bottom:0;width:36px;height:36px}
   .sidebar nav{flex-direction:row;overflow-x:auto}
-  .sidebar .logout{margin-top:0;margin-left:auto}
-  .palette-control{margin-left:auto}
-  .palette-trigger{margin-top:0}
+  .sidebar .logout{margin:0 0 0 auto}
+  .palette-control{margin-left:0}
+  .palette-trigger{margin:0}
   .palette-menu{left:auto;right:0;bottom:auto;top:calc(100% + 8px)}
   .topbar{padding:0 var(--space-4)}
   .topbar .search{width:auto;flex:1}

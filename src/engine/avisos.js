@@ -46,7 +46,7 @@ export function avisoFinDeMes(p, hoy = new Date()) {
   const texto = {
     5: {
       titulo: `Quedan ${dias(quedan)} de ${mes}`,
-      cuerpo: `Llevas ${moneyCorto(registrado, p.cur)} registrados de ${moneyCorto(presupuestado, p.cur)} presupuestados.`,
+      cuerpo: `Llevas ${moneyCorto(registrado, p.cur)} registrados de ${moneyCorto(presupuestado, p.cur)} asignados a categorías.`,
     },
     3: {
       titulo: `Faltan ${dias(quedan)} para el cierre de ${mes}`,

@@ -2,10 +2,10 @@ import { icon } from './icons.js';
 
 /* Un solo modal para toda la app. Se cierra con la X, tocando fuera o con Esc,
    y devuelve el cuerpo vacío para que cada pantalla escriba lo suyo dentro. */
-export function abrirModal({ titulo = '', clase = '', alCerrar } = {}) {
+export function abrirModal({ titulo = '', alCerrar } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay on';
-  overlay.innerHTML = `<div class="sheet ${clase}" role="dialog" aria-modal="true">
+  overlay.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><h3>${titulo}</h3>
         <button class="btn-del modal-x" aria-label="Cerrar">${icon('cerrar')}</button></div>
       <div class="modal-body"></div>

@@ -170,9 +170,9 @@ function catCard(it, p, gastadoLinea, periodo) {
       <span class="dot" style="background:${it.c}"></span>
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
-        ${it.locked ? `<span class="bloque-candado" title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
+        ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
       <b class="bloque-m num">${money(budget, p.cur)}</b>
-      <button class="bloque-ed cat-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
+      <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
       <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
         ${res.total ? ` · ${res.cerradas} de ${res.total} pagados` : ''}
         ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
@@ -192,8 +192,7 @@ function catCard(it, p, gastadoLinea, periodo) {
 
 /* El pop-up de la categoría: el mismo componente modal que usan los ítems. */
 function abrirCatSheet(root, it, p) {
-  const { cuerpo, cerrar } = abrirModal({ titulo: 'Categoría', clase: 'cat-sheet',
-    alCerrar: () => renderCategorias(root) });
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Categoría', alCerrar: () => renderCategorias(root) });
 
   const guardar = () => { store.save(); pintar(); };
 
@@ -373,7 +372,7 @@ function pagoChip(m, p) {
 
 function openPagoEditor(it, p, mov = null, repintar) {
   const line = mov?.lineId ? it.L.find((l) => l.id === mov.lineId) : null;
-  const { cuerpo, cerrar } = abrirModal({ titulo: mov ? 'Editar pago' : 'Agregar pago', clase: 'pago-sheet' });
+  const { cuerpo, cerrar } = abrirModal({ titulo: mov ? 'Editar pago' : 'Agregar pago' });
   cuerpo.innerHTML = `
       <div class="pago-form">
         <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(mov?.nota || line?.n || '')}" placeholder="Ej. almuerzo"></label>
@@ -425,8 +424,7 @@ function bloqueItem({ l, plan, pagado, estado }, p) {
 /* El pop-up del concepto: todo lo que antes colgaba de la tarjeta. Se repinta
    solo tras cada cambio y la lista de atrás se refresca al cerrar. */
 function abrirItemSheet(root, it, l, p) {
-  const { cuerpo } = abrirModal({ titulo: 'Concepto', clase: 'item-sheet',
-    alCerrar: () => renderCategorias(root) });
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Concepto', alCerrar: () => renderCategorias(root) });
 
   const guardar = () => { store.save(); pintar(); };
 
@@ -500,7 +498,7 @@ function abrirItemSheet(root, it, l, p) {
         () => { it.L.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'lineId', l.id); },
         () => { it.L.splice(idx, 0, l); p.movs.push(...pagos); }
       );
-      cuerpo.closest('.overlay').querySelector('.modal-x').click();
+      cerrar();
       toast('Concepto eliminado', () => { undo(); renderCategorias(root); });
     };
   }

@@ -67,11 +67,16 @@ export function abrirOnboarding(alTerminar) {
     if (d.edad) p.edad = Number(d.edad);
     if (d.inc > 0) p.inc = d.inc;
     p.gastoMaximo = d.tope;
+    /* Rehacer el paso a paso desde Ajustes no puede duplicar lo que ya tienes:
+       si el nombre ya existe, se respeta lo que hay. */
+    const igual = (a, b) => a.trim().toLowerCase() === String(b || '').trim().toLowerCase();
     d.gastos.filter((g) => g.n.trim()).forEach((g) => {
+      if (p.items.some((it) => igual(g.n, it.n))) return;
       p.items.push(store.nuevoItem(g.n.trim(), g.m, 'ese'));
     });
     // un ingreso recurrente es la misma plantilla mensual de Movimientos
     d.ingresos.filter((i) => i.n.trim() && i.monto > 0).forEach((i) => {
+      if (p.recurrentes.some((r) => r.tipo === 'ingreso' && igual(i.n, r.nota))) return;
       p.recurrentes.push({ id: nid('r'), tipo: 'ingreso', monto: i.monto, cur: i.cur,
         itemId: null, lineId: null, goalId: null, nota: i.n.trim(), dia: i.dia });
     });

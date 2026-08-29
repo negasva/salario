@@ -272,7 +272,13 @@ describe('precargarFijos', () => {
     expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-01')).toBe(1);
     expect(p.movs).toHaveLength(1);
     expect(p.movs[0]).toMatchObject({ lineId: 'l1', monto: 1200000, tipo: 'gasto' });
-    expect(p.items[0].L[0].pagadoEn).toBe('2026-09');
+    expect(p.items[0].L[0].autoPagadoEn).toBe('2026-09');
+  });
+
+  it('borrar el pago precargado no deja el renglón marcado como pagado', () => {
+    const p = perfil();
+    precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
+    expect(p.items[0].L[0].pagadoEn).toBeUndefined();
   });
 
   it('no precarga dos veces el mismo mes', () => {

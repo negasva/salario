@@ -557,7 +557,6 @@ function wireCard(root, it, p) {
   });
 
   card.querySelectorAll('.pagos-lista').forEach((el) => {
-    const linea = it.L.find((x) => x.id === el.dataset.lid);
     el.querySelectorAll('.pago-chip').forEach((chip) => {
       chip.querySelector('.pago-ed').onclick = () => {
         const mov = p.movs.find((m) => m.id === chip.dataset.mid);

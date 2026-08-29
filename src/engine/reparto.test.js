@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  amount, total, shareOf, balance, spentInItem, spentAll, fixedVariableSplit,
-  totalMetas, diagnosticoEsenciales, r2, clamp, lines,
+  amount, total, shareOf, balance, spentInItem, fixedVariableSplit,
+  totalMetas, diagnosticoEsenciales,
 } from './reparto.js';
 
 describe('reparto basico', () => {

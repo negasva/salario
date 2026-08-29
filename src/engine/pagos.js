@@ -118,13 +118,15 @@ export function precargarFijos(items = [], movs = [], periodo, fecha) {
   items.forEach((it) => {
     (it.L || []).forEach((l) => {
       if (!l.autoPagar || l.fixed === false) return;
-      if (l.pagadoEn === periodo) return;
+      // marca propia: si borras el pago precargado el renglón no se queda
+      // marcado como pagado, y aun así no se precarga dos veces en el mes
+      if (l.autoPagadoEn === periodo) return;
       const yaPagado = movs.some((m) => m.lineId === l.id && periodoDe(m.fecha) === periodo);
       if (yaPagado) return;
       const plan = planDeLinea(l, periodo);
       if (!(plan > 0)) return;
       agregarPago(movs, it, l, plan, fecha, `${l.n || 'Fijo'} (precargado)`);
-      l.pagadoEn = periodo;
+      l.autoPagadoEn = periodo;
       hechos += 1;
     });
   });

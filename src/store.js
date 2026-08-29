@@ -144,6 +144,8 @@ export function activeId() {
   return db.active;
 }
 
+let precargado = false;
+
 function normalizeProfile(p) {
   p.items = p.items || [];
   p.items.forEach((it) => {
@@ -197,6 +199,12 @@ function normalizeProfile(p) {
     p.goals.forEach((g) => {
       g.base += podados.filter((m) => m.goalId === g.id).reduce((t, m) => t + m.monto, 0);
     });
+    /* El saldo disponible es acumulado: lo que la poda se lleva se suma al
+       saldo base, o el disponible caería solo al pasar dos años. */
+    p.saldos = p.saldos || {};
+    const cur = p.cur || 'COP';
+    p.saldos[cur] = (Number(p.saldos[cur]) || 0)
+      + podados.reduce((t, m) => t + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
     sincronizarMetas(p);
   }
   p.metodoDeuda ??= 'avalancha';
@@ -205,8 +213,13 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
-  // F4 — los fijos marcados llegan pagados al mes nuevo, y se pueden editar
-  if (precargarFijos(p.items, p.movs || [], periodoDe(hoyISO()), hoyISO())) sincronizarMetas(p);
+  // F4 — los fijos marcados llegan pagados al mes nuevo, y se pueden editar.
+  // La marca dice que hay que persistirlo: normalizeProfile corre dentro de
+  // load(), antes de que exista un perfil activo al que guardarle.
+  if (precargarFijos(p.items, p.movs || [], periodoDe(hoyISO()), hoyISO())) {
+    sincronizarMetas(p);
+    precargado = true;
+  }
   sincronizarAutomaticas(p);
   p.recurrentes ??= [];
   p.medios ??= [...MEDIOS_BASE];
@@ -242,6 +255,7 @@ export function load() {
     db = { active: p.id, profiles: [p] };
     aplicarPaleta(p.paleta);
   }
+  if (precargado) { precargado = false; save(); }
 }
 
 function writeLocal() {
@@ -391,6 +405,7 @@ export async function bootAuth(uid) {
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
     aplicarPaleta(active()?.paleta);
+    if (precargado) { precargado = false; db.profiles.forEach((x) => schedulePush(x.id)); }
     writeLocal();
     notify();
     return { migrated: false };

@@ -195,7 +195,7 @@ export function renderAjustes(root) {
     p.medios.push('Nuevo medio');
     store.save();
     pintarMedios();
-    mediosBox.querySelector('.ajMedio:last-of-type')?.select?.();
+    [...mediosBox.querySelectorAll('.ajMedio')].at(-1)?.select();
   };
 
   root.querySelector('#ajFondoMeses').onchange = (e) => {

@@ -71,6 +71,13 @@ export function renderMovimientos(root, args = {}) {
     },
   });
 
+  function nombreRecurrente(r) {
+    if (r.nota) return r.nota;
+    const it = p.items.find((x) => x.id === r.itemId);
+    const l = it?.L?.find((x) => x.id === r.lineId);
+    return l?.n || it?.n || (r.tipo === 'ingreso' ? 'Ingreso' : 'Gasto');
+  }
+
   function pintarRecurrentes() {
     const box = $('#mvRecurrentes');
     if (!p.recurrentes.length) { box.innerHTML = ''; return; }
@@ -142,7 +149,6 @@ export function renderMovimientos(root, args = {}) {
     $('#mvPeriodo').textContent = nombrePeriodo(periodo);
     pintarFiltro();
     pintarRecurrentes();
-    const inc = store.incomeRepartir(p);
     const gastado = porItem(p.movs, periodo);
     const ing = ingresoReal(p.movs, periodo);
     const total = gastoTotal(p.movs, periodo);

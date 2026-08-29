@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { estadoDe, ordenadas, reasignar, mover, soltar } from './fila.js';
-import { claimedBy, freeFor } from './reparto.js';
-import { metasEnItem, conflictosDeMetas } from './metas.js';
-
-const items = [{ id: 'cor', n: 'Ahorro corto plazo', m: 1000000, r: 'cor', L: [] }];
+import { ordenadas, reasignar, mover, soltar } from './fila.js';
 
 function metas() {
   return [
-    { id: 'fondo', n: 'Fondo de emergencia', special: 'emergencia', orden: 0, estado: 'activa', t: 4000000, s: 0, a: {} },
-    { id: 'moto', n: 'Moto', orden: 1, estado: 'activa', t: 24000000, s: 0, a: { cor: 800000 } },
-    { id: 'viaje', n: 'Viaje', orden: 2, estado: 'en_fila', t: 6000000, s: 0, a: {} },
+    { id: 'fondo', n: 'Fondo de emergencia', special: 'emergencia', orden: 0, estado: 'activa', t: 4000000, s: 0 },
+    { id: 'moto', n: 'Moto', orden: 1, estado: 'activa', t: 24000000, s: 0 },
+    { id: 'viaje', n: 'Viaje', orden: 2, estado: 'activa', t: 6000000, s: 0 },
   ];
 }
 

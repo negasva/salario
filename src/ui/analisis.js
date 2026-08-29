@@ -88,7 +88,9 @@ function pintar(root, p) {
     if (ing.total <= 0) aviso = 'Todavía no registras ingresos este mes: los porcentajes van sobre el ingreso pronosticado.';
   }
 
-  const total = segmentos.filter((s) => !s.sinAsignar).reduce((t, s) => t + s.monto, 0);
+  // ni lo que sobra ni el ahorro que la app sugiere son plata que repartiste
+  const total = segmentos.filter((s) => !s.sinAsignar && !s.sugerido)
+    .reduce((t, s) => t + s.monto, 0);
 
   box.innerHTML = `
     <div class="card">

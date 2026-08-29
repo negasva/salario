@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  emergencyTarget, emergencyStatus, escalonActual, plazo, whenText,
+  emergencyTarget, emergencyStatus, escalonActual, plazo,
   cuotaPorFecha, cuotaPorMeses, monthlyToward, monthsToGoal,
 } from './metas.js';
 

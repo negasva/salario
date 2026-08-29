@@ -212,7 +212,19 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
     pintarAbono();
   }
 
+  let guardando = false;
   async function guardar() {
+    // pedir la tasa toma un viaje a la red: dos Enter seguidos creaban dos movimientos
+    if (guardando) return;
+    guardando = true;
+    try {
+      await guardarAhora();
+    } finally {
+      guardando = false;
+    }
+  }
+
+  async function guardarAhora() {
     const cur = $('#regCur').value;
     const montoEscrito = digits($('#regMonto').value);
     if (montoEscrito <= 0) { err.textContent = 'Escribe el monto.'; return; }

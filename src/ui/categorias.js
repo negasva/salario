@@ -439,8 +439,17 @@ function openPagoEditor(it, p, mov = null, repintar) {
    la barra de progreso —el relleno va detrás del texto— y todo lo demás
    (pagos, toggles, arrastre, borrar) vive en el pop-up. */
 function lines(it, p, res) {
-  if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map((f) => bloqueItem(f, p)).join('');
+  const bloques = res.filas.map((f) => bloqueItem(f, p)).join('');
+  /* F6 — un pago sin concepto (el que registras desde Registrar eligiendo solo
+     la categoría) contaba en el total pero no salía en ninguna lista, así que
+     la tarjeta decía "sin nada" teniendo plata. Va agrupado y con su nombre. */
+  const sinConcepto = res.libre > 0 ? `
+    <div class="bloque bloque-item">
+      <span class="bloque-n">Sin tipo de concepto</span>
+      <b class="bloque-m num">${money(res.libre, p.cur)}</b>
+    </div>` : '';
+  if (!bloques && !sinConcepto) return '<div class="empty">Sin nada en la lista.</div>';
+  return bloques + sinConcepto;
 }
 
 function bloqueItem({ l, plan, pagado, estado }, p) {

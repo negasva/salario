@@ -169,6 +169,7 @@ function catCard(it, p, gastadoLinea, periodo) {
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
         ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
+      <button class="bloque-ed cat-plus-head" aria-label="Agregar concepto a ${esc(it.n)}">+</button>
       <b class="bloque-m num">${money(budget, p.cur)}</b>
       <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
       <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
@@ -412,6 +413,7 @@ function lines(it, p, res) {
 function bloqueItem({ l, plan, pagado, estado }, p) {
   return `
     <div class="bloque bloque-item est-${estado}" data-lid="${l.id}" style="--pct:${pctPagado(pagado, plan)}%">
+      <span class="bloque-pct num">${pctPagado(pagado, plan)}%</span>
       <span class="bloque-n">${esc(l.n || 'Sin nombre')}${estado === 'pagado'
         ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}</span>
       <b class="bloque-m num">${money(plan, p.cur)}</b>
@@ -616,13 +618,16 @@ function wireCard(root, it, p) {
     if (l) el.onclick = () => abrirItemSheet(root, it, l, p);
   });
 
-  card.querySelector('.cat-plus').onclick = () => {
+  const nuevoConcepto = () => {
     const l = { id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true };
     it.L.push(l);
     store.save();
     renderCategorias(root);
     abrirItemSheet(root, it, l, p);
   };
+  card.querySelector('.cat-plus').onclick = nuevoConcepto;
+  // el bloque-cat entero abre el pop-up de categoría: el + no debe dispararlo
+  card.querySelector('.cat-plus-head').onclick = (e) => { e.stopPropagation(); nuevoConcepto(); };
 
   card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
 

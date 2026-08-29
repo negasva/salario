@@ -508,9 +508,18 @@
   width:100%;text-align:left}
 
 /* ── hoja de registro (F3) ────────────────────────────────────────────── */
-.reg-row{display:flex;gap:var(--space-3);margin-top:var(--space-3)}
+/* F2 — un solo token de alto y de espaciado para todos los campos de la hoja:
+   misma altura, mismo padding, mismo radio y dos columnas parejas. Antes cada
+   campo traía su propio flex y cada control su alto de fábrica. */
+.reg-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--reg-gap);margin-top:var(--reg-gap)}
 .reg-row .fld{min-width:0}
-.reg-row .fld[hidden]{display:none}
+.reg-row[hidden],.reg-row .fld[hidden]{display:none}
+.reg-sheet .fld{margin-bottom:0;margin-top:var(--reg-gap)}
+.reg-sheet .fld input,.reg-sheet .fld select{width:100%;height:var(--control-h);
+  padding:0 var(--space-3);border-radius:var(--radius-sm);border-width:1px}
+.reg-sheet .reg-row .fld{margin-top:0}
+.reg-sheet #regMas,.reg-sheet .mov-check,.reg-sheet #regSave{margin-top:var(--reg-gap)}
+.reg-sheet #regSave{width:100%;padding:12px}
 .reg-sheet .mov-check{margin-top:var(--space-3)}
 .mov-acciones{margin-bottom:var(--space-4)}
 .mov-filtro{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
@@ -519,8 +528,7 @@
 
 @media (max-width:720px){
   .fab-wrap{right:var(--space-4);bottom:var(--space-4)}
-  .reg-row{flex-wrap:wrap}
-  .reg-row .fld{flex:1 1 100%!important}
+  .reg-row{grid-template-columns:1fr}
 }
 
 /* estado del renglón (F4) */

@@ -134,42 +134,42 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
         <button class="chip ${tipo === 'ingreso' ? 'on' : ''}" data-tipo="ingreso">Ingreso</button>
       </div>
 
-      <div class="fld" style="margin-top:var(--space-4)"><label for="regNota">Descripción</label>
+      <div class="fld"><label for="regNota">Descripción</label>
         <input id="regNota" autocomplete="off" placeholder="Qué fue" value="${esc(previo?.nota || '')}"></div>
 
       <div class="reg-row">
-        <div class="fld" style="flex:2"><label for="regMonto">Monto</label>
+        <div class="fld"><label for="regMonto">Monto</label>
           <input id="regMonto" class="num" inputmode="numeric" placeholder="0" value="${previo ? plain(previo.montoOrig ?? previo.monto, previo.curOrig || p.cur) : ''}"></div>
-        <div class="fld" style="flex:1"><label for="regCur">Moneda</label>
+        <div class="fld"><label for="regCur">Moneda</label>
           <select id="regCur">${MONEDAS.map((m) => `<option value="${m}" ${(previo?.curOrig || p.cur) === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
       </div>
 
       <div class="reg-row">
-        <div class="fld" style="flex:1"><label for="regFecha">Fecha</label>
+        <div class="fld"><label for="regFecha">Fecha</label>
           <input type="date" id="regFecha" value="${previo?.fecha || hoyISO()}"></div>
-        <div class="fld" style="flex:1"><label for="regMedio">Medio de pago</label>
+        <div class="fld"><label for="regMedio">Medio de pago</label>
           <select id="regMedio"><option value="">Sin medio</option>
             ${(p.medios || []).map((m) => `<option value="${esc(m)}" ${previo?.medio === m ? 'selected' : ''}>${esc(etiquetaMedio(m))}</option>`).join('')}
           </select></div>
       </div>
 
       <div class="reg-row" id="regCatWrap">
-        <div class="fld" style="flex:1"><label for="regItem">Categoría</label>
+        <div class="fld"><label for="regItem">Categoría</label>
           <select id="regItem">${p.items.length
             ? p.items.map((it) => `<option value="${it.id}" ${previo?.itemId === it.id ? 'selected' : ''}>${esc(it.n)}</option>`).join('')
             : '<option value="">Sin categorías todavía</option>'}</select></div>
-        <div class="fld" style="flex:1"><label for="regLine">Renglón</label>
+        <div class="fld"><label for="regLine">Renglón</label>
           <select id="regLine"></select></div>
       </div>
 
-      <button id="regMas" class="mini" style="margin-top:var(--space-3)">Más detalle</button>
+      <button id="regMas" class="mini">Más detalle</button>
       <div id="regDetalle" hidden>
         <div class="reg-row">
-          <div class="fld" style="flex:1"><label for="regGoal">Meta</label>
+          <div class="fld"><label for="regGoal">Meta</label>
             <select id="regGoal"><option value="">Sin meta</option>
               ${p.goals.map((g) => `<option value="${g.id}" ${previo?.goalId === g.id ? 'selected' : ''}>${esc(g.n)}</option>`).join('')}
             </select></div>
-          <div class="fld" style="flex:1"><label for="regCat">Tipo de gasto</label>
+          <div class="fld"><label for="regCat">Tipo de gasto</label>
             <select id="regCat"><option value="">Automática</option>
               ${CATEGORIAS.map((c) => `<option value="${c.id}" ${previo?.cat === c.id ? 'selected' : ''}>${c.n}</option>`).join('')}
             </select></div>
@@ -180,7 +180,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
       </div>
 
       <div id="regErr" class="auth-err"></div>
-      <button class="wide btn-primary" id="regSave" style="margin-top:var(--space-4)">${previo ? 'Actualizar' : 'Guardar'}</button>
+      <button class="wide btn-primary" id="regSave">${previo ? 'Actualizar' : 'Guardar'}</button>
     </div>`;
 
   const $ = (s) => overlay.querySelector(s);

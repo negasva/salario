@@ -152,6 +152,13 @@ function detalleCategoria(p, itemId, periodo) {
     .map((f, i) => ({ id: f.l.id, nombre: f.l.n || 'Sin nombre',
       color: store.PALETTE[i % store.PALETTE.length], monto: f.pagado }))
     .filter((seg) => seg.monto > 0);
+  /* F8 — lo pagado sin concepto es la misma plata que ya cuenta en el total de
+     la categoría: si no entra aquí, la gráfica dice que no hay pagos mientras
+     la fila de arriba muestra el monto. Misma fuente para el total y el donut. */
+  if (res.libre > 0) {
+    segmentos.push({ id: `${itemId}-libre`, nombre: 'Sin tipo de concepto',
+      color: 'var(--ink-lighter)', monto: res.libre });
+  }
   if (!segmentos.length) return '<div class="an-detalle empty">Sin pagos en esta categoría todavía.</div>';
   const total = segmentos.reduce((t, seg) => t + seg.monto, 0);
   return `<div class="an-detalle">

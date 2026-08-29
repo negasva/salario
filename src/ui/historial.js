@@ -181,7 +181,7 @@ function pintarCuerpo(root, p, cierres) {
         <div class="spark-months">${cierres.map((c, i) => `<span class="${extras[i] ? 'spark-extra' : ''}" title="${extras[i] ? 'Tuvo ingreso extra' : 'Sin ingreso extra'}">${extras[i] ? '● ' : ''}${c.periodo}</span>`).join('')}</div>
       </div>
       <div class="card" style="margin-bottom:var(--sp-4)">
-        <span class="label">Esenciales como % del ingreso</span>
+        <span class="label">Gastos recurrentes como % del ingreso</span>
         <div class="hist-list">${barsEssentials(cierres)}</div>
       </div>
       ${avgPrev !== null ? `<div class="card" style="margin-bottom:var(--sp-4)">
@@ -237,7 +237,7 @@ function tarjetaCierre(c, p) {
     return `<div class="card cierre" data-per="${c.periodo}" style="margin-bottom:var(--sp-4)">
       <div class="cierre-head"><span class="label">${nombreMes(c.periodo)}</span>
         <span class="badge">solo plan</span></div>
-      <div class="sub">Ahorro ${s.ahorroRate}% · Esenciales ${s.essentialsShare}%. Este cierre es viejo y no guarda el gasto real.</div>
+      <div class="sub">Ahorro ${s.ahorroRate}% · Gastos recurrentes ${s.essentialsShare}%. Este cierre es viejo y no guarda el gasto real.</div>
     </div>`;
   }
   const aportado = aportadoEnCierre(s);

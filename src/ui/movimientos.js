@@ -142,6 +142,10 @@ export function renderMovimientos(root, args = {}) {
         <select id="mvGoal" aria-label="Meta"><option value="">Sin meta</option>
           ${p.goals.map((g) => `<option value="${g.id}">${esc(g.n)}</option>`).join('')}
         </select>
+        <select id="mvMedio" aria-label="Medio de pago">
+          <option value="">Medio de pago</option>
+          ${(p.medios || []).map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select>
         <input id="mvNota" placeholder="Nota: qué compraste" aria-label="Nota">
         <select id="mvCat" aria-label="Categoría del gasto">
           <option value="">Categoría automática</option>
@@ -172,6 +176,7 @@ export function renderMovimientos(root, args = {}) {
   const lineEl = $('#mvLine');
   const goalEl = $('#mvGoal');
   const notaEl = $('#mvNota');
+  const medioEl = $('#mvMedio');
   const fechaEl = $('#mvFecha');
   const extraEl = $('#mvExtra');
   const abonoEl = $('#mvAbono');
@@ -210,6 +215,7 @@ export function renderMovimientos(root, args = {}) {
     itemTocado = false;
     montoEl.value = '';
     notaEl.value = '';
+    medioEl.value = '';
     goalEl.value = '';
     lineEl.value = '';
     extraEl.checked = false;
@@ -234,6 +240,7 @@ export function renderMovimientos(root, args = {}) {
       lineId: tipo === 'gasto' ? (lineEl.value || null) : null,
       goalId: tipo === 'gasto' ? (goalEl.value || null) : null,
       nota: notaEl.value.trim(),
+      medio: medioEl.value || null,
       extra: tipo === 'ingreso' && extraEl.checked,
       abono: tipo === 'gasto' && !$('#mvAbonoWrap').hidden && abonoEl.checked,
       cat: tipo === 'gasto' ? (catEl.value || clasificarLista(notaEl.value).cat) : null,
@@ -310,7 +317,7 @@ export function renderMovimientos(root, args = {}) {
     p.recurrentes.push({
       id,
       tipo: datos.tipo, monto: datos.monto, itemId: datos.itemId, lineId: datos.lineId,
-      goalId: datos.goalId, nota: datos.nota, abono: datos.abono,
+      goalId: datos.goalId, nota: datos.nota, abono: datos.abono, medio: datos.medio,
       dia: Number(datos.fecha.slice(8, 10)),
     });
     store.save();
@@ -398,6 +405,7 @@ export function renderMovimientos(root, args = {}) {
     if (m.itemId) { itemEl.value = m.itemId; pintarRenglones(); lineEl.value = m.lineId || ''; }
     goalEl.value = m.goalId || '';
     notaEl.value = m.nota || '';
+    medioEl.value = m.medio || '';
     extraEl.checked = !!m.extra;
     catEl.value = m.cat || '';
     pintarAbono();
@@ -465,7 +473,7 @@ export function renderMovimientos(root, args = {}) {
             <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--success)' : (it?.c || 'var(--line)')}"></span>
             <span class="mov-line-txt">
               <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}${m.cat && m.cat !== 'otros' ? ` <span class="badge">${icon(CATEGORIAS.find((c) => c.id === m.cat)?.ic || 'etiqueta', 'ic-sm')} ${esc(nombreCategoria(m.cat))}</span>` : ''}
-              ${m.nota ? `<span class="sub">${esc(m.nota)}</span>` : ''}
+              ${m.nota || m.medio ? `<span class="sub">${esc([m.nota, m.medio].filter(Boolean).join(' · '))}</span>` : ''}
             </span>
             <span class="num mov-line-n ${m.tipo === 'ingreso' ? 'in' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto, p.cur)}</span>
             <button class="mini mov-ed">Editar</button>

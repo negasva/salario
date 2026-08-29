@@ -595,7 +595,7 @@ function openNewCategory(root) {
       <div class="fld"><label>Nombre</label><input id="ncName" placeholder="Ej: Mascotas"></div>
       <div class="label" style="margin:14px 0 8px">Plantilla de conceptos</div>
       <div class="chips" id="ncTpl">
-        <button class="chip" data-r="ese">Esenciales</button>
+        <button class="chip" data-r="ese">Gastos recurrentes</button>
         <button class="chip" data-r="deu">Deudas</button>
         <button class="chip" data-r="lib">Gasto libre</button>
         <button class="chip" data-r="cor">Ahorro corto</button>

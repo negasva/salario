@@ -80,7 +80,7 @@ const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'buscar', '
 const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2, buscar: 1, pregunta: 1 };
 const NOMBRES = {
   ingreso: 'Ingreso del mes', mes: 'Tu mes', fondo: 'Fondo de emergencia',
-  esenciales: 'Aviso de esenciales', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
+  esenciales: 'Aviso de gastos recurrentes', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
   ahorro: 'Ahorro acumulado', reparto: 'Reparto del ingreso', metas: 'Metas',
   buscar: 'Buscador', pregunta: 'Pregúntale a tus números',
 };
@@ -240,9 +240,9 @@ export async function renderDashboard(root) {
       </div>`,
 
     esenciales: diag && diag.nivel !== 'verde' ? `<div class="card" style="border-color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'})">
-        <span class="label">Esenciales</span>
+        <span class="label">Gastos recurrentes</span>
         <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
-          Tus esenciales suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
+          Tus gastos recurrentes suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
           ${diag.nivel === 'rojo' ? 'Es demasiado.' : 'Está en el límite.'}
         </div>
         ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}

@@ -3,6 +3,7 @@ import { toast } from './shell.js';
 import { plain, money, esc, digits } from '../format.js';
 import { ingresoEfectivo, excedente } from '../engine/consejo.js';
 import { estadoNotificaciones, pedirPermisoNotificaciones } from './avisos.js';
+import { MONEDAS, tasa } from '../engine/moneda.js';
 
 export function renderAjustes(root) {
   const p = store.active();
@@ -31,6 +32,27 @@ export function renderAjustes(root) {
           <button class="chip ${p.ingresoTipo === 'variable' ? 'on' : ''}" id="ajVariable">Variable</button>
         </div>
         <div id="ajHistorial" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Saldo inicial</span>
+        <div class="sub" style="margin-top:6px">Lo que tenías antes de empezar. A partir de ahí se suman ingresos y se restan egresos.</div>
+        ${MONEDAS.map((m) => `<div class="fld" style="margin-top:10px"><label>${m}</label>
+          <input class="ajSaldo" data-cur="${m}" inputmode="numeric" value="${plain(p.saldos?.[m] || 0, m)}"></div>`).join('')}
+      </div>
+
+      <div class="card">
+        <span class="label">Moneda principal</span>
+        <div class="chips" id="ajMonedas" style="margin-top:10px">
+          ${MONEDAS.map((m) => `<button class="chip ${p.cur === m ? 'on' : ''}" data-cur="${m}">${m}</button>`).join('')}
+        </div>
+        <div class="sub" id="ajTasas" style="margin-top:10px">Consultando tasas…</div>
+      </div>
+
+      <div class="card">
+        <span class="label">Medios de pago</span>
+        <div id="ajMedios" style="margin-top:10px"></div>
+        <div class="prow"><button id="ajMedioNuevo">+ Agregar medio</button></div>
       </div>
 
       <div class="card">
@@ -95,7 +117,7 @@ export function renderAjustes(root) {
       <div class="sub" id="ajResumen"></div>`;
     const paintResumen = () => {
       const { promedio, minimo } = ingresoEfectivo(p.ingresoHistorial);
-      let html = `Promedio para repartir: <b class="num">${plain(promedio, p.cur)}</b> · Mínimo para esenciales: <b class="num">${plain(minimo, p.cur)}</b>`;
+      let html = `Promedio para repartir: <b class="num">${plain(promedio, p.cur)}</b> · Mínimo para gastos recurrentes: <b class="num">${plain(minimo, p.cur)}</b>`;
       const ultimo = p.ingresoHistorial[p.ingresoHistorial.length - 1];
       if (ultimo > promedio) {
         const ex = excedente(ultimo, promedio);
@@ -110,6 +132,51 @@ export function renderAjustes(root) {
   } else {
     histBox.innerHTML = '';
   }
+
+  root.querySelectorAll('.ajSaldo').forEach((inp) => {
+    inp.onchange = (e) => {
+      p.saldos = p.saldos || {};
+      p.saldos[e.target.dataset.cur] = digits(e.target.value);
+      store.save();
+    };
+  });
+
+  root.querySelectorAll('#ajMonedas .chip').forEach((b) => {
+    b.onclick = () => { p.cur = b.dataset.cur; store.save(); renderAjustes(root); };
+  });
+
+  /* Las tasas se piden una vez y quedan cacheadas 12 h; si no hay red se
+     muestra la última conocida y, si nunca hubo, se dice en voz alta. */
+  (async () => {
+    const otras = MONEDAS.filter((m) => m !== p.cur);
+    const valores = await Promise.all(otras.map((m) => tasa(m, p.cur)));
+    const box = root.querySelector('#ajTasas');
+    if (!box) return;
+    const linea = otras.map((m, i) => (valores[i] ? `1 ${m} = ${money(valores[i], p.cur)}` : `1 ${m} = sin tasa`));
+    box.innerHTML = linea.join(' · ');
+  })();
+
+  const mediosBox = root.querySelector('#ajMedios');
+  function pintarMedios() {
+    p.medios = p.medios || [];
+    mediosBox.innerHTML = p.medios.map((m, i) => `<div class="prow" style="margin-top:6px">
+      <input class="ajMedio" data-i="${i}" value="${esc(m)}" aria-label="Medio de pago ${i + 1}" style="flex:1">
+      <button class="mini ajMedioDel" data-i="${i}">Quitar</button>
+    </div>`).join('') || '<div class="empty">Sin medios de pago. Agrega el primero.</div>';
+    mediosBox.querySelectorAll('.ajMedio').forEach((inp) => {
+      inp.onchange = (e) => { p.medios[Number(e.target.dataset.i)] = e.target.value.trim() || 'Sin nombre'; store.save(); };
+    });
+    mediosBox.querySelectorAll('.ajMedioDel').forEach((b) => {
+      b.onclick = () => { p.medios.splice(Number(b.dataset.i), 1); store.save(); pintarMedios(); };
+    });
+  }
+  pintarMedios();
+  root.querySelector('#ajMedioNuevo').onclick = () => {
+    p.medios.push('Nuevo medio');
+    store.save();
+    pintarMedios();
+    mediosBox.querySelector('.ajMedio:last-of-type')?.select?.();
+  };
 
   root.querySelector('#ajFondoMeses').onchange = (e) => {
     p.fondoMeses = Math.min(6, Math.max(3, Number(e.target.value) || 4));

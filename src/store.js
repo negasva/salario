@@ -14,15 +14,13 @@ import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 const KEY = 'reparto:v8';
 const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
 
-// El porcentaje solo vive aquí, como reparto sugerido para un perfil nuevo:
-// en cuanto se crea el perfil se traduce a plata y ya nadie lo vuelve a mirar.
-export const BASE_ITEMS = [
-  { n: 'Esenciales', p: 55, r: 'ese', c: 'var(--ink)', d: 'Renta, servicios, comida, transporte. Es el techo, no la meta.' },
-  { n: 'Gasto libre', p: 5, r: 'lib', c: 'var(--pink)', d: 'Tuyo para gastarlo sin sentir culpa.' },
-  { n: 'Deudas', p: 10, r: 'deu', c: 'var(--danger)', d: 'Abono extra cada mes. Sin deudas, este bloque se va a inversión.' },
-  { n: 'Ahorro corto plazo', p: 15, r: 'cor', c: 'var(--success)', d: 'Enganche, viaje, imprevistos.' },
-  { n: 'Inversión largo plazo', p: 15, r: 'lar', c: 'var(--warning)', d: 'Dinero que trabaja y no tocas.' },
-];
+/* F1 — la app ya no reparte por ti: no hay categorías de fábrica ni
+   porcentajes automáticos. Todo arranca en cero y el usuario asigna.
+   Lo que se precarga en el onboarding es editable y borrable. */
+
+// Medios de pago de fábrica. Se editan desde Ajustes.
+export const MEDIOS_BASE = ['Bancolombia', 'Nequi', 'Efectivo', 'Daviplata',
+  'Tarjeta de crédito', 'Tarjeta débito', 'Otro'];
 
 export const PLANTILLAS = {
   ese: ['Arriendo', 'Servicios', 'Mercado', 'Transporte', 'Internet', 'Celular', 'Salud'],
@@ -55,9 +53,8 @@ function nid(prefix) {
 
 const INGRESO_INICIAL = 5500000;
 
-export function freshItems(inc = INGRESO_INICIAL) {
-  return BASE_ITEMS.map((o) => ({ id: nid('i'), n: o.n, m: Math.round((inc * o.p) / 100),
-    r: o.r, c: o.c, d: o.d, locked: false, L: [] }));
+export function nuevoItem(n, m = 0, r = null, c = 'var(--pink)') {
+  return { id: nid('i'), n, m: Math.round(m), r, c, d: '', locked: false, L: [] };
 }
 
 export function freshProfile(name) {
@@ -72,7 +69,9 @@ export function freshProfile(name) {
     tasaInteres: 10,
     fondoMeses: 4,
     metodoDeuda: 'avalancha',
-    items: freshItems(INGRESO_INICIAL),
+    items: [],
+    medios: [...MEDIOS_BASE],
+    saldos: { COP: 0 },
     goals: [],
     movs: [],
     updated: Date.now(),
@@ -156,6 +155,8 @@ export function activeId() {
 function normalizeProfile(p) {
   p.items = p.items || [];
   p.items.forEach((it) => {
+    // F1 — el bloque se llama Gastos recurrentes; el rol interno sigue igual
+    if (it.n === 'Esenciales') it.n = 'Gastos recurrentes';
     /* Migración: los perfiles viejos guardaban el reparto en porcentaje. Se
        traduce una sola vez a plata sobre el ingreso del plan y el porcentaje
        se borra, para que no queden dos números diciendo cosas distintas. */
@@ -208,6 +209,8 @@ function normalizeProfile(p) {
   p.fondoMeses ??= 4;
   sincronizarAutomaticas(p);
   p.recurrentes ??= [];
+  p.medios ??= [...MEDIOS_BASE];
+  p.saldos ??= { [p.cur || 'COP']: 0 };
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
   p.alertasSilenciadas ??= {};
@@ -270,6 +273,7 @@ async function flushPush() {
         avisosVistos: p.avisosVistos, avisosEnviados: p.avisosEnviados,
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         recurrentes: p.recurrentes || [],
+        medios: p.medios || [], saldos: p.saldos || {},
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -378,6 +382,8 @@ export async function bootAuth(uid) {
       metasEnPlata: row.data.metasEnPlata,
       avisosVistos: row.data.avisosVistos, avisosEnviados: row.data.avisosEnviados,
       alertasSilenciadas: row.data.alertasSilenciadas,
+      recurrentes: row.data.recurrentes || [], dashLayout: row.data.dashLayout || null,
+      medios: row.data.medios, saldos: row.data.saldos,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;

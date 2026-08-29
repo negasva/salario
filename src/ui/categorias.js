@@ -173,7 +173,7 @@ function catCard(it, p, gastadoLinea, periodo) {
       <b class="bloque-m num">${money(budget, p.cur)}</b>
       <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
       <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
-        ${res.total ? ` · ${res.cerradas} de ${res.total} pagados` : ''}
+        ${res.total ? ` · ${res.cerradas} de ${res.total} al día` : ''}
         ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
     </div>
     <div class="cat-items">
@@ -344,7 +344,7 @@ function cabeceraPagos(res, p, planeado) {
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
     ${planeado > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
       <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(diferencia), p.cur)}</b></div>` : ''}
-    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>` : ''}
+    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} al día</span>` : ''}
   </div>`;
 }
 

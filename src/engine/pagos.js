@@ -68,7 +68,12 @@ export function resumenItem(it, pagadoPorLinea = {}, periodo, pagadoLibre = 0) {
   });
   const plan = r2(filas.reduce((s, f) => s + f.plan, 0));
   const pagado = r2(filas.reduce((s, f) => s + f.pagado, 0) + (Number(pagadoLibre) || 0));
-  const cerradas = filas.filter((f) => CERRADAS.includes(f.estado));
+  /* Un gasto variable (mercado, gasolina) casi nunca cae justo en el plan:
+     contarlo como pendiente porque le faltaron mil pesos es ruido. Con
+     cualquier pago del mes ya está al día. Los fijos siguen con la regla dura. */
+  const cerradas = filas.filter((f) => (f.l.fixed === false
+    ? f.pagado > 0 || f.l.pagadoEn === periodo
+    : CERRADAS.includes(f.estado)));
 
   /* Lo que la categoría cuesta de verdad este mes: el plan de cada renglón
      corregido por la realidad en los que ya se cerraron. Un renglón pagado

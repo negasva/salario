@@ -270,3 +270,17 @@ describe('relleno del bloque (F10)', () => {
     expect(pctPagado(5000, 0)).toBe(100);
   });
 });
+
+describe('contador al día con gastos variables', () => {
+  const cat = { id: 'i1', L: [linea('l1', 'Arriendo', 1000000), linea('l2', 'Mercado', 600000, { fixed: false })] };
+
+  it('un variable con pago parcial cuenta como al día', () => {
+    expect(resumenItem(cat, { l2: 50000 }, '2026-08').cerradas).toBe(1);
+  });
+  it('un fijo con pago parcial no cuenta', () => {
+    expect(resumenItem(cat, { l1: 50000 }, '2026-08').cerradas).toBe(0);
+  });
+  it('un variable sin ningun pago no cuenta', () => {
+    expect(resumenItem(cat, {}, '2026-08').cerradas).toBe(0);
+  });
+});

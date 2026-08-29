@@ -179,13 +179,17 @@ export function renderAjustes(root) {
      muestra la última conocida con su fecha, nunca un error. Y si nunca hubo
      ninguna, se puede escribir a mano: es el último recurso, pero es uno. */
   const otrasMonedas = () => MONEDAS.filter((m) => m !== p.cur);
+  // guardar una tasa a mano repinta enseguida; el primer intento por red puede
+  // tardar dos timeouts y llegar después, así que solo pinta el turno vigente
+  let turnoTasas = 0;
 
   async function pintarTasas() {
     const box = root.querySelector('#ajTasas');
     if (!box) return;
+    const turno = ++turnoTasas;
     const otras = otrasMonedas();
     const valores = await Promise.all(otras.map((m) => tasa(m, p.cur)));
-    if (!root.querySelector('#ajTasas')) return;
+    if (turno !== turnoTasas || !root.querySelector('#ajTasas')) return;
     box.innerHTML = otras.map((m, i) => {
       const guardada = entradaTasa(m, p.cur);
       const vieja = valores[i] && guardada && !vigente(guardada);

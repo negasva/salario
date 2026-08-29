@@ -48,6 +48,13 @@ export function estadoLinea(pagado, plan, cerrado) {
   return pagado > 0 ? 'parcial' : 'pendiente';
 }
 
+/* Cuánto se llena el bloque: lo pagado sobre lo planeado, tope 100. Pasarse
+   no pinta más del 100%, se marca con el color de exceso. */
+export function pctPagado(pagado, plan) {
+  const pct = plan > 0 ? (pagado / plan) * 100 : pagado > 0 ? 100 : 0;
+  return Math.min(100, Math.max(0, Math.round(pct)));
+}
+
 const CERRADAS = ['pagado', 'excedido'];
 
 export function resumenItem(it, pagadoPorLinea = {}, periodo, pagadoLibre = 0) {

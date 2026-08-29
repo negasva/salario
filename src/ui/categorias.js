@@ -6,8 +6,9 @@ import { ordenadas, estadoDe } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
-  pagosLibresDeItem, quitarMovsDe } from '../engine/pagos.js';
+  pagosLibresDeItem, quitarMovsDe, estadoLinea, pctPagado } from '../engine/pagos.js';
 import { icon } from './icons.js';
+import { abrirModal } from './modal.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
@@ -295,82 +296,198 @@ function pagoChip(m, p) {
   </span>`;
 }
 
-function openPagoEditor(root, it, p, mov = null) {
+function openPagoEditor(it, p, mov = null, repintar) {
   const line = mov?.lineId ? it.L.find((l) => l.id === mov.lineId) : null;
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay on';
-  document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-  overlay.innerHTML = `
-    <div class="sheet pago-sheet">
-      <div class="sheet-head">
-        <h3>${mov ? 'Editar pago' : 'Agregar pago'}</h3>
-        <button class="btn-del" id="pagoClose" aria-label="Cerrar">${icon('cerrar')}</button>
-      </div>
+  const { cuerpo, cerrar } = abrirModal({ titulo: mov ? 'Editar pago' : 'Agregar pago', clase: 'pago-sheet' });
+  cuerpo.innerHTML = `
       <div class="pago-form">
         <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(mov?.nota || line?.n || '')}" placeholder="Ej. almuerzo"></label>
         <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
         <label class="fieldw"><span>Fecha</span><input id="pagoFecha" type="date" value="${mov?.fecha || hoyISO()}"></label>
       </div>
       <button class="wide btn-primary" id="pagoSave">${mov ? 'Guardar cambios' : 'Guardar pago'}</button>
-      <button class="wide" id="pagoCancel">Cancelar</button>
-    </div>`;
+      <button class="wide" id="pagoCancel">Cancelar</button>`;
 
-  const close = () => {
-    overlay.remove();
-    document.body.style.overflow = '';
-  };
-  overlay.querySelector('#pagoClose').onclick = close;
-  overlay.querySelector('#pagoCancel').onclick = close;
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  overlay.querySelector('#pagoSave').onclick = () => {
-    const monto = digits(overlay.querySelector('#pagoMonto').value);
+  cuerpo.querySelector('#pagoCancel').onclick = cerrar;
+  cuerpo.querySelector('#pagoSave').onclick = () => {
+    const monto = digits(cuerpo.querySelector('#pagoMonto').value);
     if (monto <= 0) {
-      overlay.querySelector('#pagoMonto').focus();
+      cuerpo.querySelector('#pagoMonto').focus();
       return;
     }
     const datos = {
-      fecha: overlay.querySelector('#pagoFecha').value || hoyISO(),
+      fecha: cuerpo.querySelector('#pagoFecha').value || hoyISO(),
       monto,
-      nota: overlay.querySelector('#pagoNombre').value.trim() || (line?.n || 'Pago'),
+      nota: cuerpo.querySelector('#pagoNombre').value.trim() || (line?.n || 'Pago'),
     };
     if (mov) Object.assign(mov, datos);
     else agregarPagoLibre(p.movs, it, datos.monto, datos.fecha, datos.nota);
     store.save();
-    close();
-    renderCategorias(root);
+    cerrar();
+    repintar();
     toast(mov ? 'Pago actualizado' : 'Pago guardado');
   };
 }
 
+/* F10 — cada concepto es un solo bloque: nombre, monto y editar. El bloque ES
+   la barra de progreso —el relleno va detrás del texto— y todo lo demás
+   (pagos, toggles, arrastre, borrar) vive en el pop-up. */
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, pagado, arrastre, pendiente, diferencia, estado }) => {
-    return `
-    <div class="concepto-card" data-lid="${l.id}">
-      <div class="line">
-        <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
-        <label class="money-input" title="Monto planeado">
-          <span class="money-symbol" aria-hidden="true">$</span>
-          <input class="lv num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0">
-        </label>
-        <button class="mini lx" title="Eliminar concepto" aria-label="Eliminar concepto">${icon('cerrar', 'ic-sm')}</button>
-      </div>
-      <div class="line-pago" data-lid="${l.id}">
+  return res.filas.map((f) => bloqueItem(f, p)).join('');
+}
+
+function bloqueItem({ l, plan, pagado, estado }, p) {
+  return `
+    <div class="bloque bloque-item est-${estado}" data-lid="${l.id}" style="--pct:${pctPagado(pagado, plan)}%">
+      <span class="bloque-n">${esc(l.n || 'Sin nombre')}${estado === 'pagado'
+        ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}</span>
+      <b class="bloque-m num">${money(plan, p.cur)}</b>
+      <button class="bloque-ed" aria-label="Editar ${esc(l.n || 'concepto')}">${icon('lapiz', 'ic-sm')}</button>
+    </div>`;
+}
+
+/* El pop-up del concepto: todo lo que antes colgaba de la tarjeta. Se repinta
+   solo tras cada cambio y la lista de atrás se refresca al cerrar. */
+function abrirItemSheet(root, it, l, p) {
+  const { cuerpo } = abrirModal({ titulo: 'Concepto', clase: 'item-sheet',
+    alCerrar: () => renderCategorias(root) });
+
+  const guardar = () => { store.save(); pintar(); };
+
+  function pintar() {
+    const periodo = periodoDe(hoyISO());
+    const plan = planDeLinea(l, periodo);
+    const pagado = r2(porLinea(p.movs, periodo)[l.id] || 0);
+    const pendiente = Math.max(0, r2(plan - pagado));
+    const estado = estadoLinea(pagado, plan, l.pagadoEn === periodo);
+
+    cuerpo.innerHTML = `
+      <div class="fieldw"><span>Nombre</span><input class="is-n" value="${esc(l.n)}" placeholder="Concepto"></div>
+      <div class="fieldw money-field"><span>Monto planeado · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
+        <input class="is-v num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0"></div>
+      ${filaEstado(estado, r2(plan - pagado), plan, p)}
+      ${barraGasto(pagado, plan, p)}
+      <div class="line-pago">
         <label class="fieldw money-field"><span>Agregar pago</span><span class="money-symbol" aria-hidden="true">$</span>
-          <input class="lpag num" inputmode="numeric" placeholder="0"></label>
-        <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
-        <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
-          aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-        ${l.fixed !== false ? `<button class="mini lauto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
+          <input class="is-pago num" inputmode="numeric" placeholder="0"></label>
+        <label class="fieldw"><span>Fecha</span><input class="is-fecha" type="date" value="${hoyISO()}"></label>
+        <button class="mini is-pago-add" title="Sumar este pago al concepto">+</button>
+      </div>
+      ${listaPagos(l, p, periodo)}
+      <div class="line-pago">
+        <button class="mini lcerrar is-cerrar ${l.pagadoEn === periodo ? 'on' : ''}"
+          aria-pressed="${l.pagadoEn === periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
+        ${l.fixed !== false ? `<button class="mini is-auto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
           title="Cada mes nuevo entra ya pagado, y lo puedes cambiar">${icon('recurrente', 'ic-sm')} Precargar cada mes</button>` : ''}
       </div>
-      ${filaEstado(estado, diferencia, plan, p)}
-      ${listaPagos(l, p, res.periodo)}
-      ${barraGasto(pagado, plan, p)}
-      ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
-    </div>`;
-  }).join('');
+      ${filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
+      <button class="wide is-del danger-action">Borrar concepto</button>`;
+
+    cuerpo.querySelector('.is-n').onchange = (e) => { l.n = e.target.value; guardar(); };
+    cuerpo.querySelector('.is-v').onchange = (e) => { l.v = digits(e.target.value); guardar(); };
+
+    const campo = cuerpo.querySelector('.is-pago');
+    function sumar() {
+      const monto = digits(campo.value);
+      if (!monto) { campo.focus(); return; }
+      agregarPago(p.movs, it, l, monto, cuerpo.querySelector('.is-fecha').value || hoyISO());
+      guardar();
+    }
+    cuerpo.querySelector('.is-pago-add').onclick = sumar;
+    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
+
+    cuerpo.querySelector('.is-cerrar').onclick = () => {
+      if (l.pagadoEn === periodo) {
+        l.pagadoEn = null;
+      } else {
+        // autocompleta solo si todavía no hay ningún pago; con plata puesta, la respeta
+        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO());
+        l.pagadoEn = periodo;
+      }
+      guardar();
+    };
+
+    cuerpo.querySelector('.is-auto')?.addEventListener('click', () => {
+      l.autoPagar = !l.autoPagar;
+      guardar();
+      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
+    });
+
+    wirePagos(cuerpo, it, p, guardar);
+    wireArrastre(cuerpo, l, p, periodo, guardar);
+
+    cuerpo.querySelector('.is-del').onclick = () => {
+      const idx = it.L.indexOf(l);
+      let pagos = [];
+      const { undo } = store.stageDelete(
+        () => { it.L.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'lineId', l.id); },
+        () => { it.L.splice(idx, 0, l); p.movs.push(...pagos); }
+      );
+      cuerpo.closest('.overlay').querySelector('.modal-x').click();
+      toast('Concepto eliminado', () => { undo(); renderCategorias(root); });
+    };
+  }
+
+  pintar();
+}
+
+/* Los chips de pago se editan y se borran igual en el pop-up del concepto y en
+   los pagos sueltos de la categoría. */
+function wirePagos(scope, it, p, repintar) {
+  scope.querySelectorAll('.pago-chip').forEach((chip) => {
+    chip.querySelector('.pago-ed').onclick = () => {
+      const mov = p.movs.find((m) => m.id === chip.dataset.mid);
+      if (mov) openPagoEditor(it, p, mov, repintar);
+    };
+    chip.querySelector('.pago-x').onclick = () => {
+      const mov = p.movs.find((m) => m.id === chip.dataset.mid);
+      const { undo } = store.stageDelete(
+        () => quitarPago(p.movs, chip.dataset.mid),
+        () => p.movs.push(mov)
+      );
+      repintar();
+      toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); repintar(); });
+    };
+  });
+}
+
+/* Lo que no alcanzaste a pagar este mes se pasa al siguiente. Es un botón y
+   no algo automático a propósito: la app no cierra meses sola cuando estás
+   sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. */
+function wireArrastre(scope, l, p, periodo, repintar) {
+  const el = scope.querySelector('.line-arrastre');
+  if (!el) return;
+  const siguiente = siguientePeriodo(periodo);
+
+  el.querySelector('.arr-pasar')?.addEventListener('click', () => {
+    const falta = Math.max(0, planDeLinea(l, periodo) - (porLinea(p.movs, periodo)[l.id] || 0));
+    if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
+    pasarAlSiguiente(l, periodo, falta);
+    repintar();
+    toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
+      quitarArrastre(l, siguiente);
+      repintar();
+    });
+  });
+
+  el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
+    quitarArrastre(l, siguiente);
+    repintar();
+    toast('Ya no pasa nada al mes siguiente');
+  });
+
+  el.querySelector('.arr-quitar')?.addEventListener('click', () => {
+    const monto = arrastreDe(l, periodo);
+    quitarArrastre(l, periodo);
+    repintar();
+    toast(`Quitaste ${money(monto, p.cur)} de deuda vieja`, () => {
+      l.arrastre = l.arrastre || {};
+      l.arrastre[periodo] = monto;
+      repintar();
+    });
+  });
 }
 
 /* F4 — cómo va el renglón en una línea: el estado y, cuando ya está cerrado,
@@ -490,159 +607,16 @@ function wireCard(root, it, p) {
     store.save();
     renderCategorias(root);
   };
-  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(root, it, p);
+  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
 
-  card.querySelectorAll('.deu-fila').forEach((el) => {
+  // el bloque entero abre el pop-up: el botón de editar es solo la señal
+  card.querySelectorAll('.bloque-item').forEach((el) => {
     const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-    el.querySelectorAll('.dv').forEach((inp) => {
-      inp.onchange = (e) => {
-        const k = inp.dataset.k;
-        l[k] = k === 'tasa' ? Number(String(e.target.value).replace(',', '.')) || 0
-          : k === 'diaPago' ? Math.min(31, Math.max(0, digits(e.target.value)))
-            : digits(e.target.value);
-        store.save();
-        renderCategorias(root);
-      };
-    });
-    // una deuda es indefinida (solo día de corte) o tiene fecha final
-    el.querySelectorAll('.deu-tipo').forEach((b) => {
-      b.onclick = () => {
-        l.fechaLimite = b.dataset.tipo === 'fecha' ? (l.fechaLimite || hoyISO()) : null;
-        store.save();
-        renderCategorias(root);
-      };
-    });
-    const fecha = el.querySelector('.deu-fecha');
-    if (fecha) fecha.onchange = (e) => { l.fechaLimite = e.target.value || null; store.save(); renderCategorias(root); };
+    if (l) el.onclick = () => abrirItemSheet(root, it, l, p);
   });
 
-  /* El pago real. El campo es el total del mes: escribirlo ajusta el libro de
-     movimientos, que es el único sitio donde vive lo pagado. El toggle solo
-     autocompleta si el campo está vacío; con plata escrita, respeta el número. */
-  const periodo = periodoDe(hoyISO());
-  card.querySelectorAll('.line-pago').forEach((el) => {
-    const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-
-    const campo = el.querySelector('.lpag');
-    function sumar() {
-      const monto = digits(campo.value);
-      if (!monto) { campo.focus(); return; }
-      agregarPago(p.movs, it, l, monto, hoyISO());
-      store.save();
-      renderCategorias(root);
-    }
-    el.querySelector('.lpag-add').onclick = sumar;
-    // Enter suma sin soltar el teclado: son varias compras seguidas, no una
-    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
-
-    el.querySelector('.lauto')?.addEventListener('click', () => {
-      l.autoPagar = !l.autoPagar;
-      store.save();
-      renderCategorias(root);
-      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
-    });
-
-    el.querySelector('.lcerrar').onclick = () => {
-      if (l.pagadoEn === periodo) {
-        l.pagadoEn = null;
-      } else {
-        // autocompleta solo si todavía no hay ningún pago; con plata puesta, la respeta
-        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO());
-        l.pagadoEn = periodo;
-      }
-      store.save();
-      renderCategorias(root);
-    };
-  });
-
-  card.querySelectorAll('.pagos-lista').forEach((el) => {
-    el.querySelectorAll('.pago-chip').forEach((chip) => {
-      chip.querySelector('.pago-ed').onclick = () => {
-        const mov = p.movs.find((m) => m.id === chip.dataset.mid);
-        if (mov) openPagoEditor(root, it, p, mov);
-      };
-      chip.querySelector('.pago-x').onclick = () => {
-        const mov = p.movs.find((m) => m.id === chip.dataset.mid);
-        const { undo } = store.stageDelete(
-          () => quitarPago(p.movs, chip.dataset.mid),
-          () => p.movs.push(mov)
-        );
-        renderCategorias(root);
-        toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); renderCategorias(root); });
-      };
-    });
-  });
-
-  /* Lo que no alcanzaste a pagar este mes se pasa al siguiente. Es un botón y
-     no algo automático a propósito: la app no cierra meses sola cuando estás
-     sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. */
-  card.querySelectorAll('.line-arrastre').forEach((el) => {
-    const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-    const siguiente = siguientePeriodo(periodo);
-
-    el.querySelector('.arr-pasar')?.addEventListener('click', () => {
-      const pagados = porLinea(p.movs, periodo);
-      const falta = Math.max(0, planDeLinea(l, periodo) - (pagados[l.id] || 0));
-      if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
-      pasarAlSiguiente(l, periodo, falta);
-      store.save();
-      renderCategorias(root);
-      toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
-        quitarArrastre(l, siguiente);
-        store.save();
-        renderCategorias(root);
-      });
-    });
-
-    el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
-      quitarArrastre(l, siguiente);
-      store.save();
-      renderCategorias(root);
-      toast('Ya no pasa nada al mes siguiente');
-    });
-
-    el.querySelector('.arr-quitar')?.addEventListener('click', () => {
-      const monto = arrastreDe(l, periodo);
-      quitarArrastre(l, periodo);
-      store.save();
-      renderCategorias(root);
-      toast(`Quitaste ${money(monto, p.cur)} de deuda vieja`, () => {
-        l.arrastre = l.arrastre || {};
-        l.arrastre[periodo] = monto;
-        store.save();
-        renderCategorias(root);
-      });
-    });
-  });
-
-  card.querySelector('.deu-metodo')?.addEventListener('click', (e) => {
-    const b = e.target.closest('.chip');
-    if (!b) return;
-    p.metodoDeuda = b.dataset.m;
-    store.save();
-    renderCategorias(root);
-  });
-
-  card.querySelectorAll('.line:not(.line-meta)').forEach((lineEl) => {
-    const lid = lineEl.dataset.lid || lineEl.closest('.concepto-card')?.dataset.lid;
-    const l = it.L.find((x) => x.id === lid);
-    if (!l) return;
-    lineEl.querySelector('.ln').oninput = (e) => { l.n = e.target.value; store.save(); };
-    lineEl.querySelector('.lv').onchange = (e) => { l.v = digits(e.target.value); store.save(); renderCategorias(root); };
-    lineEl.querySelector('.lx').onclick = () => {
-      const idx = it.L.indexOf(l);
-      let pagos = [];
-      const { undo } = store.stageDelete(
-        () => { it.L.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'lineId', l.id); },
-        () => { it.L.splice(idx, 0, l); p.movs.push(...pagos); }
-      );
-      renderCategorias(root);
-      toast('Renglón eliminado', () => { undo(); renderCategorias(root); });
-    };
-  });
+  // los pagos sueltos de la categoría: los del concepto viven en su pop-up
+  wirePagos(card, it, p, () => renderCategorias(root));
 }
 
 // F12 — plantillas + F16 — de dónde sale la plata de una categoría nueva

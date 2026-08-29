@@ -3,7 +3,7 @@ import {
   estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea,
   pagosLibresDeItem, quitarPago,
   movimientosDeAhorro, ahorroRepartido, promedioVariables, precargarFijos,
-  arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior,
+  arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, pctPagado,
 } from './pagos.js';
 
 const linea = (id, n, v, extra = {}) => ({ id, n, v, fixed: true, ...extra });
@@ -299,5 +299,19 @@ describe('precargarFijos', () => {
     precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
     expect(precargarFijos(p.items, p.movs, '2026-10', '2026-10-01')).toBe(1);
     expect(p.movs).toHaveLength(2);
+  });
+});
+
+describe('relleno del bloque (F10)', () => {
+  it('va de 0 a 100 y no se pasa', () => {
+    expect(pctPagado(0, 100)).toBe(0);
+    expect(pctPagado(80, 100)).toBe(80);
+    expect(pctPagado(100, 100)).toBe(100);
+    expect(pctPagado(180, 100)).toBe(100);
+  });
+
+  it('sin plan, cualquier pago llena el bloque', () => {
+    expect(pctPagado(0, 0)).toBe(0);
+    expect(pctPagado(5000, 0)).toBe(100);
   });
 });

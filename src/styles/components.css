@@ -219,6 +219,27 @@
 .detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2)}
 .btn-plus{width:32px;height:30px;padding:0;font-size:var(--text-base);font-weight:var(--fw-bold)}
 .lines{display:flex;flex-direction:column;gap:7px}
+/* F10 — el bloque ES la barra: el relleno va detrás del contenido con un
+   pseudo-elemento, que un linear-gradient no se puede animar. */
+.bloque{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;
+  gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);
+  border:1px solid var(--border-hairline);cursor:pointer;text-align:left;width:100%}
+.bloque::before{content:'';position:absolute;inset:0 auto 0 0;width:var(--pct,0%);z-index:-1;
+  transition:width var(--dur-fast) var(--ease-out),background var(--t-fast)}
+.bloque+.bloque{margin-top:var(--space-2)}
+.bloque .bloque-n{flex:1;min-width:0;display:flex;align-items:center;gap:6px;
+  font-weight:var(--fw-semibold);overflow-wrap:anywhere}
+.bloque .bloque-m{flex:none;font-weight:var(--fw-bold)}
+.bloque .bloque-ed{flex:none;padding:6px;border:0;background:transparent;color:inherit;opacity:.65}
+.bloque .bloque-ed:hover{opacity:1;background:transparent}
+.bloque-check{color:var(--success);display:flex}
+
+.bloque-item{background:var(--bloque-item-bg);color:var(--bloque-item-text)}
+.bloque-item::before{background:var(--bloque-item-fill)}
+.bloque-item.est-pagado::before{background:var(--bloque-ok);width:100%}
+.bloque-item.est-excedido::before{background:var(--bloque-over);width:100%}
+.bloque-item.est-excedido{border-color:var(--danger)}
+
 .concepto-card{padding:var(--space-3);border:1px solid var(--border-hairline);border-radius:var(--radius-md);background:var(--white)}
 .concepto-card+.concepto-card{margin-top:var(--space-3)}
 .concepto-card>.line:first-child{margin-top:0}
@@ -334,6 +355,12 @@
 .line-progreso .hist-track{width:100%;flex:none;height:7px;margin-top:5px}
 .line-progreso .hist-track i{background:var(--pink)}
 .deu-plazo-tipo{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.modal-body{display:flex;flex-direction:column;gap:var(--space-3)}
+.modal-body .line-pago{margin-top:0}
+.modal-body .fieldw{width:100%}
+.modal-body .line-pago .fieldw{max-width:none;flex:1 1 130px}
+.danger-action{color:var(--danger);border-color:var(--danger)}
+
 .ob-sheet .sheet-head{margin-bottom:0}
 .ob-pasos{display:flex;gap:6px;margin-bottom:var(--space-4)}
 .ob-pasos i{flex:1;height:4px;border-radius:var(--radius-pill);background:var(--pink-wash)}

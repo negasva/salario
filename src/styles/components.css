@@ -12,7 +12,16 @@
   margin:0;flex:none;padding:0;border:0;cursor:pointer}
 .sidebar .brand:hover{background:var(--pink-dark);border:0}
 .sidebar .brand:focus-visible{outline:2px solid var(--white);outline-offset:2px}
-.sidebar nav{display:flex;flex-direction:row;gap:var(--space-2);flex:1;overflow-x:auto}
+/* F12 — al dejar el dedo o el botón presionado sobre un botón de la barra el
+   navegador sacaba su propio control de scroll o de selección. Se le quita la
+   selección, el menú de mantener pulsado y el retardo del toque, y el arrastre
+   horizontal del nav no se contagia a la página. La barra solo se desplaza
+   cuando de verdad no caben los botones. */
+.sidebar{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.sidebar nav{display:flex;flex-direction:row;gap:var(--space-2);flex:1;overflow-x:auto;
+  overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none}
+.sidebar nav::-webkit-scrollbar{display:none}
+.sidebar .brand,.sidebar .navlink{touch-action:manipulation;-webkit-touch-callout:none}
 .sidebar .navlink{width:40px;height:40px;padding:0;border:none;background:transparent;
   color:var(--text-on-ink-muted);border-radius:var(--radius-sm);
   display:flex;align-items:center;justify-content:center}

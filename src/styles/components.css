@@ -399,8 +399,12 @@
 .mov-mas{margin-top:var(--space-2)}
 .mov-detalle{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3)}
 .mov-detalle>*{flex:1 1 140px;min-width:0}
-.mov-head{display:flex;align-items:center;justify-content:center;gap:var(--space-4);
-  margin-bottom:var(--space-4)}
+/* F9 — el paso de mes va arriba, en la misma fila del título y pegado a la
+   derecha; en pantalla angosta cae debajo pero conserva el orden. */
+.mov-head{display:flex;align-items:center;justify-content:center;gap:var(--space-4)}
+.vista-head-row{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--space-4);flex-wrap:wrap}
+.vista-head-row .mov-head{flex:none}
 .mov-res{display:flex;align-items:center;gap:var(--space-3)}
 .mov-res .nm{flex:0 0 120px;font-size:var(--text-sm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mov-res .hist-track{flex:1}

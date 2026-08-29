@@ -20,7 +20,7 @@ export function buscar(p, consulta, limite = 40) {
     }
     (it.L || []).forEach((l) => {
       if (coincide(l.n || '', q)) {
-        res.push({ tipo: 'renglon', id: l.id, titulo: l.n, sub: `Renglón de ${it.n}`, ruta: 'movimientos', args: { lineId: l.id } });
+        res.push({ tipo: 'renglon', id: l.id, titulo: l.n, sub: `Tipo de concepto de ${it.n}`, ruta: 'movimientos', args: { lineId: l.id } });
       }
     });
   });

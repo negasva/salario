@@ -71,6 +71,9 @@
   --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-pill:9999px;
 
   --nav-height:64px;
+  /* F2 — alto unico de control y separacion unica entre campos de formulario */
+  --control-h:42px;
+  --reg-gap:var(--space-3);
 
   --shadow-sm:0 1px 2px rgba(26,26,26,.06);
   --shadow-xl:0 20px 40px rgba(26,26,26,.16);

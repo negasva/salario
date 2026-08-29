@@ -82,7 +82,7 @@ const WIDGETS = ['ingreso', 'mes', 'tope', 'fondo', 'esenciales', 'alertas', 'bu
 const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2, buscar: 1, pregunta: 1 };
 const NOMBRES = {
   ingreso: 'Ingreso del mes', mes: 'Tu mes', fondo: 'Fondo de emergencia',
-  tope: 'Gasto máximo', esenciales: 'Aviso de gastos recurrentes', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
+  tope: 'Gasto máximo', esenciales: 'Aviso de gastos recurrentes', alertas: 'Alertas de tipo de concepto', tasa: 'Tasa de ahorro',
   ahorro: 'Ahorro acumulado', reparto: 'Reparto del ingreso', metas: 'Metas',
   buscar: 'Buscador', pregunta: 'Pregúntale a tus números',
 };
@@ -271,7 +271,7 @@ export async function renderDashboard(root) {
     buscar: `<div class="card">
         <span class="label">Buscar</span>
         <label class="search wide" style="margin-top:var(--space-3)">${icon('buscar', 'ic-sm')}
-          <input id="dBuscar" placeholder="Un gasto, una meta, un renglón…" aria-label="Buscar en el perfil"></label>
+          <input id="dBuscar" placeholder="Un gasto, una meta, un tipo de concepto…" aria-label="Buscar en el perfil"></label>
         <div id="dBuscarRes"></div>
       </div>`,
 

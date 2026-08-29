@@ -284,3 +284,19 @@ describe('contador al día con gastos variables', () => {
     expect(resumenItem(cat, {}, '2026-08').cerradas).toBe(0);
   });
 });
+
+describe('F6 — pagos sin concepto', () => {
+  it('resumenItem los suma en pagado y los deja aparte en libre', () => {
+    const it = { id: 'i1', L: [{ id: 'l1', n: 'Arriendo', v: 1000, fixed: true }] };
+    const res = resumenItem(it, { l1: 400 }, '2026-08', 250);
+    expect(res.pagado).toBe(650);
+    expect(res.libre).toBe(250);
+  });
+
+  it('una categoría sin conceptos pero con pagos sueltos no queda en cero', () => {
+    const res = resumenItem({ id: 'i2', L: [] }, {}, '2026-08', 262000);
+    expect(res.total).toBe(0);
+    expect(res.pagado).toBe(262000);
+    expect(res.libre).toBe(262000);
+  });
+});

@@ -83,7 +83,12 @@ export function resumenItem(it, pagadoPorLinea = {}, periodo, pagadoLibre = 0) {
   const ahorrado = r2(cerradas.reduce((s, f) => s + Math.max(0, f.diferencia), 0));
   const excedido = r2(cerradas.reduce((s, f) => s + Math.max(0, -f.diferencia), 0));
 
+  /* F6 — lo pagado sin ningún concepto va aparte y con nombre: entra en
+     `pagado` como siempre, pero la lista también tiene que poder mostrarlo.
+     Sumarlo al total y no enseñarlo era lo que hacía que una categoría dijera
+     "sin nada en la lista" con plata dentro. */
   return { periodo, filas, plan, pagado, diferencia: r2(plan - pagado),
+    libre: r2(Number(pagadoLibre) || 0),
     ahorrado, excedido, costo: r2(plan - ahorrado + excedido),
     cerradas: cerradas.length, total: filas.length };
 }

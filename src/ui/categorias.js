@@ -178,9 +178,7 @@ function catCard(it, p, gastadoLinea, periodo) {
     </div>
     <div class="cat-items">
       <div class="lines">${lines(it, p, res)}</div>
-      ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
-        ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
-      </div>` : ''}
+      ${tablaPagos(pagosLibres, p)}
       <div class="cat-acciones">
         <button class="mini cat-plus">+ Concepto</button>
         <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
@@ -352,21 +350,27 @@ function cabeceraPagos(res, p, planeado) {
 /* Cada compra queda a la vista y se borra sola: corregir un pago mal tecleado
    es quitar esa transacción, no recalcular un total a mano. */
 function listaPagos(l, p, periodo) {
-  const pagos = pagosDeLinea(p.movs, l.id, periodo);
+  return tablaPagos(pagosDeLinea(p.movs, l.id, periodo), p, `data-lid="${l.id}"`);
+}
+
+function tablaPagos(pagos, p, attrs = '') {
   if (!pagos.length) return '';
-  return `<div class="pagos-lista" data-lid="${l.id}">
-    ${pagos.map((m) => pagoChip(m, p)).join('')}
+  return `<div class="pagos-tabla" ${attrs}>
+    <div class="pago-row pago-head"><span>Monto</span><span>Fecha</span><span>Nota</span><span></span></div>
+    ${pagos.map((m) => pagoFila(m, p)).join('')}
   </div>`;
 }
 
-function pagoChip(m, p) {
-  return `<span class="pago-chip" data-mid="${m.id}">
+function pagoFila(m, p) {
+  return `<div class="pago-row" data-mid="${m.id}">
     <b class="num">${money(m.monto, p.cur)}</b>
     <span class="sub">${diaCorto(m.fecha)}</span>
-    ${!m.lineId && m.nota ? `<span class="sub pago-nota">${esc(m.nota)}</span>` : ''}
-    <button class="pago-ed" title="Editar pago" aria-label="Editar pago">⋮</button>
-    <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
-  </span>`;
+    <span class="sub pago-nota">${!m.lineId && m.nota ? esc(m.nota) : ''}</span>
+    <span class="pago-acciones">
+      <button class="pago-ed" title="Editar pago" aria-label="Editar pago">⋮</button>
+      <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
+    </span>
+  </div>`;
 }
 
 function openPagoEditor(it, p, mov = null, repintar) {
@@ -498,10 +502,10 @@ function abrirItemSheet(root, it, l, p) {
   pintar();
 }
 
-/* Los chips de pago se editan y se borran igual en el pop-up del concepto y en
+/* Las filas de pago se editan y se borran igual en el pop-up del concepto y en
    los pagos sueltos de la categoría. */
 function wirePagos(scope, it, p, repintar) {
-  scope.querySelectorAll('.pago-chip').forEach((chip) => {
+  scope.querySelectorAll('.pago-row[data-mid]').forEach((chip) => {
     chip.querySelector('.pago-ed').onclick = () => {
       const mov = p.movs.find((m) => m.id === chip.dataset.mid);
       if (mov) openPagoEditor(it, p, mov, repintar);

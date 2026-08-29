@@ -11,8 +11,7 @@ import { toast } from './shell.js';
 import { abrirSelectorExtra } from './movimientos.js';
 import { tarjetaResumenFlujo } from './resumen.js';
 
-const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
-  'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
+const { PALETTE } = store;
 
 export function renderCategorias(root) {
   const p = store.active();

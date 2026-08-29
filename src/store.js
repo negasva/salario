@@ -18,6 +18,10 @@ const OLD_KEYS = ['reparto:v7', 'reparto:v6', 'reparto:v5'];
    porcentajes automáticos. Todo arranca en cero y el usuario asigna.
    Lo que se precarga en el onboarding es editable y borrable. */
 
+// Colores de bloque, en el orden en que se reparten a las categorías nuevas.
+export const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
+  'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
+
 // Medios de pago de fábrica. Se editan desde Ajustes.
 export const MEDIOS_BASE = ['Bancolombia', 'Nequi', 'Efectivo', 'Daviplata',
   'Tarjeta de crédito', 'Tarjeta débito', 'Otro'];
@@ -53,7 +57,8 @@ function nid(prefix) {
 
 const INGRESO_INICIAL = 5500000;
 
-export function nuevoItem(n, m = 0, r = null, c = 'var(--pink)') {
+export function nuevoItem(n, m = 0, r = null, c) {
+  c = c || PALETTE[(active()?.items?.length || 0) % PALETTE.length];
   return { id: nid('i'), n, m: Math.round(m), r, c, d: '', locked: false, L: [] };
 }
 
@@ -88,16 +93,6 @@ export function sincronizarAutomaticas(p, periodo = periodoDe(hoyISO())) {
   p.items.forEach((it) => {
     if (it.auto) it.m = Math.round(resumenItem(it, pagados, periodo).costo);
   });
-}
-
-/* Cambiar el ingreso del plan cuando el reparto todavía es el de fábrica no
-   puede dejarlo descuadrado: los montos se reescalan en la misma proporción.
-   Solo se usa en el onboarding; después de eso los montos son tuyos y nadie
-   los toca a tus espaldas. */
-export function reescalarItems(p, incAnterior) {
-  if (!(incAnterior > 0) || !(p.inc > 0)) return;
-  const k = p.inc / incAnterior;
-  p.items.forEach((it) => { it.m = Math.round((Number(it.m) || 0) * k); });
 }
 
 // F18 — ingreso variable: promedio para repartir, minimo para calcular esenciales
@@ -210,6 +205,7 @@ function normalizeProfile(p) {
   sincronizarAutomaticas(p);
   p.recurrentes ??= [];
   p.medios ??= [...MEDIOS_BASE];
+  p.gastoMaximo ??= 70;
   p.saldos ??= { [p.cur || 'COP']: 0 };
   p.avisosVistos ??= {};
   p.avisosEnviados ??= {};
@@ -274,6 +270,7 @@ async function flushPush() {
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         recurrentes: p.recurrentes || [],
         medios: p.medios || [], saldos: p.saldos || {},
+        edad: p.edad || null, gastoMaximo: p.gastoMaximo,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -384,6 +381,7 @@ export async function bootAuth(uid) {
       alertasSilenciadas: row.data.alertasSilenciadas,
       recurrentes: row.data.recurrentes || [], dashLayout: row.data.dashLayout || null,
       medios: row.data.medios, saldos: row.data.saldos,
+      edad: row.data.edad || null, gastoMaximo: row.data.gastoMaximo,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;

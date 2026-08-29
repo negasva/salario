@@ -4,6 +4,7 @@ import { plain, money, esc, digits } from '../format.js';
 import { ingresoEfectivo, excedente } from '../engine/consejo.js';
 import { estadoNotificaciones, pedirPermisoNotificaciones } from './avisos.js';
 import { MONEDAS, tasa } from '../engine/moneda.js';
+import { abrirOnboarding } from './onboarding.js';
 
 export function renderAjustes(root) {
   const p = store.active();
@@ -71,6 +72,12 @@ export function renderAjustes(root) {
         <span class="label">Avisos</span>
         <div class="sub" id="ajNotifTexto" style="margin-top:8px"></div>
         <div class="prow"><button id="ajNotif">Permitir notificaciones</button></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Paso a paso</span>
+        <div class="sub" style="margin-top:6px">Vuelve a las preguntas del inicio: edad, salario, gastos e ingresos que se repiten.</div>
+        <div class="prow"><button id="ajWizard">Rehacer el paso a paso</button></div>
       </div>
 
       <div class="card">
@@ -202,6 +209,8 @@ export function renderAjustes(root) {
     pintarNotif();
   };
   pintarNotif();
+
+  root.querySelector('#ajWizard').onclick = () => abrirOnboarding(() => renderAjustes(root));
 
   root.querySelector('#ajExport').onclick = () => {
     const blob = new Blob([JSON.stringify({ profiles: store.profiles() }, null, 2)], { type: 'application/json' });

@@ -7,6 +7,14 @@ import { MONEDAS, tasa, entradaTasa, guardarTasaManual, vigente } from '../engin
 import { abrirOnboarding } from './onboarding.js';
 import { PALETAS, normalizarPaleta } from '../theme.js';
 import { badgeMedio } from './medios.js';
+import { icon } from './icons.js';
+
+/* Cada tarjeta de Ajustes se parte en dos: una franja de color con el ícono y
+   el título, y debajo el contenido. El título deja de flotar dentro del cuerpo
+   y se ve de qué trata la tarjeta sin leerla. */
+function cabecera(ic, titulo) {
+  return `<div class="card-head">${icon(ic, 'ic-sm')}<span class="label">${titulo}</span></div>`;
+}
 
 function fechaCorta(t) {
   return new Date(t).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
@@ -18,8 +26,9 @@ export function renderAjustes(root) {
   root.innerHTML = `
     <h3 class="set-sec">Perfil</h3>
     <div class="grid set-grid">
-      <div class="card">
-        <span class="label">Perfiles</span>
+      <div class="card card-sec">
+        ${cabecera('usuario', 'Perfiles')}
+        <div class="card-body">
         <div class="fld" style="margin-top:10px"><label>Nombre del perfil activo</label>
           <input id="ajNombre" value="${esc(p.name)}" aria-label="Nombre del perfil activo"></div>
         <div class="chips" id="ajChips" style="margin-top:10px">
@@ -31,62 +40,76 @@ export function renderAjustes(root) {
           <button id="ajDup">Duplicar</button>
           <button id="ajDel">Eliminar</button>
         </div>
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Ingreso</span>
+      <div class="card card-sec">
+        ${cabecera('tendencia', 'Ingreso')}
+        <div class="card-body">
         <div class="chips" style="margin-top:10px">
           <button class="chip ${p.ingresoTipo === 'fijo' ? 'on' : ''}" id="ajFijo">Fijo</button>
           <button class="chip ${p.ingresoTipo === 'variable' ? 'on' : ''}" id="ajVariable">Variable</button>
         </div>
         <div id="ajHistorial" style="margin-top:12px"></div>
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Saldo inicial</span>
+      <div class="card card-sec">
+        ${cabecera('ahorro', 'Saldo inicial')}
+        <div class="card-body">
         <div class="sub" style="margin-top:6px">Lo que tenías antes de empezar. A partir de ahí se suman ingresos y se restan egresos.</div>
         ${MONEDAS.map((m) => `<div class="fld" style="margin-top:10px"><label>${m}</label>
           <input class="ajSaldo" data-cur="${m}" inputmode="numeric" value="${plain(p.saldos?.[m] || 0, m)}"></div>`).join('')}
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Moneda principal</span>
+      <div class="card card-sec">
+        ${cabecera('moneda', 'Moneda principal')}
+        <div class="card-body">
         <div class="chips" id="ajMonedas" style="margin-top:10px">
           ${MONEDAS.map((m) => `<button class="chip ${p.cur === m ? 'on' : ''}" data-cur="${m}">${m}</button>`).join('')}
         </div>
         <div class="sub" id="ajTasas" style="margin-top:10px">Consultando tasas…</div>
+        </div>
       </div>
 
     </div>
 
     <h3 class="set-sec">Reglas</h3>
     <div class="grid set-grid">
-      <div class="card">
-        <span class="label">Medios de pago</span>
+      <div class="card card-sec">
+        ${cabecera('deuda', 'Medios de pago')}
+        <div class="card-body">
         <div id="ajMedios" style="margin-top:10px"></div>
         <div class="prow"><button id="ajMedioNuevo">+ Agregar medio</button></div>
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Cálculos</span>
+      <div class="card card-sec">
+        ${cabecera('calculadora', 'Cálculos')}
+        <div class="card-body">
         <div class="set-row"><label for="ajFondoMeses">Fondo de emergencia · meses (3 a 6)</label>
           <input type="number" id="ajFondoMeses" min="3" max="6" value="${p.fondoMeses}"></div>
         <div class="set-row"><label for="ajTasa">Costo de oportunidad · tasa anual (%)</label>
           <input type="number" id="ajTasa" min="0" max="100" step="0.5" value="${p.tasaInteres}"></div>
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Avisos</span>
+      <div class="card card-sec">
+        ${cabecera('alerta', 'Avisos')}
+        <div class="card-body">
         <div class="sub" id="ajNotifTexto" style="margin-top:8px"></div>
         <div class="prow"><button id="ajNotif">Permitir notificaciones</button></div>
+        </div>
       </div>
 
     </div>
 
     <h3 class="set-sec">App</h3>
     <div class="grid set-grid">
-      <div class="card">
-        <span class="label">Paleta de colores</span>
+      <div class="card card-sec">
+        ${cabecera('paleta', 'Paleta de colores')}
+        <div class="card-body">
         <div class="palette-lista" id="ajPaleta">
           ${Object.entries(PALETAS).map(([pid, paleta]) => `
             <button class="palette-option" data-palette="${pid}" role="menuitemradio" aria-checked="${normalizarPaleta(p.paleta) === pid}">
@@ -95,21 +118,26 @@ export function renderAjustes(root) {
               <span class="palette-check" aria-hidden="true">✓</span>
             </button>`).join('')}
         </div>
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Paso a paso</span>
+      <div class="card card-sec">
+        ${cabecera('categorias', 'Paso a paso')}
+        <div class="card-body">
         <div class="sub" style="margin-top:6px">Vuelve a las preguntas del inicio: edad, salario, gastos e ingresos que se repiten.</div>
         <div class="prow"><button id="ajWizard">Rehacer el paso a paso</button></div>
+        </div>
       </div>
 
-      <div class="card">
-        <span class="label">Datos</span>
+      <div class="card card-sec">
+        ${cabecera('datos', 'Datos')}
+        <div class="card-body">
         <div class="prow">
           <button id="ajExport">Exportar</button>
           <label class="btn-file">Importar<input type="file" id="ajImport" accept="application/json" hidden></label>
         </div>
         <div id="ajImportar"></div>
+        </div>
       </div>
     </div>`;
 
@@ -193,12 +221,14 @@ export function renderAjustes(root) {
     box.innerHTML = otras.map((m, i) => {
       const guardada = entradaTasa(m, p.cur);
       const vieja = valores[i] && guardada && !vigente(guardada);
-      return `<div>1 ${m} = ${valores[i] ? `<b class="num">${money(valores[i], p.cur)}</b>` : 'sin tasa'}
-        ${vieja ? `<span class="sub">tasa del ${fechaCorta(guardada.t)}</span>` : ''}
-        ${guardada?.manual ? '<span class="sub">puesta a mano</span>' : ''}</div>
-      <div class="set-row"><label for="ajTasaM${m}">Tasa manual ${m} → ${p.cur}</label>
+      const nota = vieja ? `tasa del ${fechaCorta(guardada.t)}`
+        : guardada?.manual ? 'puesta a mano' : '';
+      return `<div class="tasa-fila">
+        <span class="tasa-valor">1 ${m} = ${valores[i] ? `<b class="num">${money(valores[i], p.cur, true)}</b>` : 'sin tasa'}
+          ${nota ? `<span class="sub">${nota}</span>` : ''}</span>
         <input id="ajTasaM${m}" class="ajTasaManual num" data-cur="${m}" inputmode="decimal"
-          placeholder="${valores[i] || ''}"></div>`;
+          placeholder="a mano" aria-label="Tasa manual de ${m} a ${p.cur}">
+      </div>`;
     }).join('');
     box.querySelectorAll('.ajTasaManual').forEach((inp) => {
       inp.onchange = (e) => {

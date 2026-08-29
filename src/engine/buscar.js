@@ -1,4 +1,4 @@
-import { money } from '../format.js';
+import { money, MESES } from '../format.js';
 import { normalizar } from './clasificar.js';
 import { nombreCategoria } from './clasificar.js';
 
@@ -7,6 +7,12 @@ import { nombreCategoria } from './clasificar.js';
 
 function coincide(texto, termino) {
   return normalizar(texto).includes(termino);
+}
+
+// "2026-08-29" no le dice nada a nadie en una lista de resultados
+function diaLegible(fecha) {
+  const [, m, d] = String(fecha).split('-').map(Number);
+  return MESES[m - 1] ? `${d} de ${MESES[m - 1]}` : String(fecha);
 }
 
 export function buscar(p, consulta, limite = 40) {
@@ -38,7 +44,7 @@ export function buscar(p, consulta, limite = 40) {
       res.push({
         tipo: 'movimiento', id: m.id, monto: m.monto, fecha: m.fecha,
         titulo: m.nota || it?.n || (m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'),
-        sub: `${m.fecha}${it ? ` · ${it.n}` : ''}`,
+        sub: `${diaLegible(m.fecha)}${it ? ` · ${it.n}` : ''}`,
         ruta: 'movimientos', args: { movId: m.id },
       });
     }

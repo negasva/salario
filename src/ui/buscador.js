@@ -17,9 +17,11 @@ export function pintarResultados(box, p, consulta, alNavegar) {
     return;
   }
   const total = totalDeMovimientos(res);
+  const cuantos = res.filter((r) => r.tipo === 'movimiento').length;
   box.innerHTML = `
-    ${total > 0 ? `<div class="sub">${res.filter((r) => r.tipo === 'movimiento').length} movimientos ·
-      <b class="num">${money(total, p.cur)}</b> en total</div>` : ''}
+    ${total > 0 ? `<div class="busca-resumen sub">${icon('movimientos', 'ic-sm')}
+      ${cuantos === 1 ? '1 movimiento' : `${cuantos} movimientos`}
+      <span class="num">${money(total, p.cur)}</span></div>` : ''}
     <div class="busca-list">
       ${res.map((r, i) => `<button class="busca-item" data-i="${i}">
         ${icon(ICONO[r.tipo] || 'etiqueta', 'ic-sm')}

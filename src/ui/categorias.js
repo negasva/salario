@@ -27,20 +27,18 @@ export function renderCategorias(root) {
     <div id="catIngreso"></div>
     <div class="cats-head">
       <button id="catAdd" class="wide btn-primary">+ Agregar categoría</button>
-      <button id="catEqual">Repartir lo que falta en partes iguales</button>
+      <button id="catEqual">Mandar lo que falta a ahorros</button>
     </div>
     <div id="catList"></div>`;
 
   root.querySelector('#catAdd').onclick = () => openNewCategory(root);
   root.querySelector('#catEqual').onclick = () => {
     const b = balance(p.items, store.incomeRepartir(p), p.goals);
-    if (b.cuadrado) { toast('Ya está todo repartido'); return; }
-    const unlocked = p.items.filter((it) => !it.locked && !it.auto);
-    if (!unlocked.length) { toast('No hay categorías a las que repartirles'); return; }
-    const e = b.dif / unlocked.length;
-    unlocked.forEach((it) => { it.m = Math.max(0, Math.round(amount(it) + e)); });
-    store.save();
-    renderCategorias(root);
+    if (!(b.falta > 0)) { toast('Ya está todo repartido'); return; }
+    abrirSelectorExtra(p, b.falta, hoyISO(), (t) => {
+      renderCategorias(root);
+      toast(t > 0 ? `Mandaste ${money(t, p.cur)} a tus metas.` : 'Nada quedó asignado.');
+    });
   };
 
   paintList(root);

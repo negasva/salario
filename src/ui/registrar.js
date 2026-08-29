@@ -155,9 +155,10 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
 
       <div class="reg-row" id="regCatWrap">
         <div class="fld"><label for="regItem">Categoría</label>
+          <span class="sel-color"><i class="sel-dot" id="regItemDot" aria-hidden="true"></i>
           <select id="regItem">${p.items.length
-            ? p.items.map((it) => `<option value="${it.id}" ${previo?.itemId === it.id ? 'selected' : ''}>${esc(it.n)}</option>`).join('')
-            : '<option value="">Sin categorías todavía</option>'}</select></div>
+            ? p.items.map((it) => `<option value="${it.id}" data-c="${it.c}" style="color:${it.c}" ${previo?.itemId === it.id ? 'selected' : ''}>● ${esc(it.n)}</option>`).join('')
+            : '<option value="">Sin categorías todavía</option>'}</select></span></div>
         <div class="fld"><label for="regLine">Renglón</label>
           <select id="regLine"></select></div>
       </div>
@@ -190,10 +191,18 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   const err = $('#regErr');
   let itemTocado = !!previo;
 
+  /* F3 — el <option> nativo solo deja pintar el texto, así que el color va en el
+     bullet de cada opción y, para el estado cerrado, en este punto de al lado. */
+  function pintarPuntoItem() {
+    const it = p.items.find((x) => x.id === itemEl.value);
+    $('#regItemDot').style.background = it?.c || 'transparent';
+  }
+
   function pintarRenglones() {
     const it = p.items.find((x) => x.id === itemEl.value);
     lineEl.innerHTML = `<option value="">Sin renglón</option>${(it?.L || [])
       .map((l) => `<option value="${l.id}" ${previo?.lineId === l.id ? 'selected' : ''}>${esc(l.n || 'sin nombre')}</option>`).join('')}`;
+    pintarPuntoItem();
     pintarAbono();
   }
 

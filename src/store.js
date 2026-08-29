@@ -5,7 +5,6 @@ import { ordenadas, reasignar, mover, soltar } from './engine/fila.js';
 import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
 import { resumenItem, sinHuerfanos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
-import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 
 const KEY = 'reparto:v8';
@@ -420,23 +419,10 @@ export async function cerrarMes(periodo, snapshot) {
   }, { onConflict: 'perfil_id,periodo' });
 }
 
-/* Cierre automático: no hay cron ni servidor, la app cierra los meses
-   pendientes la primera vez que se abre después del día 1. */
-let cerradosAuto = [];
-export function cierresAutomaticos() { return cerradosAuto; }
-
-export async function autoCerrar() {
-  cerradosAuto = [];
+export async function borrarCierre(periodo) {
   const p = active();
-  if (!userId || !p?.remoteId) return cerradosAuto;
-  const cierres = await listarCierres();
-  const pendientes = periodosPendientes(cierres.map((c) => c.periodo), p.movs);
-  for (const periodo of pendientes) {
-    const { error } = await cerrarMes(periodo, construirSnapshot(p, periodo, ingresoDelMes(p, periodo) || incomeRepartir(p)));
-    if (error) break;
-    cerradosAuto.push(periodo);
-  }
-  return cerradosAuto;
+  if (!userId || !p?.remoteId) return { error: 'sin sesion' };
+  return supabase.from('cierres').delete().eq('perfil_id', p.remoteId).eq('periodo', periodo);
 }
 
 export async function listarCierres() {

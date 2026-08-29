@@ -11,24 +11,6 @@ export function periodoAnterior(periodo) {
   return periodoDe(hoyISO(d));
 }
 
-// Los meses cerrados que faltan, del más viejo al más nuevo. Si el usuario no
-// abre la app en tres meses, al volver se cierran los tres de una.
-export function periodosPendientes(periodosCerrados, movs = [], hoy = new Date(), maximo = 12) {
-  const actual = periodoDe(hoyISO(hoy));
-  const hechos = new Set(periodosCerrados);
-  // solo meses en los que el usuario registró algo: una cuenta recién abierta
-  // no tiene por qué llenarse de cierres vacíos hacia atrás
-  const vividos = new Set(movs.map((m) => periodoDe(m.fecha)));
-  const faltan = [];
-  let per = periodoAnterior(actual);
-  // el tope cuenta meses recorridos, no meses empujados: contando empujados,
-  // un historial sin movimientos nunca saldría del bucle
-  for (let i = 0; i < maximo && !hechos.has(per); i++) {
-    if (vividos.has(per)) faltan.push(per);
-    per = periodoAnterior(per);
-  }
-  return faltan.reverse();
-}
 
 export function construirSnapshot(p, periodo, income, previo = {}) {
   const gastos = porItem(p.movs, periodo);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { periodoAnterior, periodosPendientes, construirSnapshot, brechaDelMes, aportadoEnCierre } from './cierre.js';
+import { periodoAnterior, construirSnapshot, brechaDelMes, aportadoEnCierre } from './cierre.js';
 
 const perfil = () => ({
   inc: 1000000,
@@ -28,21 +28,6 @@ describe('periodos', () => {
     expect(periodoAnterior('2026-09')).toBe('2026-08');
   });
 
-  const vividos = ['2026-06', '2026-07', '2026-08'].map((per) => ({ fecha: `${per}-15` }));
-
-  it('sin cierres pendientes devuelve vacío', () => {
-    expect(periodosPendientes(['2026-08'], vividos, new Date(2026, 8, 3))).toEqual([]);
-  });
-
-  it('tres meses sin abrir la app se cierran en orden', () => {
-    expect(periodosPendientes(['2026-05'], vividos, new Date(2026, 8, 3)))
-      .toEqual(['2026-06', '2026-07', '2026-08']);
-  });
-
-  it('un mes sin movimientos no se cierra: cuenta nueva, historial en blanco', () => {
-    expect(periodosPendientes([], [], new Date(2026, 8, 3))).toEqual([]);
-    expect(periodosPendientes([], [{ fecha: '2026-07-02' }], new Date(2026, 8, 3))).toEqual(['2026-07']);
-  });
 });
 
 describe('snapshot version 2', () => {

@@ -1,13 +1,6 @@
 import * as store from '../store.js';
 import { avisosPendientes, fueVisto } from '../engine/avisos.js';
 import { anuncio } from './anuncio.js';
-import { MESES } from '../format.js';
-
-function nombreMes(periodo) {
-  const [a, m] = String(periodo).split('-');
-  return `${MESES[Number(m) - 1] || periodo} de ${a}`;
-}
-
 function irA(route) {
   window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route } }));
 }
@@ -18,18 +11,6 @@ function avisosDeHoy() {
   const p = store.active();
   if (!p) return [];
   const lista = [];
-
-  // F3 — la app cerró meses al arrancar
-  const auto = store.cierresAutomaticos();
-  if (auto.length) {
-    lista.push({
-      clave: `cierres-${auto.join('_')}`,
-      titulo: auto.length === 1 ? `Cerré ${nombreMes(auto[0])} por ti` : `Cerré ${auto.length} meses por ti`,
-      cuerpo: `${auto.map(nombreMes).join(', ')}. Revisa que el cierre esté completo antes de darlo por bueno.`,
-      vistas: ['dashboard', 'historial'],
-      acciones: [{ label: 'Ver en Historial', onClick: () => irA('historial') }],
-    });
-  }
 
   // F6 — fin de mes y metas con fecha encima
   avisosPendientes(p).forEach((av) => {

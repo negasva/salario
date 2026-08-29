@@ -11,6 +11,7 @@ const NAV = [
   { id: 'categorias', label: 'Categorías', ic: 'categorias' },
   { id: 'metas', label: 'Metas', ic: 'metas' },
   { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
+  { id: 'analisis', label: 'Análisis', ic: 'analisis' },
   { id: 'historial', label: 'Historial', ic: 'historial' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
 ];

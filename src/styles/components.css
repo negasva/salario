@@ -529,3 +529,19 @@
 /* meta como bloque del reparto (F5) */
 .cat-meta .cat-name-fijo{flex:1;font-weight:var(--fw-bold);font-size:var(--text-base)}
 .cat-meta .hist-track{margin-top:var(--space-3)}
+
+/* ── análisis por categorías (F6) ─────────────────────────────────────── */
+.donut-wrap{position:relative;display:flex;justify-content:center;margin:var(--space-4) 0}
+.donut{width:min(260px,70vw);height:auto}
+.donut-centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;pointer-events:none;text-align:center}
+.donut-centro .num{font-size:var(--text-h3);font-weight:var(--fw-black)}
+.an-tabla{display:flex;flex-direction:column;margin-top:var(--space-4)}
+.an-fila{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-2);
+  border-top:1px solid var(--border-hairline)}
+.an-fila:nth-child(odd){background:var(--pink-wash)}
+.an-suelta .an-n{font-style:italic;color:var(--ink-lighter)}
+.an-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an-pct{flex:0 0 56px;text-align:right;color:var(--pink-dark);font-weight:var(--fw-bold)}
+.an-monto{flex:0 0 auto;font-weight:var(--fw-bold)}
+.an-dif{flex:0 0 auto;font-size:var(--text-xs)}

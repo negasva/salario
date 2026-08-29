@@ -6,6 +6,7 @@ import { renderCategorias } from './ui/categorias.js';
 import { renderMetas, abrirMeta } from './ui/metas.js';
 import { renderMovimientos } from './ui/movimientos.js';
 import { renderHistorial } from './ui/historial.js';
+import { renderAnalisis } from './ui/analisis.js';
 import { renderAjustes } from './ui/ajustes.js';
 import { pintarAvisos, notificarPendientes } from './ui/avisos.js';
 import { abrirOnboarding, esCuentaNueva } from './ui/onboarding.js';
@@ -25,6 +26,7 @@ const ROUTES = {
   categorias: renderCategorias,
   metas: renderMetas,
   movimientos: renderMovimientos,
+  analisis: renderAnalisis,
   historial: renderHistorial,
   ajustes: renderAjustes,
 };

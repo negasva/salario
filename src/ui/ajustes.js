@@ -3,10 +3,14 @@ import { toast } from './shell.js';
 import { plain, money, esc, digits } from '../format.js';
 import { ingresoEfectivo, excedente } from '../engine/consejo.js';
 import { estadoNotificaciones, pedirPermisoNotificaciones } from './avisos.js';
-import { MONEDAS, tasa } from '../engine/moneda.js';
+import { MONEDAS, tasa, entradaTasa, guardarTasaManual, vigente } from '../engine/moneda.js';
 import { abrirOnboarding } from './onboarding.js';
 import { PALETAS, normalizarPaleta } from '../theme.js';
 import { badgeMedio } from './medios.js';
+
+function fechaCorta(t) {
+  return new Date(t).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
+}
 
 export function renderAjustes(root) {
   const p = store.active();
@@ -172,15 +176,37 @@ export function renderAjustes(root) {
   });
 
   /* Las tasas se piden una vez y quedan cacheadas 12 h; si no hay red se
-     muestra la última conocida y, si nunca hubo, se dice en voz alta. */
-  (async () => {
-    const otras = MONEDAS.filter((m) => m !== p.cur);
-    const valores = await Promise.all(otras.map((m) => tasa(m, p.cur)));
+     muestra la última conocida con su fecha, nunca un error. Y si nunca hubo
+     ninguna, se puede escribir a mano: es el último recurso, pero es uno. */
+  const otrasMonedas = () => MONEDAS.filter((m) => m !== p.cur);
+
+  async function pintarTasas() {
     const box = root.querySelector('#ajTasas');
     if (!box) return;
-    const linea = otras.map((m, i) => (valores[i] ? `1 ${m} = ${money(valores[i], p.cur)}` : `1 ${m} = sin tasa`));
-    box.innerHTML = linea.join(' · ');
-  })();
+    const otras = otrasMonedas();
+    const valores = await Promise.all(otras.map((m) => tasa(m, p.cur)));
+    if (!root.querySelector('#ajTasas')) return;
+    box.innerHTML = otras.map((m, i) => {
+      const guardada = entradaTasa(m, p.cur);
+      const vieja = valores[i] && guardada && !vigente(guardada);
+      return `<div>1 ${m} = ${valores[i] ? `<b class="num">${money(valores[i], p.cur)}</b>` : 'sin tasa'}
+        ${vieja ? `<span class="sub">tasa del ${fechaCorta(guardada.t)}</span>` : ''}
+        ${guardada?.manual ? '<span class="sub">puesta a mano</span>' : ''}</div>
+      <div class="set-row"><label for="ajTasaM${m}">Tasa manual ${m} → ${p.cur}</label>
+        <input id="ajTasaM${m}" class="ajTasaManual num" data-cur="${m}" inputmode="decimal"
+          placeholder="${valores[i] || ''}"></div>`;
+    }).join('');
+    box.querySelectorAll('.ajTasaManual').forEach((inp) => {
+      inp.onchange = (e) => {
+        // una tasa no es un monto: 0,00024 es válida, así que no pasa por digits()
+        const v = Number(String(e.target.value).replace(',', '.'));
+        if (!guardarTasaManual(e.target.dataset.cur, p.cur, v)) return;
+        toast('Tasa guardada');
+        pintarTasas();
+      };
+    });
+  }
+  pintarTasas();
 
   const mediosBox = root.querySelector('#ajMedios');
   function pintarMedios() {

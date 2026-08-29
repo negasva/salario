@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { convertir, vigente, tasa, TTL } from './moneda.js';
+import { convertir, vigente, tasa, entradaTasa, guardarTasaManual, TTL } from './moneda.js';
 
 beforeEach(() => {
   const mem = {};
@@ -51,5 +51,27 @@ describe('tasa', () => {
   it('sin tasa conocida y sin red devuelve null', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
     expect(await tasa('EUR', 'COP', 1000)).toBe(null);
+  });
+});
+
+describe('F5 — la fuente tiene que traer COP', () => {
+  it('si la primera fuente no trae la moneda, prueba la siguiente', async () => {
+    const f = vi.fn()
+      .mockResolvedValueOnce({ json: async () => ({ rates: { EUR: 0.9 } }) })
+      .mockResolvedValueOnce({ json: async () => ({ usd: { cop: 3900 } }) });
+    vi.stubGlobal('fetch', f);
+    vi.stubGlobal('console', { ...console, error: () => {} });
+    expect(await tasa('USD', 'COP', 1000)).toBe(3900);
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it('la tasa escrita a mano se guarda y se usa como cualquier otra', async () => {
+    const f = vi.fn(async () => { throw new Error('offline'); });
+    vi.stubGlobal('fetch', f);
+    vi.stubGlobal('console', { ...console, error: () => {} });
+    guardarTasaManual('EUR', 'COP', 4500, 1000);
+    expect(entradaTasa('EUR', 'COP')).toMatchObject({ v: 4500, manual: true });
+    expect(await tasa('EUR', 'COP', 1000)).toBe(4500);
+    expect(f).not.toHaveBeenCalled();
   });
 });

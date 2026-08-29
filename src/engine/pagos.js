@@ -187,3 +187,21 @@ export function promedioVariables(cierres, minimoMeses = 2) {
     .filter((x) => x.meses >= minimoMeses)
     .sort((a, b) => Math.abs(b.brecha) - Math.abs(a.brecha));
 }
+
+/* Borrar un renglón o una categoría se lleva sus pagos. Si no, quedan
+   movimientos huérfanos: el buscador los sigue encontrando y, al recrear el
+   gasto con el mismo nombre, salen las dos versiones. Devuelve lo quitado
+   para poder deshacer. */
+export function quitarMovsDe(movs, campo, id) {
+  const fuera = movs.filter((m) => m[campo] === id);
+  fuera.forEach((m) => movs.splice(movs.indexOf(m), 1));
+  return fuera;
+}
+
+/* Perfiles viejos ya traen pagos huérfanos de renglones y categorías borrados
+   antes de que el borrado se los llevara. Se limpian al cargar, una vez. */
+export function sinHuerfanos(movs = [], items = []) {
+  const itemIds = new Set(items.map((it) => it.id));
+  const lineIds = new Set(items.flatMap((it) => (it.L || []).map((l) => l.id)));
+  return movs.filter((m) => (!m.itemId || itemIds.has(m.itemId)) && (!m.lineId || lineIds.has(m.lineId)));
+}

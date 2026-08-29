@@ -74,7 +74,9 @@
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-5)}
 /* F9.5 — cuadrícula del dashboard: dos columnas y dense, sin coordenadas */
 .dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-5);grid-auto-flow:dense}
-.dash-w{display:flex;flex-direction:column;gap:var(--space-2)}
+/* min-width:0: sin esto el contenido ancho de un widget estira su columna
+   y el dashboard se sale de la pantalla en móvil */
+.dash-w{display:flex;flex-direction:column;gap:var(--space-2);min-width:0}
 .dash-w>.card{flex:1}
 .w2{grid-column:span 2}
 .dash-tools{display:flex;gap:var(--space-2);justify-content:flex-end}

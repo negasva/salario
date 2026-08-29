@@ -6,7 +6,7 @@ import { ordenadas, estadoDe } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
-  pagosLibresDeItem } from '../engine/pagos.js';
+  pagosLibresDeItem, quitarMovsDe } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
@@ -476,9 +476,10 @@ function wireCard(root, it, p) {
     if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
     if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
     const idx = p.items.indexOf(it);
+    let pagos = [];
     const { undo } = store.stageDelete(
-      () => p.items.splice(idx, 1),
-      () => p.items.splice(idx, 0, it)
+      () => { p.items.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'itemId', it.id); },
+      () => { p.items.splice(idx, 0, it); p.movs.push(...pagos); }
     );
     renderCategorias(root);
     toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
@@ -633,7 +634,11 @@ function wireCard(root, it, p) {
     lineEl.querySelector('.lv').onchange = (e) => { l.v = digits(e.target.value); store.save(); renderCategorias(root); };
     lineEl.querySelector('.lx').onclick = () => {
       const idx = it.L.indexOf(l);
-      const { undo } = store.stageDelete(() => it.L.splice(idx, 1), () => it.L.splice(idx, 0, l));
+      let pagos = [];
+      const { undo } = store.stageDelete(
+        () => { it.L.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'lineId', l.id); },
+        () => { it.L.splice(idx, 0, l); p.movs.push(...pagos); }
+      );
       renderCategorias(root);
       toast('Renglón eliminado', () => { undo(); renderCategorias(root); });
     };

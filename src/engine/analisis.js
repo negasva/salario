@@ -5,41 +5,9 @@ import { enPeriodo } from './movimientos.js';
    nada se guarda, así que registrar un gasto o mover un planeado repinta la
    vista sin que nadie tenga que invalidar un total. */
 
-const COLOR_SIN_ASIGNAR = 'var(--pink-wash)';
-const COLOR_AHORRO = 'var(--ink-lighter)';
-const PCT_AHORRO_SUGERIDO = 20;
-
 function conPorcentaje(segmentos, base) {
   const b = Number(base) || 0;
   return segmentos.map((s) => ({ ...s, monto: r2(s.monto), pct: b > 0 ? r2((s.monto / b) * 100) : 0 }));
-}
-
-/* Planeado: lo que asignaste a cada categoría y a cada meta. Lo que sobra sale
-   partido en dos, el ahorro que la app sugiere y lo que de verdad no tiene
-   dueño, porque no es lo mismo no haber decidido que haber decidido ahorrar. */
-export function segmentosPlaneado(items = [], goals = [], ingreso = 0) {
-  const base = Number(ingreso) || 0;
-  const segmentos = [
-    ...items.map((it) => ({ id: it.id, nombre: it.n, color: it.c, monto: amount(it) })),
-    ...goals.filter((g) => g.estado !== 'completa' && (Number(g.mes) || 0) > 0)
-      .map((g) => ({ id: g.id, nombre: g.n, color: 'var(--warning)', monto: Number(g.mes) || 0, meta: true })),
-  ].filter((s) => s.monto > 0);
-
-  const asignado = segmentos.reduce((s, x) => s + x.monto, 0);
-  const libre = Math.max(0, r2(base - asignado));
-  if (libre > 0) {
-    const sugerido = Math.min(libre, r2((base * PCT_AHORRO_SUGERIDO) / 100));
-    if (sugerido > 0) {
-      segmentos.push({ id: '_ahorro', nombre: `Ahorro sugerido (${PCT_AHORRO_SUGERIDO}%)`,
-        color: COLOR_AHORRO, monto: sugerido, sugerido: true });
-    }
-    const sinAsignar = r2(libre - sugerido);
-    if (sinAsignar > 0) {
-      segmentos.push({ id: '_libre', nombre: 'Sin asignar', color: COLOR_SIN_ASIGNAR,
-        monto: sinAsignar, sinAsignar: true });
-    }
-  }
-  return conPorcentaje(segmentos, base);
 }
 
 /* Real: lo que de verdad salió. Un gasto cuenta en su categoría; un aporte a
@@ -64,14 +32,12 @@ export function segmentosReal(items = [], goals = [], movs = [], periodo, ingres
 }
 
 // Un mes ya cerrado se lee de su snapshot, no del libro: el libro se poda.
-export function segmentosDeSnapshot(snapshot, modo = 'real') {
+export function segmentosDeSnapshot(snapshot) {
   if (!snapshot || snapshot.version < 2) return [];
-  const base = modo === 'real'
-    ? (snapshot.ingresoReal || snapshot.ingresoPlan || 0)
-    : (snapshot.ingresoPlan || 0);
+  const base = snapshot.ingresoReal || snapshot.ingresoPlan || 0;
   const segmentos = [
     ...(snapshot.items || []).map((it) => ({ id: it.itemId, nombre: it.nombre, color: 'var(--pink)',
-      monto: modo === 'real' ? it.real : it.plan, plan: it.plan })),
+      monto: it.real, plan: it.plan })),
     ...(snapshot.metas || []).filter((g) => g.aportado > 0)
       .map((g) => ({ id: g.goalId, nombre: g.nombre, color: 'var(--warning)', monto: g.aportado, plan: 0, meta: true })),
   ].filter((s) => s.monto > 0);

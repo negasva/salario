@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { segmentosPlaneado, segmentosReal, segmentosDeSnapshot, arcos } from './analisis.js';
+import { segmentosReal, segmentosDeSnapshot, arcos } from './analisis.js';
 
 const items = [
   { id: 'i1', n: 'Arriendo', c: 'red', m: 1200000 },
@@ -7,34 +7,6 @@ const items = [
   { id: 'i3', n: 'Vacío', c: 'gray', m: 0 },
 ];
 const goals = [{ id: 'g1', n: 'Moto', mes: 500000 }, { id: 'g2', n: 'Vieja', mes: 100000, estado: 'completa' }];
-
-describe('segmentosPlaneado', () => {
-  it('deja fuera lo que está en cero y suma las metas', () => {
-    const s = segmentosPlaneado(items, goals, 5000000);
-    expect(s.map((x) => x.nombre)).toEqual(['Arriendo', 'Mercado', 'Moto', 'Ahorro sugerido (20%)', 'Sin asignar']);
-  });
-
-  it('reparte lo libre entre ahorro sugerido y sin asignar', () => {
-    const s = segmentosPlaneado(items, goals, 5000000);
-    expect(s.find((x) => x.sugerido).monto).toBe(1000000);
-    expect(s.find((x) => x.sinAsignar).monto).toBe(1700000);
-    expect(s.reduce((t, x) => t + x.monto, 0)).toBe(5000000);
-  });
-
-  it('el porcentaje es sobre el ingreso', () => {
-    const s = segmentosPlaneado(items, goals, 5000000);
-    expect(s[0].pct).toBe(24);
-  });
-
-  it('sin nada libre no hay segmentos de relleno', () => {
-    const s = segmentosPlaneado(items, goals, 2300000);
-    expect(s.some((x) => x.sugerido || x.sinAsignar)).toBe(false);
-  });
-
-  it('sin ingreso los porcentajes quedan en cero', () => {
-    expect(segmentosPlaneado(items, [], 0).every((x) => x.pct === 0)).toBe(true);
-  });
-});
 
 describe('segmentosReal', () => {
   const movs = [
@@ -76,16 +48,10 @@ describe('segmentosDeSnapshot', () => {
   };
 
   it('lee el real del mes cerrado sobre el ingreso real', () => {
-    const s = segmentosDeSnapshot(snap, 'real');
+    const s = segmentosDeSnapshot(snap);
     expect(s[0].monto).toBe(1000000);
     expect(s[0].pct).toBe(25);
     expect(s[1].nombre).toBe('Moto');
-  });
-
-  it('en planeado usa el plan y el ingreso del plan', () => {
-    const s = segmentosDeSnapshot(snap, 'planeado');
-    expect(s[0].monto).toBe(1200000);
-    expect(s[0].pct).toBe(24);
   });
 
   it('un snapshot viejo no tiene con qué', () => {

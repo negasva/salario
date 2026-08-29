@@ -195,6 +195,7 @@ function cabeceraPagos(res, p, planeado) {
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
     ${planeado > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
       <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(diferencia), p.cur)}</b></div>` : ''}
+    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>` : ''}
   </div>`;
 }
 
@@ -269,7 +270,7 @@ function openPagoEditor(root, it, p, mov = null) {
 
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, pagado, arrastre, pendiente }) => {
+  return res.filas.map(({ l, plan, pagado, arrastre, pendiente, diferencia, estado }) => {
     return `
     <div class="concepto-card" data-lid="${l.id}">
       <div class="line">
@@ -286,12 +287,30 @@ function lines(it, p, res) {
         <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
         <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
           aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
+        ${l.fixed !== false ? `<button class="mini lauto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
+          title="Cada mes nuevo entra ya pagado, y lo puedes cambiar">${icon('recurrente', 'ic-sm')} Precargar cada mes</button>` : ''}
       </div>
+      ${filaEstado(estado, diferencia, plan, p)}
       ${listaPagos(l, p, res.periodo)}
       ${barraGasto(pagado, plan, p)}
       ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
     </div>`;
   }).join('');
+}
+
+/* F4 — cómo va el renglón en una línea: el estado y, cuando ya está cerrado,
+   si ahorraste o te pasaste. Un renglón abierto todavía no dice nada. */
+const ETIQUETA_ESTADO = { pendiente: 'pendiente', parcial: 'parcial', pagado: 'pagado', excedido: 'excedido' };
+
+function filaEstado(estado, diferencia, plan, p) {
+  const clase = estado === 'excedido' ? 'bad' : estado === 'pagado' ? 'ok' : estado === 'parcial' ? 'warn' : '';
+  const cerrado = estado === 'pagado' || estado === 'excedido';
+  const dif = r2(diferencia);
+  const texto = !cerrado || !(plan > 0) ? ''
+    : dif > 0 ? `<b class="num ok">ahorraste ${money(dif, p.cur)}</b>`
+    : dif < 0 ? `<b class="num over">te pasaste ${money(-dif, p.cur)}</b>`
+    : '<span class="sub">clavado al plan</span>';
+  return `<div class="line-estado"><span class="badge ${clase}">${ETIQUETA_ESTADO[estado]}</span>${texto}</div>`;
 }
 
 function barraGasto(pagado, plan, p) {
@@ -484,6 +503,13 @@ function wireCard(root, it, p) {
     el.querySelector('.lpag-add').onclick = sumar;
     // Enter suma sin soltar el teclado: son varias compras seguidas, no una
     campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
+
+    el.querySelector('.lauto')?.addEventListener('click', () => {
+      l.autoPagar = !l.autoPagar;
+      store.save();
+      renderCategorias(root);
+      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
+    });
 
     el.querySelector('.lcerrar').onclick = () => {
       if (l.pagadoEn === periodo) {

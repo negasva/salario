@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea,
   pagosLibresDeItem, quitarPago,
-  movimientosDeAhorro, ahorroRepartido, promedioVariables,
+  movimientosDeAhorro, ahorroRepartido, promedioVariables, precargarFijos,
   arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior,
 } from './pagos.js';
 
@@ -254,5 +254,44 @@ describe('lo que la categoria cuesta de verdad', () => {
     const item = it2([]);
     item.L[0].arrastre = { '2026-08': 1000000 };
     expect(resumenItem(item, {}, '2026-08').costo).toBe(2700000);
+  });
+});
+
+describe('precargarFijos', () => {
+  const perfil = () => ({
+    items: [{ id: 'i1', L: [
+      { id: 'l1', n: 'Arriendo', v: 1200000, fixed: true, autoPagar: true },
+      { id: 'l2', n: 'Mercado', v: 600000, fixed: false, autoPagar: true },
+      { id: 'l3', n: 'Internet', v: 100000, fixed: true },
+    ] }],
+    movs: [],
+  });
+
+  it('paga los fijos marcados y los deja cerrados', () => {
+    const p = perfil();
+    expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-01')).toBe(1);
+    expect(p.movs).toHaveLength(1);
+    expect(p.movs[0]).toMatchObject({ lineId: 'l1', monto: 1200000, tipo: 'gasto' });
+    expect(p.items[0].L[0].pagadoEn).toBe('2026-09');
+  });
+
+  it('no precarga dos veces el mismo mes', () => {
+    const p = perfil();
+    precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
+    expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-02')).toBe(0);
+    expect(p.movs).toHaveLength(1);
+  });
+
+  it('respeta un renglón que ya tiene pagos del mes', () => {
+    const p = perfil();
+    p.movs.push({ id: 'm9', fecha: '2026-09-03', tipo: 'gasto', monto: 500000, lineId: 'l1', itemId: 'i1' });
+    expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-05')).toBe(0);
+  });
+
+  it('un mes nuevo vuelve a precargar', () => {
+    const p = perfil();
+    precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
+    expect(precargarFijos(p.items, p.movs, '2026-10', '2026-10-01')).toBe(1);
+    expect(p.movs).toHaveLength(2);
   });
 });

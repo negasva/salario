@@ -6,7 +6,7 @@ import {
   aplicarTraspaso as traspasar, traspasoVencido,
 } from './engine/fila.js';
 import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
-import { resumenItem } from './engine/pagos.js';
+import { resumenItem, precargarFijos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -202,6 +202,8 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
+  // F4 — los fijos marcados llegan pagados al mes nuevo, y se pueden editar
+  if (precargarFijos(p.items, p.movs || [], periodoDe(hoyISO()), hoyISO())) sincronizarMetas(p);
   sincronizarAutomaticas(p);
   p.recurrentes ??= [];
   p.medios ??= [...MEDIOS_BASE];

@@ -522,3 +522,8 @@
   .reg-row{flex-wrap:wrap}
   .reg-row .fld{flex:1 1 100%!important}
 }
+
+/* estado del renglón (F4) */
+.line-estado{display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap}
+.line-estado .num{font-size:var(--text-xs)}
+.pagos-head .badge{margin-left:0}

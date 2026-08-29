@@ -9,7 +9,9 @@
 .sidebar .brand{width:44px;height:44px;border-radius:var(--radius-pill);background:var(--pink);
   color:var(--on-pink);display:flex;align-items:center;justify-content:center;
   font-weight:var(--fw-black);font-size:var(--text-sm);letter-spacing:var(--tracking-tight);
-  margin:0;flex:none}
+  margin:0;flex:none;padding:0;border:0;cursor:pointer}
+.sidebar .brand:hover{background:var(--pink-dark);border:0}
+.sidebar .brand:focus-visible{outline:2px solid var(--white);outline-offset:2px}
 .sidebar nav{display:flex;flex-direction:row;gap:var(--space-2);flex:1;overflow-x:auto}
 .sidebar .navlink{width:40px;height:40px;padding:0;border:none;background:transparent;
   color:var(--text-on-ink-muted);border-radius:var(--radius-sm);

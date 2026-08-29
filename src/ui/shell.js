@@ -2,8 +2,11 @@ import { icon } from './icons.js';
 import { abrirBuscador } from './buscador.js';
 import { abrirRegistro } from './registrar.js';
 import { abrirIA } from './preguntar.js';
+import { abrirModal } from './modal.js';
+import { MONEDAS } from '../engine/moneda.js';
 import { signOut } from '../auth.js';
 import * as store from '../store.js';
+import { esc } from '../format.js';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
@@ -33,13 +36,40 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.fab-wrap')) cerrarFabActual();
 });
 
+/* F11 — el círculo del avatar es un botón: abre los datos del perfil que ya
+   están guardados. Al cerrar se repinta el shell, así que las iniciales y el
+   saludo cambian con el nombre. */
+function abrirPerfil(alGuardar) {
+  const p = store.active();
+  if (!p) return;
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Tu perfil', alCerrar: alGuardar });
+  cuerpo.innerHTML = `
+    <div class="fld"><label for="pfNombre">Nombre</label>
+      <input id="pfNombre" value="${esc(p.name)}" autocomplete="name"></div>
+    <div class="fld"><label for="pfMoneda">Moneda principal</label>
+      <select id="pfMoneda">${MONEDAS.map((m) => `<option ${m === p.cur ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+    <button class="wide btn-primary" id="pfSave">Guardar</button>`;
+
+  const guardar = () => {
+    store.renameProfile(store.activeId(), cuerpo.querySelector('#pfNombre').value);
+    p.cur = cuerpo.querySelector('#pfMoneda').value;
+    store.save();
+    cerrar();
+    toast('Perfil actualizado');
+  };
+  cuerpo.querySelector('#pfSave').onclick = guardar;
+  cuerpo.querySelector('#pfNombre').onkeydown = (e) => { if (e.key === 'Enter') guardar(); };
+  cuerpo.querySelector('#pfNombre').focus();
+}
+
 export function renderShell(root, currentRoute, onNavigate) {
   const p = store.active();
   root.innerHTML = `
     <div class="shell">
       <div class="shell-panel">
         <aside class="sidebar">
-          <div class="brand" title="${p ? p.name : ''}">${initials(p && p.name)}</div>
+          <button class="brand" id="btnPerfil" title="Editar perfil"
+            aria-label="Editar el perfil de ${esc(p ? p.name : '')}">${initials(p && p.name)}</button>
           <nav>
             ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
           </nav>
@@ -69,6 +99,7 @@ export function renderShell(root, currentRoute, onNavigate) {
     b.onclick = () => onNavigate(b.dataset.r);
   });
   root.querySelector('#btnLogout').onclick = async () => { await signOut(); location.reload(); };
+  root.querySelector('#btnPerfil').onclick = () => abrirPerfil(() => onNavigate(currentRoute));
 
   root.querySelector('#userLabel').textContent = p ? `Hola, ${p.name}` : '';
 

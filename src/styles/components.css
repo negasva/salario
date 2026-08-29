@@ -562,3 +562,15 @@
   padding:var(--space-3);background:var(--pink-wash);border-radius:var(--radius-sm)}
 .an-detalle .donut{width:110px;height:110px;flex:none}
 .an-detalle-lista{flex:1;min-width:140px}
+
+/* F11 — Ajustes en tres secciones. El bug visual era el grid estirando cada
+   tarjeta a la altura de la más alta de su fila: min-content lo corta. */
+.set-sec{font-size:var(--text-sm);color:var(--ink-lighter);text-transform:uppercase;
+  letter-spacing:.06em;margin:var(--space-5) 0 var(--space-3)}
+.set-sec:first-child{margin-top:0}
+.set-grid{grid-auto-rows:min-content}
+.set-row{display:flex;align-items:center;gap:var(--space-3);margin-top:8px}
+.set-row label{flex:1;font-size:var(--text-xs);color:var(--ink-lighter)}
+.set-row input{flex:1;min-width:0}
+.set-row input[type="number"]{flex:0 0 90px;text-align:right}
+.set-row .mini{flex:none;padding:6px 10px;line-height:1}

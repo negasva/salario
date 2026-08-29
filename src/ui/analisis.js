@@ -21,7 +21,10 @@ function nombreMes(per) {
   return `${MESES[Number(m) - 1]} de ${a}`;
 }
 
-function donut(segmentos) {
+/* F7 — cada trozo lleva su etiqueta completa en un <title>: el navegador la
+   muestra como globo al pasar el cursor y los lectores de pantalla la leen,
+   sin una línea de JavaScript ni una librería de gráficas. */
+function donut(segmentos, cur) {
   const trozos = arcos(segmentos, C);
   if (!trozos.length) {
     return `<svg class="donut" viewBox="0 0 160 160" role="img" aria-label="Sin datos">
@@ -29,10 +32,25 @@ function donut(segmentos) {
     </svg>`;
   }
   return `<svg class="donut" viewBox="0 0 160 160" role="img" aria-label="Reparto por categoría">
-    ${trozos.map((t) => `<circle cx="80" cy="80" r="${R}" fill="none" stroke="${t.color}" stroke-width="22"
+    ${trozos.map((t) => `<circle class="donut-seg" data-seg="${esc(t.id)}" cx="80" cy="80" r="${R}"
+      fill="none" stroke="${t.color}" stroke-width="22"
       stroke-dasharray="${t.largo} ${t.resto}" stroke-dashoffset="${t.offset}"
-      transform="rotate(-90 80 80)"><title>${esc(t.nombre)}: ${t.pct}%</title></circle>`).join('')}
+      transform="rotate(-90 80 80)"><title>${esc(t.nombre)}: ${money(t.monto, cur)} · ${t.pct}%</title></circle>`).join('')}
   </svg>`;
+}
+
+/* Pasar el cursor por un ítem de la lista apaga los demás trozos del donut.
+   El donut al que pertenece una fila es el de su propio desglose si lo tiene,
+   y si no el grande de la tarjeta. */
+function enlazarResalte(box) {
+  box.querySelectorAll('.an-fila[data-seg]').forEach((fila) => {
+    const grupo = fila.closest('.an-detalle') || box;
+    const svg = grupo.querySelector('.donut');
+    const trozo = svg?.querySelector(`.donut-seg[data-seg="${CSS.escape(fila.dataset.seg)}"]`);
+    if (!trozo) return;
+    fila.onmouseenter = () => { svg.classList.add('atenuado'); trozo.classList.add('on'); };
+    fila.onmouseleave = () => { svg.classList.remove('atenuado'); trozo.classList.remove('on'); };
+  });
 }
 
 export function renderAnalisis(root) {
@@ -84,7 +102,7 @@ function pintar(root, p) {
     <div class="card">
       <span class="label">Gasto real</span>
       <div class="donut-wrap">
-        ${donut(segmentos)}
+        ${donut(segmentos, p.cur)}
         <div class="donut-centro">
           <span class="label">Total gastado</span>
           <b class="num">${money(total, p.cur)}</b>
@@ -96,7 +114,7 @@ function pintar(root, p) {
       ${aviso ? `<div class="sub" style="text-align:center">${esc(aviso)}</div>` : ''}
 
       ${segmentos.length ? `<div class="an-tabla">
-        ${segmentos.map((s) => `<div class="an-fila" data-item-id="${s.meta ? '' : s.id}">
+        ${segmentos.map((s) => `<div class="an-fila" data-seg="${esc(s.id)}" data-item-id="${s.meta ? '' : s.id}">
           <span class="dot" style="background:${s.color}"></span>
           <span class="an-n">${esc(s.nombre)}</span>
           <span class="num an-pct">${s.pct}%</span>
@@ -106,6 +124,8 @@ function pintar(root, p) {
         </div>${detalleAbierto === s.id ? detalleCategoria(p, s.id, periodo) : ''}`).join('')}
       </div>` : '<div class="empty">Sin gastos registrados en este mes todavía.</div>'}
     </div>`;
+
+  enlazarResalte(box);
 
   /* El desglose interno solo tiene sentido con el libro del mes en curso: un
      mes cerrado ya no tiene los movimientos, solo el snapshot por categoría. */
@@ -125,15 +145,22 @@ function detalleCategoria(p, itemId, periodo) {
   if (!it) return '';
   const res = resumenItem(it, porLinea(p.movs, periodo), periodo,
     pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0));
-  const segmentos = res.filas.filter((f) => f.pagado > 0)
+  /* El color sale de la posición del concepto dentro de la categoría, no de su
+     puesto en la lista filtrada: así un concepto conserva su color aunque otro
+     se quede sin pagos ese mes. */
+  const segmentos = res.filas
     .map((f, i) => ({ id: f.l.id, nombre: f.l.n || 'Sin nombre',
-      color: store.PALETTE[i % store.PALETTE.length], monto: f.pagado }));
+      color: store.PALETTE[i % store.PALETTE.length], monto: f.pagado }))
+    .filter((seg) => seg.monto > 0);
   if (!segmentos.length) return '<div class="an-detalle empty">Sin pagos en esta categoría todavía.</div>';
+  const total = segmentos.reduce((t, seg) => t + seg.monto, 0);
   return `<div class="an-detalle">
-    ${donut(segmentos)}
+    ${donut(segmentos.map((seg) => ({ ...seg, pct: Math.round((seg.monto / total) * 1000) / 10 })), p.cur)}
     <div class="an-detalle-lista">
-      ${segmentos.map((s) => `<div class="an-fila"><span class="an-n">${esc(s.nombre)}</span>
-        <span class="num an-monto">${money(s.monto, p.cur)}</span></div>`).join('')}
+      ${segmentos.map((seg) => `<div class="an-fila" data-seg="${esc(seg.id)}">
+        <span class="dot" style="background:${seg.color}"></span>
+        <span class="an-n">${esc(seg.nombre)}</span>
+        <span class="num an-monto">${money(seg.monto, p.cur)}</span></div>`).join('')}
     </div>
   </div>`;
 }

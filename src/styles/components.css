@@ -594,3 +594,10 @@
 .sel-color .sel-dot{position:absolute;left:12px;top:50%;transform:translateY(-50%);
   width:10px;height:10px;border-radius:3px;pointer-events:none}
 .reg-sheet .sel-color select{padding-left:30px}
+
+/* F7 — el ítem de la lista y su trozo del donut: al pasar el cursor por uno,
+   los demás trozos se apagan. */
+.donut-seg{transition:opacity var(--t-fast)}
+.donut.atenuado .donut-seg{opacity:.2}
+.donut.atenuado .donut-seg.on{opacity:1}
+.an-detalle-lista .an-fila{gap:var(--space-2)}

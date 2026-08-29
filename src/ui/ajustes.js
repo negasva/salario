@@ -11,7 +11,8 @@ export function renderAjustes(root) {
   const p = store.active();
 
   root.innerHTML = `
-    <div class="grid">
+    <h3 class="set-sec">Perfil</h3>
+    <div class="grid set-grid">
       <div class="card">
         <span class="label">Perfiles</span>
         <div class="fld" style="margin-top:10px"><label>Nombre del perfil activo</label>
@@ -51,6 +52,10 @@ export function renderAjustes(root) {
         <div class="sub" id="ajTasas" style="margin-top:10px">Consultando tasas…</div>
       </div>
 
+    </div>
+
+    <h3 class="set-sec">Reglas</h3>
+    <div class="grid set-grid">
       <div class="card">
         <span class="label">Medios de pago</span>
         <div id="ajMedios" style="margin-top:10px"></div>
@@ -58,14 +63,10 @@ export function renderAjustes(root) {
       </div>
 
       <div class="card">
-        <span class="label">Fondo de emergencia</span>
-        <div class="fld" style="margin-top:10px"><label>Meses objetivo (3 a 6)</label>
+        <span class="label">Cálculos</span>
+        <div class="set-row"><label for="ajFondoMeses">Fondo de emergencia · meses (3 a 6)</label>
           <input type="number" id="ajFondoMeses" min="3" max="6" value="${p.fondoMeses}"></div>
-      </div>
-
-      <div class="card">
-        <span class="label">Costo de oportunidad</span>
-        <div class="fld" style="margin-top:10px"><label>Tasa anual nominal (%)</label>
+        <div class="set-row"><label for="ajTasa">Costo de oportunidad · tasa anual (%)</label>
           <input type="number" id="ajTasa" min="0" max="100" step="0.5" value="${p.tasaInteres}"></div>
       </div>
 
@@ -75,6 +76,10 @@ export function renderAjustes(root) {
         <div class="prow"><button id="ajNotif">Permitir notificaciones</button></div>
       </div>
 
+    </div>
+
+    <h3 class="set-sec">App</h3>
+    <div class="grid set-grid">
       <div class="card">
         <span class="label">Paleta de colores</span>
         <div class="palette-lista" id="ajPaleta">
@@ -179,9 +184,9 @@ export function renderAjustes(root) {
   const mediosBox = root.querySelector('#ajMedios');
   function pintarMedios() {
     p.medios = p.medios || [];
-    mediosBox.innerHTML = p.medios.map((m, i) => `<div class="prow" style="margin-top:6px">
-      <input class="ajMedio" data-i="${i}" value="${esc(m)}" aria-label="Medio de pago ${i + 1}" style="flex:1">
-      <button class="mini ajMedioDel" data-i="${i}">Quitar</button>
+    mediosBox.innerHTML = p.medios.map((m, i) => `<div class="set-row">
+      <input class="ajMedio" data-i="${i}" value="${esc(m)}" aria-label="Medio de pago ${i + 1}">
+      <button class="mini ajMedioDel" data-i="${i}" aria-label="Quitar ${esc(m)}" title="Quitar">×</button>
     </div>`).join('') || '<div class="empty">Sin medios de pago. Agrega el primero.</div>';
     mediosBox.querySelectorAll('.ajMedio').forEach((inp) => {
       inp.onchange = (e) => { p.medios[Number(e.target.dataset.i)] = e.target.value.trim() || 'Sin nombre'; store.save(); };

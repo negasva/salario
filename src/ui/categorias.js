@@ -27,20 +27,18 @@ export function renderCategorias(root) {
     <div id="catIngreso"></div>
     <div class="cats-head">
       <button id="catAdd" class="wide btn-primary">+ Agregar categoría</button>
-      <button id="catEqual">Repartir lo que falta en partes iguales</button>
+      <button id="catEqual">Mandar lo que falta a ahorros</button>
     </div>
     <div id="catList"></div>`;
 
   root.querySelector('#catAdd').onclick = () => openNewCategory(root);
   root.querySelector('#catEqual').onclick = () => {
     const b = balance(p.items, store.incomeRepartir(p), p.goals);
-    if (b.cuadrado) { toast('Ya está todo repartido'); return; }
-    const unlocked = p.items.filter((it) => !it.locked && !it.auto);
-    if (!unlocked.length) { toast('No hay categorías a las que repartirles'); return; }
-    const e = b.dif / unlocked.length;
-    unlocked.forEach((it) => { it.m = Math.max(0, Math.round(amount(it) + e)); });
-    store.save();
-    renderCategorias(root);
+    if (!(b.falta > 0)) { toast('Ya está todo repartido'); return; }
+    abrirSelectorExtra(p, b.falta, hoyISO(), (t) => {
+      renderCategorias(root);
+      toast(t > 0 ? `Mandaste ${money(t, p.cur)} a tus metas.` : 'Nada quedó asignado.');
+    });
   };
 
   paintList(root);
@@ -147,6 +145,8 @@ function wireMeta(root, g, p) {
     toast(`${money(monto, p.cur)} a ${g.n}`);
   });
 
+  card.querySelector('.meta-add').onclick = () => openAhorroEditor(g, p, () => renderCategorias(root));
+
   card.querySelector('.meta-deshacer')?.addEventListener('click', () => {
     const mov = aporteDelMes(p, g.id);
     if (mov) p.movs.splice(p.movs.indexOf(mov), 1);
@@ -171,17 +171,16 @@ function catCard(it, p, gastadoLinea, periodo) {
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
         ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
+      <button class="bloque-ed cat-plus-head" aria-label="Agregar concepto a ${esc(it.n)}">+</button>
       <b class="bloque-m num">${money(budget, p.cur)}</b>
       <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
       <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
-        ${res.total ? ` · ${res.cerradas} de ${res.total} pagados` : ''}
+        ${res.total ? ` · ${res.cerradas} de ${res.total} al día` : ''}
         ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
     </div>
     <div class="cat-items">
       <div class="lines">${lines(it, p, res)}</div>
-      ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
-        ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
-      </div>` : ''}
+      ${tablaPagos(pagosLibres, p)}
       <div class="cat-acciones">
         <button class="mini cat-plus">+ Concepto</button>
         <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
@@ -301,8 +300,35 @@ function metaCard(g, p) {
       ${ap
         ? `<button class="mini meta-deshacer">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
         : `<button class="mini meta-guardar" ${mes > 0 ? '' : 'disabled'}>Ya lo guardé</button>`}
+      <button class="mini meta-add" title="Guardar otro monto a esta meta" aria-label="Agregar ahorro a ${esc(g.n)}">+</button>
     </div>
   </div>`;
+}
+
+/* Un ahorro suelto a la meta: mismo movimiento que el botón "Ya lo guardé",
+   pero con monto libre, para poder guardar varias veces en el mismo mes. */
+function openAhorroEditor(g, p, repintar) {
+  const { cuerpo, cerrar } = abrirModal({ titulo: `Ahorro a ${g.n}` });
+  cuerpo.innerHTML = `
+      <div class="pago-form">
+        <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="ahMonto" class="num" inputmode="numeric" placeholder="0"></label>
+        <label class="fieldw"><span>Fecha</span><input id="ahFecha" type="date" value="${hoyISO()}"></label>
+      </div>
+      <button class="wide btn-primary" id="ahSave">Guardar ahorro</button>
+      <button class="wide" id="ahCancel">Cancelar</button>`;
+
+  cuerpo.querySelector('#ahCancel').onclick = cerrar;
+  cuerpo.querySelector('#ahSave').onclick = () => {
+    const monto = digits(cuerpo.querySelector('#ahMonto').value);
+    if (monto <= 0) { cuerpo.querySelector('#ahMonto').focus(); return; }
+    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9),
+      fecha: cuerpo.querySelector('#ahFecha').value || hoyISO(), tipo: 'gasto',
+      monto, itemId: null, lineId: null, goalId: g.id, nota: `Ahorro a ${g.n}`, extra: false });
+    store.save();
+    cerrar();
+    repintar();
+    toast(`${money(monto, p.cur)} a ${g.n}`);
+  };
 }
 
 // Un aporte del mes en curso a esta meta, si existe
@@ -345,7 +371,7 @@ function cabeceraPagos(res, p, planeado) {
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
     ${planeado > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
       <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(diferencia), p.cur)}</b></div>` : ''}
-    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>` : ''}
+    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} al día</span>` : ''}
   </div>`;
 }
 
@@ -353,21 +379,27 @@ function cabeceraPagos(res, p, planeado) {
 /* Cada compra queda a la vista y se borra sola: corregir un pago mal tecleado
    es quitar esa transacción, no recalcular un total a mano. */
 function listaPagos(l, p, periodo) {
-  const pagos = pagosDeLinea(p.movs, l.id, periodo);
+  return tablaPagos(pagosDeLinea(p.movs, l.id, periodo), p, `data-lid="${l.id}"`);
+}
+
+function tablaPagos(pagos, p, attrs = '') {
   if (!pagos.length) return '';
-  return `<div class="pagos-lista" data-lid="${l.id}">
-    ${pagos.map((m) => pagoChip(m, p)).join('')}
+  return `<div class="pagos-tabla" ${attrs}>
+    <div class="pago-row pago-head"><span>Monto</span><span>Fecha</span><span>Nota</span><span></span></div>
+    ${pagos.map((m) => pagoFila(m, p)).join('')}
   </div>`;
 }
 
-function pagoChip(m, p) {
-  return `<span class="pago-chip" data-mid="${m.id}">
+function pagoFila(m, p) {
+  return `<div class="pago-row" data-mid="${m.id}">
     <b class="num">${money(m.monto, p.cur)}</b>
     <span class="sub">${diaCorto(m.fecha)}</span>
-    ${!m.lineId && m.nota ? `<span class="sub pago-nota">${esc(m.nota)}</span>` : ''}
-    <button class="pago-ed" title="Editar pago" aria-label="Editar pago">⋮</button>
-    <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
-  </span>`;
+    <span class="sub pago-nota">${!m.lineId && m.nota ? esc(m.nota) : ''}</span>
+    <span class="pago-acciones">
+      <button class="pago-ed" title="Editar pago" aria-label="Editar pago">⋮</button>
+      <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
+    </span>
+  </div>`;
 }
 
 function openPagoEditor(it, p, mov = null, repintar) {
@@ -414,6 +446,7 @@ function lines(it, p, res) {
 function bloqueItem({ l, plan, pagado, estado }, p) {
   return `
     <div class="bloque bloque-item est-${estado}" data-lid="${l.id}" style="--pct:${pctPagado(pagado, plan)}%">
+      <span class="bloque-pct num">${pctPagado(pagado, plan)}%</span>
       <span class="bloque-n">${esc(l.n || 'Sin nombre')}${estado === 'pagado'
         ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}</span>
       <b class="bloque-m num">${money(plan, p.cur)}</b>
@@ -452,8 +485,6 @@ function abrirItemSheet(root, it, l, p) {
       <div class="line-pago">
         <button class="mini lcerrar is-cerrar ${l.pagadoEn === periodo ? 'on' : ''}"
           aria-pressed="${l.pagadoEn === periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-        ${l.fixed !== false ? `<button class="mini is-auto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
-          title="Cada mes nuevo entra ya pagado, y lo puedes cambiar">${icon('recurrente', 'ic-sm')} Precargar cada mes</button>` : ''}
       </div>
       ${filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
       <button class="wide is-del danger-action">Borrar concepto</button>`;
@@ -482,12 +513,6 @@ function abrirItemSheet(root, it, l, p) {
       guardar();
     };
 
-    cuerpo.querySelector('.is-auto')?.addEventListener('click', () => {
-      l.autoPagar = !l.autoPagar;
-      guardar();
-      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
-    });
-
     wirePagos(cuerpo, it, p, guardar);
     wireArrastre(cuerpo, l, p, periodo, guardar);
 
@@ -506,10 +531,10 @@ function abrirItemSheet(root, it, l, p) {
   pintar();
 }
 
-/* Los chips de pago se editan y se borran igual en el pop-up del concepto y en
+/* Las filas de pago se editan y se borran igual en el pop-up del concepto y en
    los pagos sueltos de la categoría. */
 function wirePagos(scope, it, p, repintar) {
-  scope.querySelectorAll('.pago-chip').forEach((chip) => {
+  scope.querySelectorAll('.pago-row[data-mid]').forEach((chip) => {
     chip.querySelector('.pago-ed').onclick = () => {
       const mov = p.movs.find((m) => m.id === chip.dataset.mid);
       if (mov) openPagoEditor(it, p, mov, repintar);
@@ -534,21 +559,18 @@ function wireArrastre(scope, l, p, periodo, repintar) {
   if (!el) return;
   const siguiente = siguientePeriodo(periodo);
 
-  el.querySelector('.arr-pasar')?.addEventListener('click', () => {
+  el.querySelector('.arr-toggle')?.addEventListener('click', () => {
+    if (arrastreDe(l, siguiente) > 0) {
+      quitarArrastre(l, siguiente);
+      repintar();
+      toast('Ya no pasa nada al mes siguiente');
+      return;
+    }
     const falta = Math.max(0, planDeLinea(l, periodo) - (porLinea(p.movs, periodo)[l.id] || 0));
     if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
     pasarAlSiguiente(l, periodo, falta);
     repintar();
-    toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
-      quitarArrastre(l, siguiente);
-      repintar();
-    });
-  });
-
-  el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
-    quitarArrastre(l, siguiente);
-    repintar();
-    toast('Ya no pasa nada al mes siguiente');
+    toast(`${money(falta, p.cur)} pasan al mes siguiente`);
   });
 
   el.querySelector('.arr-quitar')?.addEventListener('click', () => {
@@ -609,12 +631,10 @@ function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
          este mes el renglón vale <b class="num">${money(plan, p.cur)}</b>.</span>
          <button class="mini arr-quitar">Quitar esa deuda</button>`
       : ''}
-    ${pendiente > 0 && esDeuda
-      ? `<button class="mini arr-pasar danger-action">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
-      : ''}
     ${yaPasado > 0
-      ? `<span class="sub">Ya pasaste <b class="num">${money(yaPasado, p.cur)}</b> a ${mes(siguientePeriodo(periodo))}.</span>
-         <button class="mini arr-deshacer">Deshacer</button>`
+      ? '<button class="mini arr-toggle on" aria-pressed="true">DEUDA PASADA AL SIGUIENTE MES</button>'
+      : pendiente > 0 && esDeuda
+      ? `<button class="mini arr-toggle danger-action" aria-pressed="false">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
       : ''}
   </div>`;
 }
@@ -631,13 +651,16 @@ function wireCard(root, it, p) {
     if (l) el.onclick = () => abrirItemSheet(root, it, l, p);
   });
 
-  card.querySelector('.cat-plus').onclick = () => {
+  const nuevoConcepto = () => {
     const l = { id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true };
     it.L.push(l);
     store.save();
     renderCategorias(root);
     abrirItemSheet(root, it, l, p);
   };
+  card.querySelector('.cat-plus').onclick = nuevoConcepto;
+  // el bloque-cat entero abre el pop-up de categoría: el + no debe dispararlo
+  card.querySelector('.cat-plus-head').onclick = (e) => { e.stopPropagation(); nuevoConcepto(); };
 
   card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
 

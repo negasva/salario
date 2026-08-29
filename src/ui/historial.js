@@ -254,6 +254,7 @@ function tarjetaCierre(c, p) {
     <div class="pr-lista">${barrasPlanReal(s, cur)}</div>
     ${s.nota ? `<div class="sub cierre-nota">${esc(s.nota)}</div>` : ''}
     <button class="mini cierre-edit" style="margin-top:10px">${s.borrador ? 'Revisar y confirmar' : 'Volver a editar'}</button>
+    ${s.borrador ? '<button class="mini cierre-borrar danger-action" style="margin-top:10px">Borrar borrador</button>' : ''}
     <div class="cierre-form" hidden></div>
   </div>`;
 }
@@ -268,6 +269,13 @@ function wireCierre(root, c, p) {
     box.hidden = false;
     pintarForm(root, box, c, p);
   };
+
+  card.querySelector('.cierre-borrar')?.addEventListener('click', async () => {
+    if (!window.confirm(`¿Borrar el borrador de ${nombreMes(c.periodo)}?`)) return;
+    const { error } = await store.borrarCierre(c.periodo);
+    toast(error ? 'No se pudo borrar el borrador' : 'Borrador borrado');
+    if (!error) renderHistorial(root);
+  });
 }
 
 /* Editar el cierre: el real llega precargado con la suma de movimientos, pero

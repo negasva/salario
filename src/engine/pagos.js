@@ -68,7 +68,12 @@ export function resumenItem(it, pagadoPorLinea = {}, periodo, pagadoLibre = 0) {
   });
   const plan = r2(filas.reduce((s, f) => s + f.plan, 0));
   const pagado = r2(filas.reduce((s, f) => s + f.pagado, 0) + (Number(pagadoLibre) || 0));
-  const cerradas = filas.filter((f) => CERRADAS.includes(f.estado));
+  /* Un gasto variable (mercado, gasolina) casi nunca cae justo en el plan:
+     contarlo como pendiente porque le faltaron mil pesos es ruido. Con
+     cualquier pago del mes ya está al día. Los fijos siguen con la regla dura. */
+  const cerradas = filas.filter((f) => (f.l.fixed === false
+    ? f.pagado > 0 || f.l.pagadoEn === periodo
+    : CERRADAS.includes(f.estado)));
 
   /* Lo que la categoría cuesta de verdad este mes: el plan de cada renglón
      corregido por la realidad en los que ya se cerraron. Un renglón pagado
@@ -114,30 +119,6 @@ export function agregarPagoLibre(movs, it, monto, fecha, nota) {
     goalId: null, nota: nota || 'Pago', extra: false };
   movs.push(mov);
   return mov;
-}
-
-/* F4 — un renglón fijo marcado para precargarse llega al mes nuevo ya pagado:
-   el arriendo se paga igual todos los meses y teclearlo cada 30 días es
-   trabajo inventado. Solo toca renglones sin ningún pago en ese mes, así que
-   editarlo o borrarlo después manda; y nunca precarga dos veces. */
-export function precargarFijos(items = [], movs = [], periodo, fecha) {
-  let hechos = 0;
-  items.forEach((it) => {
-    (it.L || []).forEach((l) => {
-      if (!l.autoPagar || l.fixed === false) return;
-      // marca propia: si borras el pago precargado el renglón no se queda
-      // marcado como pagado, y aun así no se precarga dos veces en el mes
-      if (l.autoPagadoEn === periodo) return;
-      const yaPagado = movs.some((m) => m.lineId === l.id && periodoDe(m.fecha) === periodo);
-      if (yaPagado) return;
-      const plan = planDeLinea(l, periodo);
-      if (!(plan > 0)) return;
-      agregarPago(movs, it, l, plan, fecha, `${l.n || 'Fijo'} (precargado)`);
-      l.autoPagadoEn = periodo;
-      hechos += 1;
-    });
-  });
-  return hechos;
 }
 
 export function pagosLibresDeItem(movs, itemId, periodo) {

@@ -64,7 +64,6 @@ async function boot() {
   }
   const res = await store.bootAuth(session.user.id);
   if (res?.migrated) toast('Tu presupuesto local se subió a tu cuenta.');
-  await store.autoCerrar();
   paintRoute();
 
   // cuenta recién creada: nombre, ingreso y a repartir

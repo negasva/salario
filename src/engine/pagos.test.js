@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea,
   pagosLibresDeItem, quitarPago,
-  movimientosDeAhorro, ahorroRepartido, promedioVariables, precargarFijos,
+  movimientosDeAhorro, ahorroRepartido, promedioVariables,
   arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, pctPagado,
 } from './pagos.js';
 
@@ -257,51 +257,6 @@ describe('lo que la categoria cuesta de verdad', () => {
   });
 });
 
-describe('precargarFijos', () => {
-  const perfil = () => ({
-    items: [{ id: 'i1', L: [
-      { id: 'l1', n: 'Arriendo', v: 1200000, fixed: true, autoPagar: true },
-      { id: 'l2', n: 'Mercado', v: 600000, fixed: false, autoPagar: true },
-      { id: 'l3', n: 'Internet', v: 100000, fixed: true },
-    ] }],
-    movs: [],
-  });
-
-  it('paga los fijos marcados y los deja cerrados', () => {
-    const p = perfil();
-    expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-01')).toBe(1);
-    expect(p.movs).toHaveLength(1);
-    expect(p.movs[0]).toMatchObject({ lineId: 'l1', monto: 1200000, tipo: 'gasto' });
-    expect(p.items[0].L[0].autoPagadoEn).toBe('2026-09');
-  });
-
-  it('borrar el pago precargado no deja el renglón marcado como pagado', () => {
-    const p = perfil();
-    precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
-    expect(p.items[0].L[0].pagadoEn).toBeUndefined();
-  });
-
-  it('no precarga dos veces el mismo mes', () => {
-    const p = perfil();
-    precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
-    expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-02')).toBe(0);
-    expect(p.movs).toHaveLength(1);
-  });
-
-  it('respeta un renglón que ya tiene pagos del mes', () => {
-    const p = perfil();
-    p.movs.push({ id: 'm9', fecha: '2026-09-03', tipo: 'gasto', monto: 500000, lineId: 'l1', itemId: 'i1' });
-    expect(precargarFijos(p.items, p.movs, '2026-09', '2026-09-05')).toBe(0);
-  });
-
-  it('un mes nuevo vuelve a precargar', () => {
-    const p = perfil();
-    precargarFijos(p.items, p.movs, '2026-09', '2026-09-01');
-    expect(precargarFijos(p.items, p.movs, '2026-10', '2026-10-01')).toBe(1);
-    expect(p.movs).toHaveLength(2);
-  });
-});
-
 describe('relleno del bloque (F10)', () => {
   it('va de 0 a 100 y no se pasa', () => {
     expect(pctPagado(0, 100)).toBe(0);
@@ -313,5 +268,19 @@ describe('relleno del bloque (F10)', () => {
   it('sin plan, cualquier pago llena el bloque', () => {
     expect(pctPagado(0, 0)).toBe(0);
     expect(pctPagado(5000, 0)).toBe(100);
+  });
+});
+
+describe('contador al día con gastos variables', () => {
+  const cat = { id: 'i1', L: [linea('l1', 'Arriendo', 1000000), linea('l2', 'Mercado', 600000, { fixed: false })] };
+
+  it('un variable con pago parcial cuenta como al día', () => {
+    expect(resumenItem(cat, { l2: 50000 }, '2026-08').cerradas).toBe(1);
+  });
+  it('un fijo con pago parcial no cuenta', () => {
+    expect(resumenItem(cat, { l1: 50000 }, '2026-08').cerradas).toBe(0);
+  });
+  it('un variable sin ningun pago no cuenta', () => {
+    expect(resumenItem(cat, {}, '2026-08').cerradas).toBe(0);
   });
 });

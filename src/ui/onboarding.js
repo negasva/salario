@@ -95,20 +95,19 @@ export function abrirOnboarding(alTerminar) {
     </div>`;
 
   function pintar() {
-    const cuerpo = [pasoNombre, pasoEdad, pasoSalario, pasoGastos, pasoIngresos][paso];
-    overlay.innerHTML = `<div class="sheet ob-sheet">${cuerpo()}</div>`;
+    const s = pasos[paso];
+    overlay.innerHTML = `<div class="sheet ob-sheet">${s.vista()}</div>`;
     const err = overlay.querySelector('#obErr');
     overlay.querySelector('#obSkip').onclick = cerrar;
     const atras = overlay.querySelector('#obBack');
     if (atras) atras.onclick = () => { paso -= 1; pintar(); };
     overlay.querySelector('#obNext').onclick = () => {
-      const fallo = cablear[paso](err);
-      if (fallo) return;
+      if (s.validar?.(err)) return;
       if (paso === PASOS - 1) { aplicar(); return; }
       paso += 1;
       pintar();
     };
-    cablearVivo[paso]?.();
+    s.vivo?.();
     overlay.querySelector('input')?.focus();
     overlay.querySelector('.sheet').onkeydown = (e) => {
       if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); overlay.querySelector('#obNext').click(); }
@@ -116,21 +115,21 @@ export function abrirOnboarding(alTerminar) {
   }
 
   /* --- paso 1: nombre --- */
-  const pasoNombre = () => `
+  const vistaNombre = () => `
     ${cabeza('¿Cómo te llamas?', 'Es el nombre de este presupuesto. Puedes tener varios: uno personal, uno familiar.')}
     <div class="fld" style="margin-top:var(--space-4)"><label for="obNombre">Nombre</label>
       <input id="obNombre" autocomplete="off" value="${esc(d.nombre)}" placeholder="Mi presupuesto"></div>
     ${pie('Siguiente')}`;
 
   /* --- paso 2: edad --- */
-  const pasoEdad = () => `
+  const vistaEdad = () => `
     ${cabeza('¿Cuántos años tienes?', 'Con la edad ajustamos cuánto tiene sentido que gastes y cuánto que guardes.')}
     <div class="fld" style="margin-top:var(--space-4)"><label for="obEdad">Edad</label>
       <input id="obEdad" type="number" min="14" max="100" value="${esc(d.edad)}" placeholder="30"></div>
     ${pie('Siguiente')}`;
 
   /* --- paso 3: rango de salario --- */
-  const pasoSalario = () => `
+  const vistaSalario = () => `
     ${cabeza('¿Cuánto entra al mes?', 'Elige el rango y ajusta el monto si lo tienes claro. Se corrige solo cuando registres la nómina real.')}
     <div class="chips" id="obRangos" style="margin-top:var(--space-4)">
       ${RANGOS.map((r) => `<button class="chip ${d.rango === r.id ? 'on' : ''}" data-r="${r.id}">${esc(r.label)}</button>`).join('')}
@@ -140,7 +139,7 @@ export function abrirOnboarding(alTerminar) {
     ${pie('Siguiente')}`;
 
   /* --- paso 4: gastos recurrentes + tope --- */
-  const pasoGastos = () => `
+  const vistaGastos = () => `
     ${cabeza('Tus gastos recurrentes', 'Estos son los que casi todo el mundo tiene, con un estimado sobre tu salario. Cámbialos o bórralos.')}
     <div id="obGastos" style="margin-top:var(--space-4)"></div>
     <button class="mini" id="obGastoNuevo" style="margin-top:var(--space-2)">+ Agregar gasto</button>
@@ -153,113 +152,122 @@ export function abrirOnboarding(alTerminar) {
     ${pie('Siguiente')}`;
 
   /* --- paso 5: ingresos recurrentes --- */
-  const pasoIngresos = () => `
+  const vistaIngresos = () => `
     ${cabeza('Tus ingresos que se repiten', 'Salario, pensión, un arriendo que cobras. Cada mes los agregas con un clic desde Movimientos.')}
     <div id="obIngresos" style="margin-top:var(--space-4)"></div>
     <button class="mini" id="obIngNuevo" style="margin-top:var(--space-2)">+ Agregar ingreso</button>
     ${pie('Terminar')}`;
 
-  /* --- validación al pasar de paso --- */
-  const cablear = [
-    (err) => {
-      d.nombre = overlay.querySelector('#obNombre').value.trim();
-      if (!d.nombre) { err.textContent = 'Ponle un nombre, aunque sea "Mi plata".'; return true; }
-      return false;
+  /* Cada paso junta su vista, su validación y el cableado de sus listas: tres
+     arreglos paralelos indexados por el mismo número era una invitación a que
+     se desalinearan. */
+  const pasos = [
+    {
+      vista: vistaNombre,
+      validar: (err) => {
+        d.nombre = overlay.querySelector('#obNombre').value.trim();
+        if (!d.nombre) { err.textContent = 'Ponle un nombre, aunque sea "Mi plata".'; return true; }
+        return false;
+      },
     },
-    (err) => {
-      d.edad = Number(overlay.querySelector('#obEdad').value) || 0;
-      if (d.edad < 14 || d.edad > 100) { err.textContent = 'Escribe una edad entre 14 y 100.'; return true; }
-      return false;
+    {
+      vista: vistaEdad,
+      validar: (err) => {
+        d.edad = Number(overlay.querySelector('#obEdad').value) || 0;
+        if (d.edad < 14 || d.edad > 100) { err.textContent = 'Escribe una edad entre 14 y 100.'; return true; }
+        return false;
+      },
     },
-    (err) => {
-      d.inc = digits(overlay.querySelector('#obInc').value);
-      if (d.inc <= 0) { err.textContent = 'Elige un rango o escribe cuánto entra al mes.'; return true; }
-      // volver atrás y seguir no puede borrar lo que ya editaste en el paso 4
-      if (!d.gastos.length || d.incSembrado !== d.inc) {
-        d.gastos = gastosSugeridos(d.inc);
-        d.tope = gastoMaximoSugerido(d.edad, d.inc);
-        d.incSembrado = d.inc;
-      }
-      return false;
+    {
+      vista: vistaSalario,
+      validar: (err) => {
+        d.inc = digits(overlay.querySelector('#obInc').value);
+        if (d.inc <= 0) { err.textContent = 'Elige un rango o escribe cuánto entra al mes.'; return true; }
+        // volver atrás y seguir no puede borrar lo que ya editaste en el paso 4
+        if (!d.gastos.length || d.incSembrado !== d.inc) {
+          d.gastos = gastosSugeridos(d.inc);
+          d.tope = gastoMaximoSugerido(d.edad, d.inc);
+          d.incSembrado = d.inc;
+        }
+        return false;
+      },
+      vivo: () => {
+        const inc = overlay.querySelector('#obInc');
+        overlay.querySelectorAll('#obRangos .chip').forEach((b) => {
+          b.onclick = () => {
+            d.rango = b.dataset.r;
+            d.inc = RANGOS.find((x) => x.id === d.rango).medio;
+            inc.value = plain(d.inc, p.cur);
+            overlay.querySelectorAll('#obRangos .chip').forEach((x) => x.classList.toggle('on', x === b));
+          };
+        });
+      },
     },
-    () => { d.tope = Number(overlay.querySelector('#obTope').value) || d.tope; return false; },
-    () => false,
-  ];
-
-  /* --- listas editables dentro del paso --- */
-  const cablearVivo = [
-    null,
-    null,
-    () => {
-      const inc = overlay.querySelector('#obInc');
-      overlay.querySelectorAll('#obRangos .chip').forEach((b) => {
-        b.onclick = () => {
-          d.rango = b.dataset.r;
-          const r = RANGOS.find((x) => x.id === d.rango);
-          d.inc = r.medio;
-          inc.value = plain(r.medio, p.cur);
-          overlay.querySelectorAll('#obRangos .chip').forEach((x) => x.classList.toggle('on', x === b));
+    {
+      vista: vistaGastos,
+      validar: () => { d.tope = Number(overlay.querySelector('#obTope').value) || d.tope; return false; },
+      vivo: () => {
+        const box = overlay.querySelector('#obGastos');
+        const topeTxt = overlay.querySelector('#obTopeTxt');
+        const pintarTope = () => {
+          const pct = Number(overlay.querySelector('#obTope').value) || 0;
+          topeTxt.textContent = `Son ${money(Math.round((d.inc * pct) / 100), p.cur)} al mes. Lo demás queda para ahorro y metas.`;
         };
-      });
+        const pintarGastos = () => {
+          box.innerHTML = d.gastos.map((g, i) => `<div class="prow" style="margin-top:6px">
+            <input class="obG" data-i="${i}" data-k="n" value="${esc(g.n)}" style="flex:1" aria-label="Nombre del gasto">
+            <input class="obG num" data-i="${i}" data-k="m" inputmode="numeric" value="${plain(g.m, p.cur)}" style="width:38%" aria-label="Monto de ${esc(g.n)}">
+            <button class="mini obGDel" data-i="${i}" aria-label="Quitar ${esc(g.n)}">${icon('cerrar', 'ic-sm')}</button>
+          </div>`).join('') || '<div class="empty">Sin gastos precargados. Los creas después en Categorías.</div>';
+          box.querySelectorAll('.obG').forEach((inp) => {
+            inp.onchange = (e) => {
+              const g = d.gastos[Number(e.target.dataset.i)];
+              if (e.target.dataset.k === 'n') g.n = e.target.value;
+              else g.m = digits(e.target.value);
+            };
+          });
+          box.querySelectorAll('.obGDel').forEach((b) => {
+            b.onclick = () => { d.gastos.splice(Number(b.dataset.i), 1); pintarGastos(); };
+          });
+        };
+        pintarGastos();
+        pintarTope();
+        overlay.querySelector('#obTope').oninput = pintarTope;
+        overlay.querySelector('#obGastoNuevo').onclick = () => { d.gastos.push({ n: '', m: 0 }); pintarGastos(); };
+      },
     },
-    () => {
-      const box = overlay.querySelector('#obGastos');
-      const topeTxt = overlay.querySelector('#obTopeTxt');
-      const pintarTope = () => {
-        const pct = Number(overlay.querySelector('#obTope').value) || 0;
-        topeTxt.textContent = `Son ${money(Math.round((d.inc * pct) / 100), p.cur)} al mes. Lo demás queda para ahorro y metas.`;
-      };
-      const pintarGastos = () => {
-        box.innerHTML = d.gastos.map((g, i) => `<div class="prow" style="margin-top:6px">
-          <input class="obG" data-i="${i}" data-k="n" value="${esc(g.n)}" style="flex:1" aria-label="Nombre del gasto">
-          <input class="obG num" data-i="${i}" data-k="m" inputmode="numeric" value="${plain(g.m, p.cur)}" style="width:38%" aria-label="Monto de ${esc(g.n)}">
-          <button class="mini obGDel" data-i="${i}" aria-label="Quitar ${esc(g.n)}">${icon('cerrar', 'ic-sm')}</button>
-        </div>`).join('') || '<div class="empty">Sin gastos precargados. Los creas después en Categorías.</div>';
-        box.querySelectorAll('.obG').forEach((inp) => {
-          inp.onchange = (e) => {
-            const g = d.gastos[Number(e.target.dataset.i)];
-            if (e.target.dataset.k === 'n') g.n = e.target.value;
-            else g.m = digits(e.target.value);
-          };
-        });
-        box.querySelectorAll('.obGDel').forEach((b) => {
-          b.onclick = () => { d.gastos.splice(Number(b.dataset.i), 1); pintarGastos(); };
-        });
-      };
-      pintarGastos();
-      pintarTope();
-      overlay.querySelector('#obTope').oninput = pintarTope;
-      overlay.querySelector('#obGastoNuevo').onclick = () => { d.gastos.push({ n: '', m: 0 }); pintarGastos(); };
-    },
-    () => {
-      const box = overlay.querySelector('#obIngresos');
-      const pintarIngresos = () => {
-        box.innerHTML = d.ingresos.map((it, i) => `<div class="prow" style="margin-top:6px">
-          <input class="obI" data-i="${i}" data-k="n" value="${esc(it.n)}" placeholder="Salario" style="flex:1" aria-label="Nombre del ingreso">
-          <input class="obI num" data-i="${i}" data-k="monto" inputmode="numeric" value="${it.monto ? plain(it.monto, it.cur) : ''}" placeholder="0" style="width:30%" aria-label="Monto">
-          <select class="obI" data-i="${i}" data-k="cur" aria-label="Moneda">
-            ${MONEDAS.map((m) => `<option value="${m}" ${it.cur === m ? 'selected' : ''}>${m}</option>`).join('')}
-          </select>
-          <input class="obI" data-i="${i}" data-k="dia" type="number" min="1" max="31" value="${it.dia}" style="width:64px" aria-label="Día del mes">
-          <button class="mini obIDel" data-i="${i}" aria-label="Quitar ingreso">${icon('cerrar', 'ic-sm')}</button>
-        </div>`).join('') || '<div class="empty">Sin ingresos recurrentes. Puedes agregarlos después.</div>';
-        box.querySelectorAll('.obI').forEach((inp) => {
-          inp.onchange = (e) => {
-            const it = d.ingresos[Number(e.target.dataset.i)];
-            const k = e.target.dataset.k;
-            it[k] = k === 'monto' ? digits(e.target.value) : k === 'dia' ? Number(e.target.value) || 1 : e.target.value;
-          };
-        });
-        box.querySelectorAll('.obIDel').forEach((b) => {
-          b.onclick = () => { d.ingresos.splice(Number(b.dataset.i), 1); pintarIngresos(); };
-        });
-      };
-      if (!d.ingresos.length) d.ingresos.push({ n: 'Salario', monto: d.inc, cur: p.cur, dia: 1 });
-      pintarIngresos();
-      overlay.querySelector('#obIngNuevo').onclick = () => {
-        d.ingresos.push({ n: '', monto: 0, cur: p.cur, dia: 1 });
+    {
+      vista: vistaIngresos,
+      vivo: () => {
+        const box = overlay.querySelector('#obIngresos');
+        const pintarIngresos = () => {
+          box.innerHTML = d.ingresos.map((it, i) => `<div class="prow" style="margin-top:6px">
+            <input class="obI" data-i="${i}" data-k="n" value="${esc(it.n)}" placeholder="Salario" style="flex:1" aria-label="Nombre del ingreso">
+            <input class="obI num" data-i="${i}" data-k="monto" inputmode="numeric" value="${it.monto ? plain(it.monto, it.cur) : ''}" placeholder="0" style="width:30%" aria-label="Monto">
+            <select class="obI" data-i="${i}" data-k="cur" aria-label="Moneda">
+              ${MONEDAS.map((m) => `<option value="${m}" ${it.cur === m ? 'selected' : ''}>${m}</option>`).join('')}
+            </select>
+            <input class="obI" data-i="${i}" data-k="dia" type="number" min="1" max="31" value="${it.dia}" style="width:64px" aria-label="Día del mes">
+            <button class="mini obIDel" data-i="${i}" aria-label="Quitar ingreso">${icon('cerrar', 'ic-sm')}</button>
+          </div>`).join('') || '<div class="empty">Sin ingresos recurrentes. Puedes agregarlos después.</div>';
+          box.querySelectorAll('.obI').forEach((inp) => {
+            inp.onchange = (e) => {
+              const it = d.ingresos[Number(e.target.dataset.i)];
+              const k = e.target.dataset.k;
+              it[k] = k === 'monto' ? digits(e.target.value) : k === 'dia' ? Number(e.target.value) || 1 : e.target.value;
+            };
+          });
+          box.querySelectorAll('.obIDel').forEach((b) => {
+            b.onclick = () => { d.ingresos.splice(Number(b.dataset.i), 1); pintarIngresos(); };
+          });
+        };
+        if (!d.ingresos.length) d.ingresos.push({ n: 'Salario', monto: d.inc, cur: p.cur, dia: 1 });
         pintarIngresos();
-      };
+        overlay.querySelector('#obIngNuevo').onclick = () => {
+          d.ingresos.push({ n: '', monto: 0, cur: p.cur, dia: 1 });
+          pintarIngresos();
+        };
+      },
     },
   ];
 

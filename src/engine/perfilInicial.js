@@ -1,7 +1,7 @@
 /* F2 — con qué arranca una cuenta nueva. Los cinco gastos que casi todo el
    mundo tiene, con un monto estimado como porcentaje del salario declarado.
    Son una propuesta: se editan y se borran. */
-export const GASTOS_SUGERIDOS = [
+const GASTOS_SUGERIDOS = [
   { n: 'Arriendo', p: 30 },
   { n: 'Mercado', p: 15 },
   { n: 'Salud', p: 5 },

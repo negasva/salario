@@ -184,7 +184,7 @@ function abrirPasoAPaso(root) {
       } else {
         d.mes = digits(input.value);
         const g = { id: 'g' + id(), n: d.n, t: d.t, s: 0, mes: d.mes, base: 0,
-          modo: 'monto', priority: 'media', estado: 'activa', orden: p.goals.length + 1 };
+          modo: 'monto', estado: 'activa', orden: p.goals.length + 1 };
         p.goals.push(g);
         store.save();
         cerrar();

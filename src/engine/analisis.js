@@ -5,9 +5,9 @@ import { enPeriodo } from './movimientos.js';
    nada se guarda, así que registrar un gasto o mover un planeado repinta la
    vista sin que nadie tenga que invalidar un total. */
 
-export const COLOR_SIN_ASIGNAR = 'var(--pink-wash)';
-export const COLOR_AHORRO = 'var(--ink-lighter)';
-export const PCT_AHORRO_SUGERIDO = 20;
+const COLOR_SIN_ASIGNAR = 'var(--pink-wash)';
+const COLOR_AHORRO = 'var(--ink-lighter)';
+const PCT_AHORRO_SUGERIDO = 20;
 
 function conPorcentaje(segmentos, base) {
   const b = Number(base) || 0;

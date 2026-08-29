@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { avisosPendientes, fueVisto } from '../engine/avisos.js';
 import { anuncio } from './anuncio.js';
-import { money, MESES } from '../format.js';
+import { MESES } from '../format.js';
 
 function nombreMes(periodo) {
   const [a, m] = String(periodo).split('-');

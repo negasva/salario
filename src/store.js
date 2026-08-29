@@ -122,7 +122,7 @@ export function ensureFondoGoal(p) {
   let creado = false;
   if (!goal) {
     goal = { id: nid('g'), n: 'Fondo de emergencia', t: target, s: 0, mes: 0,
-      priority: 'alta', modo: 'monto', base: 0, special: 'emergencia',
+      modo: 'monto', base: 0, special: 'emergencia',
       orden: 0, estado: 'activa' };
     p.goals.unshift(goal);
     creado = true;
@@ -177,7 +177,7 @@ function normalizeProfile(p) {
     if (typeof g.mes !== 'number') g.mes = Math.round(Object.values(g.a).reduce((s2, v) => s2 + (Number(v) || 0), 0));
     delete g.a;
     if (g.estado === 'en_fila') g.estado = 'activa';
-    if (!g.priority) g.priority = 'media';
+    delete g.priority;
     // dateMode era booleano; ahora el modo tiene tres estados
     if (!g.modo) g.modo = g.dateMode ? 'fecha' : 'monto';
 

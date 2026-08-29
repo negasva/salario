@@ -14,15 +14,6 @@ export function money(v, cur) {
   }
 }
 
-// Los avisos hablan en grande: $3,2 M se lee de un vistazo, $3.200.000 no.
-export function moneyCorto(v, cur) {
-  try {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: cur, notation: 'compact', maximumFractionDigits: 1 }).format(v || 0);
-  } catch {
-    return money(v, cur);
-  }
-}
-
 export function plain(v, cur) {
   const n = noDecimals(cur) ? Math.round(v || 0) : Math.round((v || 0) * 100) / 100;
   try {

@@ -4,7 +4,7 @@
 
 Una app de presupuesto personal para una sola persona, sin nómina, sin equipos, sin categorías de empresa. La idea de fondo es vieja y conocida: repartes el sueldo en categorías antes de gastarlo, y cada peso que sale tiene que salir de una categoría. El reparto se escribe en plata, no en porcentajes: a cada categoría le asignas cuánto le toca este mes, y la app te dice si te falta plata por repartir o si te pasaste, y por cuánto. Lo que cambia aquí es que los bloques no son un adorno: la app calcula qué pasa con tus metas cuando mueves un monto, y te dice el precio en meses.
 
-Está en español de Colombia, con pesos por defecto, aunque acepta MXN, USD, ARS, CLP, PEN y EUR. El diseño es rosa chicle sobre tinta casi negra, y no es negociable: es la identidad visual del proyecto.
+Está en español de Colombia, con pesos por defecto y soporte para USD y EUR con la tasa del día. El diseño es rosa chicle sobre tinta casi negra, y no es negociable: es la identidad visual del proyecto.
 
 ## Para qué sirve
 
@@ -13,8 +13,8 @@ El problema que resuelve no es "no sé cuánto gasté". Para eso ya hay veinte a
 Entonces la app responde tres preguntas en concreto:
 
 1. Si guardo esto al mes, ¿cuándo la tengo? (con mes y año, no con un porcentaje abstracto)
-2. Si la quiero en tal fecha, ¿cuánto tengo que guardar y de dónde lo saco?
-3. Mis dos metas están peleando por el mismo bloque de ahorro. ¿Qué pasa si las hago en paralelo y qué pasa si las hago en fila?
+2. Si la quiero en tal fecha, ¿cuánto tengo que guardar al mes?
+3. Si guardo esta cifra al mes para dos metas a la vez, ¿me alcanza el sueldo o me estoy pasando?
 
 Y desde que existe el libro de movimientos responde una cuarta, que es la que hace que las otras tres sirvan de algo: **¿el plan que hiciste se parece en algo a lo que de verdad pasó?**
 
@@ -24,7 +24,7 @@ También hace una cosa que casi ninguna app hace: te dice cuándo el problema no
 
 ### La estructura de datos
 
-Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su ingreso, su moneda, sus categorías, sus metas, sus movimientos. Puedes tener varios (uno personal y uno familiar, o uno real y uno de simulación) y se cambia entre ellos desde Ajustes o con el buscador de arriba.
+Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su ingreso, su moneda, sus categorías, sus metas, sus movimientos. Puedes tener varios (uno personal y uno familiar, o uno real y uno de simulación) y se cambia entre ellos desde Ajustes.
 
 ```js
 {
@@ -32,10 +32,11 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
   inc, cur,                        // ingreso y moneda
   paleta,                          // tema visual elegido para este perfil
   ingresoTipo, ingresoHistorial,   // 'fijo' | 'variable'
-  tasaInteres, fondoMeses,         // costo de oportunidad y meses del fondo
+  tasaInteres, fondoMeses,         // tasa anual de referencia y meses del fondo
+  edad, gastoMaximo,               // F2: del paso a paso; el tope de gasto sugerido
+  medios, saldos,                  // F1: medios de pago y saldo inicial por moneda
   metodoDeuda,                     // 'avalancha' | 'bolaDeNieve'
   items, goals, movs,
-  traspaso,                        // F5: el traspaso de fila esperando respuesta
   avisosVistos, avisosEnviados,    // F6: qué aviso se descartó y cuál se notificó, por día
   alertasSilenciadas,              // F7: qué alertas de renglón se silenciaron
   dashLayout,                      // F9: { widgetId: { orden, ancho, oculto } } del dashboard
@@ -46,17 +47,17 @@ Todo cuelga de un **perfil**. Un perfil es un presupuesto completo y aislado: su
 
 Dentro de un perfil hay tres listas que se cruzan.
 
-**Sobre qué se reparte.** El reparto se contrasta contra lo que de verdad entra, no contra un número tecleado: `incomeRepartir()` devuelve lo que de verdad entró en el mes en curso, nómina más extra, y solo cae al plan (`p.inc`) mientras no haya un ingreso registrado. Ese es el número contra el que se compara lo que tienes asignado: si sobra, la app dice cuánto falta por repartir; si te pasaste, por cuánto. `incomeEsenciales()` sigue midiendo contra el plan o contra el mínimo del historial: medir los gastos fijos contra un mes bueno es exactamente cómo la gente se mete en problemas. Categorías abre con una tarjeta que dice de dónde sale ese número, cuánto entró por encima del plan y sigue sin ir a una meta —cualquier peso de más cuenta, esté o no marcado como ingreso extra—, y dos botones: repartirlo entre las metas —el mismo selector de la Fase 8— o dejar el ingreso del mes como plan.
+**Sobre qué se reparte.** El reparto se contrasta contra lo que de verdad entra, no contra un número tecleado: `incomeRepartir()` devuelve lo que de verdad entró en el mes en curso, nómina más extra, y solo cae al plan (`p.inc`) mientras no haya un ingreso registrado. Ese es el número contra el que se compara lo que tienes asignado: si sobra, la app dice cuánto falta por repartir; si te pasaste, por cuánto. `incomeEsenciales()` sigue midiendo contra el plan o contra el mínimo del historial: medir los gastos fijos contra un mes bueno es exactamente cómo la gente se mete en problemas. Planear abre con una tarjeta que dice de dónde sale ese número, cuánto entró por encima del plan y sigue sin ir a una meta —cualquier peso de más cuenta, esté o no marcado como ingreso extra—, y dos botones: repartirlo entre las metas —el mismo selector de la Fase 8— o dejar el ingreso del mes como plan.
 
-Las **categorías** (`items`) son los bloques del reparto. Vienen cinco por defecto, con un reparto sugerido sobre el ingreso inicial: Esenciales 55%, Gasto libre 5%, Deudas 10%, Ahorro corto plazo 15%, Inversión largo plazo 15%. Ese porcentaje solo se usa para sembrar el perfil: lo que se guarda es el monto (`m`), que es lo único que se edita después. El porcentaje que ves en pantalla siempre es un número derivado del ingreso del mes. Cada una tiene su monto, un color, un rol (`r`) y una lista de renglones (`L`) donde escribes los conceptos reales: arriendo, servicios, mercado. Cada renglón se marca como fijo o variable, y esa marca no es decorativa: el plan de recorte solo toca variables, y el objetivo del fondo de emergencia se calcula como los fijos más la mitad de los variables.
+Las **categorías** (`items`) son los bloques del reparto. **No viene ninguna por defecto y nada se reparte solo**: un perfil nuevo arranca vacío y en cero, y lo único que se precarga son los cinco gastos recurrentes que propone el paso a paso —Arriendo, Mercado, Salud, Gasolina, Inversión—, todos editables y borrables. Lo que se guarda es el monto (`m`), que es lo único que se edita. El porcentaje que ves en pantalla siempre es un número derivado del ingreso del mes. Cada una tiene su monto, un color, un rol (`r`) y una lista de renglones (`L`) donde escribes los conceptos reales: arriendo, servicios, mercado. Cada renglón se marca como fijo o variable, y esa marca no es decorativa: el objetivo del fondo de emergencia se calcula como los fijos más la mitad de los variables, y un fijo puede marcarse para llegar ya pagado al mes nuevo (`autoPagar`), siempre editable.
 
 Cada renglón puede llevar `tope`: el máximo que quieres gastar ahí en el mes. Desde el 80% la app lo dice en el dashboard y pinta la barra en Categorías. La alerta de la Fase 7 avisa el mes siguiente, cuando ya gastaste; el tope avisa el mismo día.
 
 Los renglones de un bloque con rol `deu` llevan además `saldo`, `tasa` y `minimo`, más `diaPago` y `fechaLimite`: una deuda puede ser indefinida (solo día de corte cada mes) o tener fecha final. Dos días antes del pago, y el mismo día, sale el aviso — la mora cuesta más que cualquier tasa que hayas calculado. Vacíos, el renglón se comporta como cualquier otro. El `saldo` es el declarado; el que manda en los cálculos es el **saldo vivo**, que le resta los movimientos marcados `abono: true`. Un abono es un gasto normal en todo lo demás: cuenta en `gastoTotal`, en `porItem` y en el presupuesto del bloque.
 
-Las **metas** (`goals`) son las cosas que quieres comprar. Cada meta guarda un mapa `a` que dice cuánta plata de cada bloque reclama al mes. Si la Moto tiene `a = { ahorroCorto: 660000 }`, se lleva 660.000 de ese bloque cada mes. Nunca puede llevarse más de lo que el bloque tiene asignado: si le bajas el monto al bloque, la meta se frena, que es la verdad. Ese mapa es el corazón del cálculo y también la fuente del conflicto: si dos metas suman más de lo que el bloque tiene, la app lo detecta y le baja el tope a la segunda. Aparte del reparto mensual, cada meta guarda su costo (`t`) y lo que llevas ahorrado (`s`), que puedes escribir a mano: lo que ya tenías guardado antes de usar la app cuenta igual.
+Las **metas** (`goals`) son las cosas que quieres comprar. Cada meta guarda **una sola cifra mensual** (`mes`): lo que decides guardar cada mes, escrito a mano. Con eso la app contesta la única pregunta que importa —en cuántos meses llegas— y la meta se pinta como un bloque más del reparto, al lado de las categorías, así que `balance()` la cuenta igual que a ellas. Antes ese aporte se armaba repartiéndolo bloque por bloque, y ese mapa era la mitad de la complejidad de la app para una cuenta que es una división. Cada meta guarda además su costo (`t`) y lo que llevas ahorrado (`s`), que puedes escribir a mano: lo que ya tenías guardado antes de usar la app cuenta igual.
 
-Cada meta lleva además un `orden` y un `estado` (`activa`, `en_fila` o `completa`), que son los que arman la fila. El fondo de emergencia siempre tiene `orden: 0` y no se mueve de ahí.
+Cada meta lleva además un `orden` y un `estado` (`activa` o `completa`). El fondo de emergencia siempre tiene `orden: 0` y no se mueve de ahí.
 
 El **fondo de emergencia** es una meta especial (`special: 'emergencia'`) que la app crea sola y no te deja borrar. Su objetivo se recalcula desde tus esenciales por el número de meses que elijas, entre tres y seis. Si lo editas a mano queda marcado `manual` y la app deja de recalcularlo: el número que escribiste gana.
 
@@ -71,6 +72,8 @@ Los **movimientos** (`movs`) son el libro de lo que de verdad entró y salió. U
   lineId,         // renglón concreto, opcional
   goalId,         // si el gasto es un aporte a una meta
   nota, extra,    // `extra`: ingreso que no es la nómina
+  medio,          // F1: medio de pago (Bancolombia, Nequi, Efectivo…)
+  montoOrig, curOrig, // F3: lo que escribiste, si lo escribiste en otra moneda
   abono,          // F9: gasto que baja el saldo de un renglón de deuda
   cat,            // F11: categoría de gasto (mercado, comida-fuera, transporte…)
   recId,          // F10: el recurrente del que salió, si salió de uno
@@ -93,19 +96,27 @@ Lo que el diccionario no reconoce se le pregunta a la **IA**, y solo eso. Vive e
 
 Para desplegarla: `supabase secrets set NVIDIA_API_KEY=...` y `supabase functions deploy ia`.
 
+### El botón flotante
+
+Un `+` fijo abajo a la derecha con las cinco cosas que se hacen a diario: agregar ingreso, agregar egreso, agregar meta, buscar transacciones y preguntarle a la IA. Todas abren una hoja menos la meta, que tiene su propio editor en su vista. Lo que puede ser un pop-up es un pop-up: la app dejó de mandarte a otra página para meter un gasto.
+
 ### El buscador
 
-Un botón en la barra lateral y una tarjeta en el dashboard, los dos sobre `engine/buscar.js`: busca en movimientos, metas, bloques y renglones a la vez, sin tildes ni mayúsculas, y suma lo encontrado. Buscar "rappi" es buscar los últimos rappis y cuánto se han llevado; por eso los movimientos salen del más reciente al más viejo y las cosas con nombre propio salen primero.
+Una acción del botón flotante y una tarjeta en el dashboard, las dos sobre `engine/buscar.js`: busca en movimientos, metas, bloques y renglones a la vez, sin tildes ni mayúsculas, y suma lo encontrado. Buscar "rappi" es buscar los últimos rappis y cuánto se han llevado; por eso los movimientos salen del más reciente al más viejo y las cosas con nombre propio salen primero.
 
 ### El motor de cálculo
 
-Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 118 pruebas en ocho archivos.
+Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 210 pruebas en dieciocho archivos.
 
-`reparto.js` hace la aritmética base. Suma lo asignado, deriva el porcentaje sobre el ingreso, cuadra el reparto contra lo que entra (`balance()`: cuánto falta por repartir o por cuánto te pasaste), separa fijos de variables, y calcula cuánto queda libre de un bloque después de que las otras metas lo reclamaron.
+`reparto.js` hace la aritmética base. Suma lo asignado, deriva el porcentaje sobre el ingreso, cuadra el reparto contra lo que entra (`balance()`: cuánto falta por repartir o por cuánto te pasaste), separa fijos de variables, y suma lo que las metas se llevan al mes (`totalMetas()`), que entra en el mismo balance.
 
-`metas.js` hace lo interesante. Calcula cuánto va hacia una meta al mes, en cuántos meses la alcanzas, la cuota necesaria para una fecha objetivo, el plan de recorte cuando no alcanza, tres escenarios comparables (conservador, equilibrado, agresivo), el costo de oportunidad de ese dinero invertido a cinco y diez años, la detección de metas en competencia, y cuánto se lleva cada meta de un bloque dado.
+`metas.js` calcula cuánto va hacia una meta al mes, en cuántos meses la alcanzas, la cuota necesaria para un plazo o una fecha objetivo, y el fondo de emergencia. Nada más: el plan de recorte, los escenarios, el costo de oportunidad y la detección de metas en competencia se fueron con el reparto por bloque del que vivían.
 
-`fila.js` maneja la fila: el orden de las metas, quién sigue, el traspaso de una asignación a la siguiente, y la proyección de cuándo le toca el turno a cada una.
+`fila.js` solo ordena las metas: subir, bajar, arrastrar y renumerar.
+
+`analisis.js` arma los segmentos del donut —planeado, real o desde el snapshot de un mes cerrado— y sus arcos. Todo derivado del estado en cada llamada, nada guardado.
+
+`saldo.js` suma el saldo disponible desde el saldo inicial. `moneda.js` trae la tasa de USD y EUR contra COP de frankfurter.app, cacheada 12 h en `localStorage` y con la última tasa conocida como plan B. `perfilInicial.js` propone los gastos y el tope de gasto del paso a paso.
 
 `avisos.js` decide qué tiene que decirte la app hoy: el cierre del mes a 5, 3 y 1 día, los que faltan para la fecha de una meta, y si un aviso ya se descartó hoy.
 
@@ -118,22 +129,6 @@ Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único c
 `deudas.js` amortiza. `saldoVivo()` descuenta los abonos del libro y `deudasDelPerfil(items, movs)` trabaja sobre él, así que el plazo y los intereses se mueven cuando pagas. Meses para liquidar, intereses totales, orden de ataque por avalancha o bola de nieve, y el plan que reparte el presupuesto del bloque. Todo sale de una sola simulación mes a mes en vez de la fórmula cerrada: es exacta con el último pago parcial, y el plan la necesita igual, porque cuando una deuda cae su mínimo se suma al sobrante y arrastra a la siguiente. De ahí sale la ventaja de los dos métodos.
 
 Hay una regla de prioridad que atraviesa todo, la escalera de cinco peldaños que usa Metas para avisarte cuando creas una meta fuera de turno (el dashboard ya no la pinta): mínimos de deuda, un mes de fondo, fondo completo, metas, inversión de largo plazo. La app te dice en cuál estás y te avisa si estás creando una meta del peldaño 4 cuando todavía andas en el 2. El peldaño 1 se verifica de verdad contra los mínimos de tus deudas y el presupuesto del bloque.
-
-### El plan de recorte
-
-Cuando le pides una meta para una fecha y no te alcanza, la app no dice "ahorra más". Busca de dónde sacarlo, en este orden y con estas restricciones: baja el gasto libre hasta un piso del 2% del ingreso, recorta el 20% de los renglones variables de esenciales, pausa la inversión de largo plazo, y solo si tu fondo ya está completo toca el ahorro de corto plazo.
-
-Nunca toca renglones fijos ni mínimos de deuda. Y cada recorte viene con su precio escrito al lado, en lenguaje normal: "pausas la inversión 14 meses", no "ajuste del bloque 5".
-
-### La fila de metas
-
-Dos metas que quieren el mismo bloque ya no pelean para siempre. Una se pone `en_fila` y espera: su reparto se guarda, pero no consume nada, así que no le baja el tope a la que está corriendo. `claimedBy()` la ignora, y por eso el tope de la meta activa vuelve a ser todo lo que el bloque tiene.
-
-Cuando la meta activa llega a su objetivo, su asignación entera pasa a la siguiente de la fila, que se vuelve activa. Eso no pasa en silencio: sale el anuncio grande de la Fase 6 diciendo `Terminaste la meta Moto. Los $1.813.064 al mes pasan ahora a Fondo de emergencia.`, con un botón para aceptar y otro para repartirlo a mano. El de a mano libera la plata sin asignársela a nadie y abre la meta que sigue para que la acomodes tú.
-
-Si nadie contesta, a las 24 horas se aplica solo. El dinero no se queda sin dueño. Como no hay cron ni servidor, el reloj se mira cuando la app está abierta, igual que el cierre de mes: el traspaso pendiente vive en el perfil (`p.traspaso`) y sobrevive a que cierres la pestaña.
-
-Si no hay nadie esperando en la fila, no pasa nada. La meta cumplida sigue como estaba y el anuncio sale el día que pongas otra meta detrás; así una meta que ya alcanzaste no se queda sin su bloque sin que lo hayas pedido.
 
 ### Los avisos
 
@@ -169,7 +164,7 @@ Si trabajas por tu cuenta y el ingreso no es el mismo cada mes, cambias el perfi
 
 Si el último mes fue mejor que el promedio, la app calcula el excedente y sugiere 70% a metas y fondo, 30% libre.
 
-Cuando se registra un ingreso extra (por ejemplo, una prima), Movimientos muestra un anuncio grande con ese mismo reparto 70/30. `Aplicar sugerencia` recorre las metas activas en el orden de la fila y crea sus aportes; `Repartir a mano` abre un selector con montos y `Dejarlo sin asignar` no crea movimientos adicionales. El resumen mensual separa nómina e ingreso extra. El cierre guarda el total extra en `snapshot.ingresoExtra`, y Historial marca con un punto verde los meses que lo tuvieron para que los picos de la tasa de ahorro se puedan explicar.
+Cuando se registra un ingreso extra (por ejemplo, una prima), Movimientos muestra un anuncio grande con ese mismo reparto 70/30. `Aplicar sugerencia` recorre las metas activas en orden y crea sus aportes; `Repartir a mano` abre un selector con montos y `Dejarlo sin asignar` no crea movimientos adicionales. El resumen mensual separa nómina e ingreso extra. El cierre guarda el total extra en `snapshot.ingresoExtra`, y Historial marca con un punto verde los meses que lo tuvieron para que los picos de la tasa de ahorro se puedan explicar.
 
 ### La PWA
 
@@ -183,7 +178,7 @@ Hay dos tablas. `perfiles` guarda todo el presupuesto vivo como un blob JSON. `c
 
 La autenticación es correo y contraseña de Supabase, con recuperación por enlace. Al crear una cuenta salen dos hojas seguidas, una por dato: cómo se llama el presupuesto y cuánto entra al mes; al terminar la app cae en Categorías, que es donde se reparte. Ni un paso más: un tour de siete pantallas se salta completo. La marca de "cuenta nueva" vive en `localStorage`, no en la sesión, porque si el correo pide confirmación la cuenta entra más tarde y el paso a paso tiene que estar esperando. Si empezaste a usar la app sin cuenta y después te registras, lo que tenías en local se sube como perfil inicial y sale un aviso.
 
-### Las seis vistas
+### Las siete vistas
 
 **Dashboard** es el resumen, y desde la Fase 9 es una cuadrícula que el usuario acomoda: el botón `Acomodar` entra en modo edición y ahí cada tarjeta se arrastra, cambia de ancho (una o dos columnas) o sube y baja con flechas en móvil; `Restablecer` borra `p.dashLayout`. También se quitan tarjetas: `Quitar` las saca del dashboard y solo reaparecen, apagadas y con su nombre, dentro del modo edición, que es la única forma de volver a encenderlas. Se guarda en el perfil, así que sobrevive a cerrar la app. Fuera de ese modo nada se mueve. Las tarjetas son: el ingreso del mes (la nómina real registrada en Movimientos, con el plan al lado y un botón para adoptar el real), cuánto por ciento llevas repartido, el estado del fondo, la tasa de ahorro con su tendencia, la gráfica de **ahorro acumulado** con su filtro (todo, una meta, un bloque de ahorro, pago de deudas) y su tabla mes a mes, el reparto por bloques, y los anillos de progreso de cada meta con el monto, el plazo y la fecha escritos debajo. Si tus esenciales pasan del 50% aparece una tarjeta de advertencia con los tres renglones que más pesan. Si la app cerró meses por ti al arrancar, sale un anuncio que lleva a Historial.
 
@@ -191,17 +186,19 @@ Una categoría puede llevar su monto **a mano** o en **automático**. En automá
 
 Cada renglón lleva sus pagos reales como movimientos sueltos, uno por compra, y cada uno se puede abrir para corregirle el monto, la fecha y ponerle un nombre —"recibo de agosto", "mercado del sábado"— porque un pago sin nombre a los tres meses no dice nada. Y el mes que no alcanzó no se borra: un renglón fijo que quedó debiendo se pasa al siguiente con un botón, y allá vale su plan más lo que se debía (`l.arrastre`, por periodo). Es un botón y no algo automático a propósito: la app no cierra meses sola cuando estás sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. En un renglón variable no aparece: un mercado en el que gastaste menos no es una deuda.
 
-**Categorías** es donde vive el detalle, y arriba de todo dice cuánto estás repartiendo de verdad este mes: lo asignado contra lo que entra, con la barra y la frase que dice cuánto te falta por repartir o por cuánto te pasaste. Cada bloque con el monto que le asignas —un solo campo, en pesos—, el porcentaje del ingreso que eso representa como dato derivado, un botón para ajustarlo al plan de sus renglones y otro para cuadrar ahí mismo lo que falta o lo que sobra, y la lista de conceptos. Debajo de los conceptos, lo que las metas ya reclaman de ese bloque, con un botón `Ya lo guardé` que registra el aporte del mes. Al pie, la cuenta completa: presupuesto, gastos reales, comprometido por metas, y el libre. En un bloque de deudas, cada renglón muestra en cuánto se liquida y cuántos intereses cuesta, y al final el comparativo entre avalancha y bola de nieve.
+**Planear** (antes Categorías) es donde vive el detalle, y arriba de todo dice cuánto estás repartiendo de verdad este mes: lo asignado contra lo que entra, con la barra y la frase que dice cuánto te falta por repartir o por cuánto te pasaste. Cada bloque con el monto que le asignas —un solo campo, en pesos—, el porcentaje del ingreso que eso representa como dato derivado, un botón para ajustarlo al plan de sus renglones y otro para cuadrar ahí mismo lo que falta o lo que sobra, y la lista de conceptos. Debajo de los conceptos, lo que las metas ya reclaman de ese bloque, con un botón `Ya lo guardé` que registra el aporte del mes. Al pie, la cuenta completa: presupuesto, gastos reales, comprometido por metas, y el libre. En un bloque de deudas, cada renglón muestra en cuánto se liquida y cuántos intereses cuesta, y al final el comparativo entre avalancha y bola de nieve.
 
-**Metas** es la vista con más lógica. Las metas se reordenan arrastrando la tarjeta —`draggable` del navegador, sin librería— y con un par de flechas arriba/abajo, que es lo que se usa en el celular. Las que están en fila se pintan atenuadas y dicen `Empieza cuando termines la meta Moto, hacia septiembre de 2027`. Cada meta se puede calcular por monto, en N meses, o para una fecha. Hay tres rutas sugeridas de un clic (con tus ahorros, sin tocar la inversión, acelerado) y debajo el ajuste bloque por bloque, escribiendo en pesos cuánto sale de cada categoría, con un botón para tomar todo lo que quede libre. Ahí aparece el plan de recorte, los escenarios, y el costo de oportunidad.
+**Metas** se crea con un paso a paso de tres preguntas —qué quieres comprar, cuánto cuesta, cuánto guardas al mes— y la tercera contesta el plazo mientras escribes. Las metas se reordenan arrastrando la tarjeta —`draggable` del navegador, sin librería— y con un par de flechas arriba/abajo, que es lo que se usa en el celular. Cada meta se puede calcular por monto, en N meses o para una fecha; en los dos últimos, un botón adopta la cuota como el aporte mensual.
 
-**Movimientos** es el libro. Arriba, los **recurrentes**: cualquier movimiento se puede guardar como plantilla marcando *Se repite todos los meses*, y cada mes se agregan con un clic —uno a uno o todos los que falten—. No se crean solos: un movimiento que aparece sin que lo pidas es un movimiento que nadie revisa. Una fila fija arriba para meter un gasto en tres toques: el foco arranca en el monto y `Enter` guarda y limpia sin soltarlo, para cargar varios seguidos. Un toggle cambia a ingreso y saca la casilla de ingreso extra. Debajo, el resumen del mes con presupuesto contra real por bloque, y la lista agrupada por día. Selector de mes con flechas.
+**Análisis** es la tabla con donut: color, nombre, porcentaje y monto por categoría, con un interruptor entre **Planeado** —donde salen también "Ahorro sugerido" y "Sin asignar"— y **Real**, que se alimenta de las transacciones y agrega la diferencia contra el plan. El donut es un `<circle>` con `stroke-dasharray`, sin librería, y se recalcula en cada render: no hay totales guardados que invalidar. Un selector de mes lee el snapshot de un mes ya cerrado.
+
+**Registrar** es el libro. Arriba, los **recurrentes**: cualquier movimiento se puede guardar como plantilla marcando *Se repite todos los meses*, y cada mes se agregan con un clic —uno a uno o todos los que falten—. No se crean solos: un movimiento que aparece sin que lo pidas es un movimiento que nadie revisa. El registro vive en una hoja (`ui/registrar.js`) que se abre desde el botón flotante, desde los dos botones de la vista y al editar un movimiento: descripción, monto, moneda, fecha, categoría, renglón y medio de pago, y bajo "Más detalle" la meta, el tipo de gasto, el ingreso extra, el abono y el recurrente. Un monto en otra moneda se convierte al guardar con la tasa del día y se recuerda en cuál lo escribiste. Debajo, el resumen del mes con presupuesto contra real por bloque, y la lista agrupada por día. Selector de mes con flechas.
 
 **Historial** cierra el mes y guarda el snapshot. Muestra la tasa de ahorro mes a mes, los esenciales como porcentaje del ingreso con semáforo, la comparación contra el promedio de los tres meses anteriores, y por cada cierre las barras enfrentadas de plan contra real con la brecha dicha en una frase.
 
-**Ajustes** tiene los perfiles (el activo se renombra en un input, sin `prompt()`; el import pregunta con dos botones que dicen qué hace cada uno, no con un `confirm()` ambiguo), el tipo de ingreso, los meses objetivo del fondo, la tasa anual para el costo de oportunidad, el botón que pide permiso para las notificaciones, y exportar/importar en JSON.
+**Ajustes** tiene los perfiles (el activo se renombra en un input, sin `prompt()`; el import pregunta con dos botones que dicen qué hace cada uno, no con un `confirm()` ambiguo), el saldo inicial por moneda, la moneda principal con las tasas del día, los medios de pago —agregar, renombrar, borrar—, el tipo de ingreso, los meses objetivo del fondo, la tasa anual de referencia, la paleta de colores, el botón para rehacer el paso a paso, el que pide permiso para las notificaciones, y exportar/importar en JSON.
 
-La paleta visual se cambia desde el botón de colores del menú lateral. Se conserva por perfil en el blob local y en Supabase (`paleta`), por lo que al volver a entrar a la cuenta se recupera el tema elegido. La paleta rosa chicle actual sigue siendo la predeterminada; también están Coral & azul, Pizarra y Vivo. Los colores de acento se combinan con texto oscuro o blanco según el contraste, y no se usan colores claros como texto principal.
+La paleta visual se cambia desde Ajustes. Se conserva por perfil en el blob local y en Supabase (`paleta`), por lo que al volver a entrar a la cuenta se recupera el tema elegido. La paleta rosa chicle actual sigue siendo la predeterminada; también están Coral & azul, Pizarra y Vivo. Los colores de acento se combinan con texto oscuro o blanco según el contraste, y no se usan colores claros como texto principal.
 
 ## El stack y por qué
 

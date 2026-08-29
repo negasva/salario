@@ -13,7 +13,6 @@ import { periodoDe, hoyISO, ingresoReal, resumenFlujo, serieAhorro, serieTasaAho
 import { tarjetaResumenFlujo } from './resumen.js';
 import { saldoActual, saldoBase } from '../engine/saldo.js';
 import { MONEDAS } from '../engine/moneda.js';
-import { resumenItem, pagosLibresDeItem } from '../engine/pagos.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 

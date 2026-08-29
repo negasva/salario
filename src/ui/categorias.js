@@ -8,7 +8,7 @@ import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeL
   pagosLibresDeItem } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
-import { abrirSelectorExtra } from './movimientos.js';
+import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
 
 const { PALETTE } = store;

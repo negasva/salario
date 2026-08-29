@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  periodoDe, enPeriodo, porItem, porLinea, ingresoReal, gastoTotal, resumenFlujo, aportesAMeta, podar, hoyISO, serieAhorro, serieTasaAhorro, ritmoDelMes } from './movimientos.js';
+  periodoDe, enPeriodo, visiblesDelMes, porItem, porLinea, ingresoReal, gastoTotal, resumenFlujo, aportesAMeta, podar, hoyISO, serieAhorro, serieTasaAhorro, ritmoDelMes } from './movimientos.js';
 
 const MOVS = [
   { id: 'm1', fecha: '2026-08-03', tipo: 'gasto', monto: 85000, itemId: 'i1', lineId: 'l1' },
@@ -147,5 +147,32 @@ describe('ritmo del mes', () => {
 
   it('sin presupuesto no inventa porcentaje', () => {
     expect(ritmoDelMes(100, 0, new Date(2026, 7, 16)).pct).toBe(0);
+  });
+});
+
+describe('visiblesDelMes', () => {
+  const movs = [
+    { id: 'a', fecha: '2026-08-02', tipo: 'gasto', monto: 100, lineId: 'l1' },
+    { id: 'b', fecha: '2026-08-05', tipo: 'ingreso', monto: 5500000, lineId: null },
+    { id: 'c', fecha: '2026-07-30', tipo: 'gasto', monto: 50, lineId: 'l1' },
+  ];
+
+  it('devuelve el mes del más reciente al más viejo', () => {
+    expect(visiblesDelMes(movs, '2026-08').map((m) => m.id)).toEqual(['b', 'a']);
+  });
+
+  // regresión F3: el ingreso no tiene renglón y con el filtro puesto desaparecía
+  it('un ingreso recién registrado se ve cuando no hay filtro', () => {
+    expect(visiblesDelMes(movs, '2026-08').some((m) => m.id === 'b')).toBe(true);
+  });
+
+  it('con filtro de renglón solo salen los de ese renglón', () => {
+    expect(visiblesDelMes(movs, '2026-08', 'l1').map((m) => m.id)).toEqual(['a']);
+  });
+
+  it('no muta el arreglo original', () => {
+    const copia = [...movs];
+    visiblesDelMes(movs, '2026-08');
+    expect(movs).toEqual(copia);
   });
 });

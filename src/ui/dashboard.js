@@ -5,6 +5,7 @@ import { renglonesQueCrecieron, renglonesSobreTope } from '../engine/alertas.js'
 import { porLinea } from '../engine/movimientos.js';
 import { pintarResultados } from './buscador.js';
 import { preguntarIA, explicar } from '../ia.js';
+import { contextoIA } from './preguntar.js';
 import { icon } from './icons.js';
 import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
@@ -397,28 +398,11 @@ function cablearPregunta(root, p, datos) {
     const q = input.value.trim();
     if (q.length < 4) return;
     salida.textContent = 'Pensando…';
-    const periodo = periodoDe(hoyISO());
-    const pagadoPorLinea = porLinea(p.movs, periodo);
-    const contexto = {
-      moneda: p.cur,
-      ingresoDelMes: datos.ing.total,
-      nomina: datos.ing.nomina,
-      extra: datos.ing.extra,
-      planDeIngreso: p.inc,
+    const contexto = contextoIA(p, {
       tasaDeAhorro: `${datos.ahorroHoy}%`,
       fondoDeEmergencia: `${datos.fondoSaved} de ${datos.target}`,
-      esencialesPctDelIngreso: datos.diag ? datos.diag.share : null,
-      bloques: p.items.map((it) => ({
-        nombre: it.n, presupuesto: Math.round(amount(it)), porcentaje: shareOf(it, datos.inc),
-        gastado: Math.round(resumenItem(
-          it,
-          pagadoPorLinea,
-          periodo,
-          pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0),
-        ).pagado),
-      })),
-      metas: p.goals.map((g) => ({ nombre: g.n, objetivo: g.t, llevas: g.s || 0, estado: g.estado })),
-    };
+      gastosRecurrentesPctDelIngreso: datos.diag ? datos.diag.share : null,
+    });
     const { respuesta, error } = await preguntarIA(q, contexto);
     salida.textContent = error ? explicar(error) : (respuesta || 'El modelo no contestó nada.');
   };

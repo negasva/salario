@@ -490,3 +490,35 @@
 .cc-cat .cc-n,.cc-dest .cc-n{flex:1;min-width:120px;font-weight:var(--fw-semibold);color:var(--ink);overflow-wrap:anywhere}
 .cc-cat b{flex:none}
 .cc-dest .fieldw{flex:0 0 150px}
+
+/* ── botón flotante (F3) ──────────────────────────────────────────────────
+   Una sola entrada para registrar, buscar y preguntar. Se queda fijo abajo a
+   la derecha, encima de todo menos de las hojas. */
+.fab-wrap{position:fixed;right:var(--space-5);bottom:var(--space-5);z-index:60;
+  display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-2)}
+.fab{width:56px;height:56px;border-radius:var(--radius-pill);padding:0;
+  background:var(--pink);color:var(--white);border:none;box-shadow:var(--shadow-xl);
+  font-size:28px;line-height:1;font-weight:var(--fw-bold);cursor:pointer}
+.fab:hover{filter:brightness(.95)}
+.fab-menu{display:flex;flex-direction:column;gap:var(--space-2);background:var(--white);
+  border:1px solid var(--border-card);border-radius:var(--radius-lg);padding:var(--space-3);
+  box-shadow:var(--shadow-xl);min-width:230px}
+.fab-menu[hidden]{display:none}
+.fab-menu button{display:flex;align-items:center;gap:var(--space-2);justify-content:flex-start;
+  width:100%;text-align:left}
+
+/* ── hoja de registro (F3) ────────────────────────────────────────────── */
+.reg-row{display:flex;gap:var(--space-3);margin-top:var(--space-3)}
+.reg-row .fld{min-width:0}
+.reg-row .fld[hidden]{display:none}
+.reg-sheet .mov-check{margin-top:var(--space-3)}
+.mov-acciones{margin-bottom:var(--space-4)}
+.mov-filtro{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
+  margin-bottom:var(--space-4)}
+.mov-filtro .prow,.mov-filtro button{margin-top:0}
+
+@media (max-width:720px){
+  .fab-wrap{right:var(--space-4);bottom:var(--space-4)}
+  .reg-row{flex-wrap:wrap}
+  .reg-row .fld{flex:1 1 100%!important}
+}

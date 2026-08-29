@@ -28,7 +28,7 @@ const escalonDe = (p) => escalonActual({
 let pendiente = null;
 export function abrirMeta(goalId) { pendiente = goalId; }
 
-export function renderMetas(root) {
+export function renderMetas(root, args = {}) {
   const p = store.active();
   if (estadoFondo(p).creado) store.save();
 
@@ -36,7 +36,7 @@ export function renderMetas(root) {
     <button id="metaAdd" class="wide btn-primary" style="margin-bottom:var(--sp-4)">+ Nueva meta</button>
     <div id="metaList" class="grid"></div>`;
 
-  root.querySelector('#metaAdd').onclick = () => {
+  const nuevaMeta = () => {
     const escalon = escalonDe(p);
     const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto',
       base: 0, estado: 'activa', orden: p.goals.length + 1 };
@@ -44,8 +44,12 @@ export function renderMetas(root) {
     store.save();
     openGoalSheet(root, g, escalon < 4);
   };
+  root.querySelector('#metaAdd').onclick = nuevaMeta;
 
   paint(root);
+
+  // el botón flotante entra por aquí: crea la meta y abre su editor
+  if (args.nueva) { nuevaMeta(); return; }
 
   if (pendiente) {
     const g = p.goals.find((x) => x.id === pendiente);

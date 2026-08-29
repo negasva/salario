@@ -5,12 +5,14 @@ import { renglonesQueCrecieron, renglonesSobreTope } from '../engine/alertas.js'
 import { porLinea } from '../engine/movimientos.js';
 import { pintarResultados } from './buscador.js';
 import { preguntarIA, explicar } from '../ia.js';
+import { contextoIA } from './preguntar.js';
 import { icon } from './icons.js';
-import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
+import { ordenadas } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { periodoDe, hoyISO, ingresoReal, resumenFlujo, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
 import { tarjetaResumenFlujo } from './resumen.js';
-import { resumenItem, pagosLibresDeItem } from '../engine/pagos.js';
+import { saldoActual, saldoBase } from '../engine/saldo.js';
+import { MONEDAS } from '../engine/moneda.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -76,11 +78,11 @@ function ringSvg(pct, color) {
    basta con guardar orden y ancho: nadie ve un hueco raro y no hay coordenadas
    que mantener. Fuera del modo edición nada se arrastra, para no mover una
    tarjeta sin querer al hacer scroll. */
-const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'buscar', 'pregunta', 'tasa', 'ahorro', 'reparto', 'metas'];
+const WIDGETS = ['ingreso', 'mes', 'tope', 'fondo', 'esenciales', 'alertas', 'buscar', 'pregunta', 'tasa', 'ahorro', 'reparto', 'metas'];
 const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2, buscar: 1, pregunta: 1 };
 const NOMBRES = {
   ingreso: 'Ingreso del mes', mes: 'Tu mes', fondo: 'Fondo de emergencia',
-  esenciales: 'Aviso de esenciales', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
+  tope: 'Gasto máximo', esenciales: 'Aviso de gastos recurrentes', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
   ahorro: 'Ahorro acumulado', reparto: 'Reparto del ingreso', metas: 'Metas',
   buscar: 'Buscador', pregunta: 'Pregúntale a tus números',
 };
@@ -169,7 +171,7 @@ export async function renderDashboard(root) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
   const incEse = store.incomeEsenciales(p);
-  const b = balance(p.items, inc);
+  const b = balance(p.items, inc, p.goals);
 
   const ese = p.items.find((it) => it.r === 'ese');
   const diag = ese ? diagnosticoEsenciales(ese, incEse) : null;
@@ -197,8 +199,6 @@ export async function renderDashboard(root) {
   const planAhorro = tasaAhorro(p, inc);
   const ahorroHoy = ing.total > 0 ? tasaReal : planAhorro;
 
-  const proy = proyeccion(p.goals, p.items);
-
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
   const bloques = {
@@ -206,7 +206,7 @@ export async function renderDashboard(root) {
         <div class="income-head">
           <span class="label">${tituloIngreso}</span>
           <select id="dCurrency" aria-label="Moneda">
-            ${['COP', 'MXN', 'USD', 'ARS', 'CLP', 'PEN', 'EUR'].map((c) => `<option ${c === p.cur ? 'selected' : ''}>${c}</option>`).join('')}
+            ${MONEDAS.map((c) => `<option ${c === p.cur ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
         </div>
         ${hayNomina ? `<div class="kpi num">${money(ing.nomina, p.cur)}</div>` : ''}
@@ -240,13 +240,31 @@ export async function renderDashboard(root) {
       </div>`,
 
     esenciales: diag && diag.nivel !== 'verde' ? `<div class="card" style="border-color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'})">
-        <span class="label">Esenciales</span>
+        <span class="label">Gastos recurrentes</span>
         <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
-          Tus esenciales suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
+          Tus gastos recurrentes suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
           ${diag.nivel === 'rojo' ? 'Es demasiado.' : 'Está en el límite.'}
         </div>
         ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}
       </div>` : '',
+
+    tope: (() => {
+      const tope = Number(p.gastoMaximo) || 0;
+      const techo = Math.round((inc * tope) / 100);
+      const gastado = flujo.gastos;
+      const pct = techo > 0 ? Math.round((gastado / techo) * 100) : 0;
+      const pasado = techo > 0 && gastado > techo;
+      return `<div class="card">
+        <span class="label">Gasto máximo recomendado</span>
+        <div class="kpi num">${money(techo, p.cur)}</div>
+        <div class="sub">Es el ${tope}% de lo que entra. Llevas gastado <b class="num ${pasado ? 'over' : ''}">${money(gastado, p.cur)}</b>${techo > 0 ? ` (${pct}%)` : ''}.</div>
+        <div class="hist-track" style="margin-top:var(--space-2)"><i style="width:${Math.min(100, pct)}%;background:${pasado ? 'var(--danger)' : 'var(--success)'}"></i></div>
+        <div class="sub">${pasado
+          ? `Te pasaste por ${money(gastado - techo, p.cur)}.`
+          : `Te quedan ${money(Math.max(0, techo - gastado), p.cur)} antes de pasarte.`}
+          <button class="mini" id="dTopeEdit">Cambiar el tope</button></div>
+      </div>`;
+    })(),
 
     alertas: '<div id="dAlertas"></div>',
 
@@ -295,13 +313,9 @@ export async function renderDashboard(root) {
         ${p.goals.length ? `<div class="rings">
           ${ordenadas(p.goals).map((g) => {
             const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
-            const est = estadoDe(g);
-            const n = monthsToGoal(g, p.items);
-            const antes = proy[g.id]?.predecesor;
-            const segunda = est === 'en_fila'
-              ? (antes ? `Empieza cuando termines la ${esc(antes.n)}` : 'En fila')
-              : n ? `faltan ${plazo(n)} · hacia ${whenText(n)}` : 'sin aporte mensual';
-            return `<div class="ring${est === 'en_fila' ? ' ring-fila' : ''}">
+            const n = monthsToGoal(g);
+            const segunda = n ? `faltan ${plazo(n)} · hacia ${whenText(n)}` : 'sin aporte mensual';
+            return `<div class="ring">
               <div class="wrap">
                 ${ringSvg(pct, g.special === 'emergencia' ? 'var(--warning)' : 'var(--pink)')}
                 <div class="pct num">${Math.round(pct * 100)}%</div>
@@ -320,7 +334,7 @@ export async function renderDashboard(root) {
   // que es la única forma de poder volver a encenderlo
   const visibles = edicion ? orden : orden.filter((id) => !ocultoDe(p, id));
   root.innerHTML = `
-    ${tarjetaResumenFlujo(flujo, p.cur)}
+    ${tarjetaResumenFlujo(flujo, p.cur, saldoActual(saldoBase(p), p.movs))}
     <div class="dash-tools">
       <button class="mini" id="dAcomodar">${edicion ? 'Listo' : 'Acomodar'}</button>
       ${edicion ? '<button class="mini" id="dReset">Restablecer</button>' : ''}
@@ -363,6 +377,24 @@ export async function renderDashboard(root) {
     store.save();
     renderDashboard(root);
   };
+  // el tope se ajusta donde se ve, sin ir a Ajustes
+  const topeEdit = root.querySelector('#dTopeEdit');
+  if (topeEdit) topeEdit.onclick = () => {
+    const campo = document.createElement('input');
+    campo.type = 'number';
+    campo.min = '10';
+    campo.max = '100';
+    campo.value = String(p.gastoMaximo || 70);
+    campo.className = 'num';
+    topeEdit.replaceWith(campo);
+    campo.focus();
+    campo.onchange = () => {
+      p.gastoMaximo = Math.min(100, Math.max(10, Number(campo.value) || 70));
+      store.save();
+      renderDashboard(root);
+    };
+  };
+
   const curEl = root.querySelector('#dCurrency');
   if (curEl) curEl.onchange = (e) => {
     p.cur = e.target.value;
@@ -397,28 +429,11 @@ function cablearPregunta(root, p, datos) {
     const q = input.value.trim();
     if (q.length < 4) return;
     salida.textContent = 'Pensando…';
-    const periodo = periodoDe(hoyISO());
-    const pagadoPorLinea = porLinea(p.movs, periodo);
-    const contexto = {
-      moneda: p.cur,
-      ingresoDelMes: datos.ing.total,
-      nomina: datos.ing.nomina,
-      extra: datos.ing.extra,
-      planDeIngreso: p.inc,
+    const contexto = contextoIA(p, {
       tasaDeAhorro: `${datos.ahorroHoy}%`,
       fondoDeEmergencia: `${datos.fondoSaved} de ${datos.target}`,
-      esencialesPctDelIngreso: datos.diag ? datos.diag.share : null,
-      bloques: p.items.map((it) => ({
-        nombre: it.n, presupuesto: Math.round(amount(it)), porcentaje: shareOf(it, datos.inc),
-        gastado: Math.round(resumenItem(
-          it,
-          pagadoPorLinea,
-          periodo,
-          pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0),
-        ).pagado),
-      })),
-      metas: p.goals.map((g) => ({ nombre: g.n, objetivo: g.t, llevas: g.s || 0, estado: g.estado })),
-    };
+      gastosRecurrentesPctDelIngreso: datos.diag ? datos.diag.share : null,
+    });
     const { respuesta, error } = await preguntarIA(q, contexto);
     salida.textContent = error ? explicar(error) : (respuesta || 'El modelo no contestó nada.');
   };

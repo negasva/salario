@@ -1,13 +1,10 @@
 import * as store from '../store.js';
 import { amount, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, enPeriodo, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
-import { money, plain, esc, digits, MESES } from '../format.js';
-import { excedente } from '../engine/consejo.js';
-import { ordenadas } from '../engine/fila.js';
+import { periodoDe, hoyISO, visiblesDelMes, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
+import { money, esc, MESES } from '../format.js';
 import { pendientes, movDesde } from '../engine/recurrentes.js';
-import { CATEGORIAS, CATEGORIA_A_ROL, clasificarLista, nombreCategoria } from '../engine/clasificar.js';
-import { clasificarConIA } from '../ia.js';
-import { anuncio } from './anuncio.js';
+import { CATEGORIAS, nombreCategoria } from '../engine/clasificar.js';
+import { abrirRegistro } from './registrar.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
@@ -31,129 +28,21 @@ function nuevoId() {
   return 'm' + Math.random().toString(36).slice(2, 9);
 }
 
-function registrarAporteExtra(p, goal, monto, fecha) {
-  if (!(monto > 0)) return;
-  p.movs.push({
-    id: nuevoId(), fecha, tipo: 'gasto', monto,
-    itemId: null, lineId: null, goalId: goal.id,
-    nota: `Aporte de ingreso extra a ${goal.n}`, extra: false,
-  });
-}
-
-function metasActivas(p) {
-  return ordenadas(p.goals).filter((g) => (g.estado || 'activa') === 'activa');
-}
-
-export function abrirSelectorExtra(p, monto, fecha, alTerminar) {
-  const metas = metasActivas(p);
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay on';
-  document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-
-  const cerrar = () => {
-    overlay.remove();
-    document.body.style.overflow = '';
-  };
-
-  overlay.innerHTML = `
-    <div class="sheet">
-      <div class="sheet-head">
-        <h3>Repartir ingreso extra</h3>
-        <button class="btn-del" id="extraClose" aria-label="Cerrar">${icon('cerrar')}</button>
-      </div>
-      <p class="sub">Puedes repartir hasta <b class="num">${money(monto, p.cur)}</b> entre tus metas activas. La lista respeta el orden de la fila.</p>
-      <div id="extraAlloc" style="margin-top:var(--space-5)">
-        ${metas.length ? metas.map((g) => {
-          const restante = g.t > 0 ? Math.max(0, g.t - (g.s || 0)) : monto;
-          return `<label class="alloc">
-            <span class="alloc-head"><span>${esc(g.n)}</span><span class="sub">${g.t > 0 ? `faltan ${money(restante, p.cur)}` : 'sin tope'}</span></span>
-            <input class="extra-amount" data-goal="${g.id}" type="text" inputmode="numeric" placeholder="0" data-max="${restante}" aria-label="Monto para ${esc(g.n)}">
-          </label>`;
-        }).join('') : '<div class="empty">No hay metas activas para repartir este ingreso.</div>'}
-      </div>
-      <div id="extraRestante" class="hint"></div>
-      <button class="wide btn-primary" id="extraApply" style="margin-top:var(--space-4)" ${metas.length ? '' : 'disabled'}>Aplicar reparto</button>
-      <button class="wide" id="extraCancel" style="margin-top:var(--space-2)">Cancelar</button>
-    </div>`;
-
-  const inputs = [...overlay.querySelectorAll('.extra-amount')];
-  const restante = overlay.querySelector('#extraRestante');
-  const actualizarRestante = () => {
-    const usado = inputs.reduce((s, input) => s + digits(input.value), 0);
-    const libre = monto - usado;
-    restante.textContent = libre >= 0
-      ? `Quedan ${money(libre, p.cur)} sin repartir.`
-      : `Te pasaste ${money(-libre, p.cur)} del monto disponible.`;
-    restante.style.color = libre < 0 ? 'var(--danger)' : '';
-  };
-
-  inputs.forEach((input) => { input.oninput = actualizarRestante; });
-  actualizarRestante();
-  overlay.querySelector('#extraClose').onclick = cerrar;
-  overlay.querySelector('#extraCancel').onclick = cerrar;
-  overlay.querySelector('#extraApply').onclick = () => {
-    const repartido = inputs.map((input) => {
-      const maximo = Number(input.dataset.max);
-      return {
-        goal: p.goals.find((g) => g.id === input.dataset.goal),
-        monto: Math.min(digits(input.value), Number.isFinite(maximo) ? maximo : monto),
-      };
-    }).filter((x) => x.goal && x.monto > 0);
-    const total = repartido.reduce((s, x) => s + x.monto, 0);
-    if (total > monto) {
-      restante.textContent = `Te pasaste ${money(total - monto, p.cur)} del monto disponible.`;
-      restante.style.color = 'var(--danger)';
-      return;
-    }
-    repartido.forEach(({ goal, monto: cantidad }) => registrarAporteExtra(p, goal, cantidad, fecha));
-    store.save();
-    cerrar();
-    alTerminar(total);
-  };
-}
-
 export function renderMovimientos(root, args = {}) {
   const p = store.active();
   let periodo = periodoDe(hoyISO());
-  let tipo = 'gasto';
-  let editId = null;
+  // F3 — el filtro por renglón llega desde Categorías. Se ve y se quita: si no,
+  // registras un movimiento que no encaja y parece que no se guardó.
+  let filtroLinea = args.lineId || null;
 
   root.innerHTML = `
-    <div class="card mov-form">
-      <div class="chips" id="mvTipo">
-        <button class="chip on" data-tipo="gasto">Gasto</button>
-        <button class="chip" data-tipo="ingreso">Ingreso</button>
-      </div>
-      <div class="mov-row">
-        <input id="mvMonto" class="num" inputmode="numeric" placeholder="0" aria-label="Monto">
-        <select id="mvItem" aria-label="Categoría">
-          ${p.items.map((it) => `<option value="${it.id}">${esc(it.n)}</option>`).join('')}
-        </select>
-        <label class="mov-check" id="mvExtraWrap" hidden>
-          <input type="checkbox" id="mvExtra"> es un ingreso extra (prima, bono, trabajo suelto)
-        </label>
-        <button id="mvSave" class="btn-primary">Guardar</button>
-      </div>
-      <button id="mvMas" class="mini mov-mas">Más detalle</button>
-      <div class="mov-detalle" id="mvDetalle" hidden>
-        <label class="fieldw"><span>Fecha</span><input type="date" id="mvFecha" value="${hoyISO()}"></label>
-        <select id="mvLine" aria-label="Renglón"></select>
-        <select id="mvGoal" aria-label="Meta"><option value="">Sin meta</option>
-          ${p.goals.map((g) => `<option value="${g.id}">${esc(g.n)}</option>`).join('')}
-        </select>
-        <input id="mvNota" placeholder="Nota: qué compraste" aria-label="Nota">
-        <select id="mvCat" aria-label="Categoría del gasto">
-          <option value="">Categoría automática</option>
-          ${CATEGORIAS.map((c) => `<option value="${c.id}">${c.n}</option>`).join('')}
-        </select>
-        <label class="mov-check" id="mvRecWrap">
-          <input type="checkbox" id="mvRec"> Se repite todos los meses
-        </label>
-        <label class="mov-check" id="mvAbonoWrap" hidden>
-          <input type="checkbox" id="mvAbono"> Es un abono a la deuda
-        </label>
-      </div>
+    <div class="vista-head">
+      <h2>Registrar</h2>
+      <span class="sub">Lo que de verdad entró y salió. El plan del mes se define en Planear.</span>
+    </div>
+    <div class="prow mov-acciones">
+      <button class="btn-primary" id="mvNuevoGasto">+ Registrar egreso</button>
+      <button id="mvNuevoIngreso">+ Registrar ingreso</button>
     </div>
 
     <div class="mov-head">
@@ -162,161 +51,25 @@ export function renderMovimientos(root, args = {}) {
       <button class="mini" id="mvNext" aria-label="Mes siguiente">→</button>
     </div>
 
+    <div id="mvFiltro"></div>
     <div id="mvRecurrentes"></div>
     <div id="mvResumen"></div>
     <div id="mvLista"></div>`;
 
   const $ = (sel) => root.querySelector(sel);
-  const montoEl = $('#mvMonto');
-  const itemEl = $('#mvItem');
-  const lineEl = $('#mvLine');
-  const goalEl = $('#mvGoal');
-  const notaEl = $('#mvNota');
-  const fechaEl = $('#mvFecha');
-  const extraEl = $('#mvExtra');
-  const abonoEl = $('#mvAbono');
-  const recEl = $('#mvRec');
-  const catEl = $('#mvCat');
-  let itemTocado = false;
-  const saveEl = $('#mvSave');
 
-  function pintarRenglones() {
-    const it = p.items.find((x) => x.id === itemEl.value);
-    lineEl.innerHTML = `<option value="">Sin renglón</option>${(it?.L || [])
-      .map((l) => `<option value="${l.id}">${esc(l.n || 'sin nombre')}</option>`).join('')}`;
-    pintarAbono();
-  }
-
-  // El abono solo tiene sentido en un gasto contra un renglón de un bloque de deuda
-  function pintarAbono() {
-    const it = p.items.find((x) => x.id === itemEl.value);
-    const vale = tipo === 'gasto' && it?.r === 'deu' && !!lineEl.value;
-    $('#mvAbonoWrap').hidden = !vale;
-    if (!vale) abonoEl.checked = false;
-  }
-
-  function setTipo(t) {
-    tipo = t;
-    root.querySelectorAll('#mvTipo .chip').forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
-    itemEl.hidden = t === 'ingreso';
-    lineEl.hidden = t === 'ingreso';
-    goalEl.hidden = t === 'ingreso';
-    $('#mvExtraWrap').hidden = t === 'gasto';
-    pintarAbono();
-  }
-
-  function limpiar() {
-    editId = null;
-    itemTocado = false;
-    montoEl.value = '';
-    notaEl.value = '';
-    goalEl.value = '';
-    lineEl.value = '';
-    extraEl.checked = false;
-    abonoEl.checked = false;
-    recEl.checked = false;
-    catEl.value = '';
-    $('#mvAbonoWrap').hidden = true;
-    saveEl.textContent = 'Guardar';
-    montoEl.focus();
-  }
-
-  function guardar() {
-    const monto = digits(montoEl.value);
-    if (monto <= 0) { montoEl.focus(); return; }
-    // se lee antes de limpiar el formulario, que apaga la casilla
-    const esRecurrente = recEl.checked;
-    const datos = {
-      fecha: fechaEl.value || hoyISO(),
-      tipo,
-      monto,
-      itemId: tipo === 'gasto' ? itemEl.value : null,
-      lineId: tipo === 'gasto' ? (lineEl.value || null) : null,
-      goalId: tipo === 'gasto' ? (goalEl.value || null) : null,
-      nota: notaEl.value.trim(),
-      extra: tipo === 'ingreso' && extraEl.checked,
-      abono: tipo === 'gasto' && !$('#mvAbonoWrap').hidden && abonoEl.checked,
-      cat: tipo === 'gasto' ? (catEl.value || clasificarLista(notaEl.value).cat) : null,
-    };
-    const previo = editId && p.movs.find((m) => m.id === editId);
-    const textoOriginal = notaEl.value;
-    const catManual = !!catEl.value;
-    const mov = previo || { id: nuevoId(), ...datos };
-    if (previo) Object.assign(previo, datos);
-    else p.movs.push(mov);
-    // el movimiento que estrena el recurrente ya cuenta como el de este mes
-    if (esRecurrente) mov.recId = guardarRecurrente(datos);
-    // lo que el diccionario no reconoce se le pregunta a la IA, si está puesta.
-    // Llega después: el movimiento ya quedó guardado y la lista se repinta sola.
-    if (!catManual && datos.tipo === 'gasto' && datos.cat === 'otros' && textoOriginal.trim()) {
-      afinarConIA(mov, textoOriginal);
-    }
-    store.save();
-    periodo = periodoDe(datos.fecha);
-    limpiar();
-    pintarCuerpo();
-
-    if (datos.extra && !previo) {
-      const exc = excedente(monto, 0);
-      anuncio({
-        titulo: 'Ingreso extra registrado',
-        cuerpo: `Entraron ${money(monto, p.cur)} de prima o ingreso extra. Sugerido: ${money(exc.metasYFondo, p.cur)} a metas y fondo, ${money(exc.libre, p.cur)} libre.`,
-        urgente: false,
-        acciones: [
-          {
-            label: 'Aplicar sugerencia',
-            onClick: () => {
-              let plata = exc.metasYFondo;
-              const activas = metasActivas(p);
-              for (const g of activas) {
-                if (plata <= 0) break;
-                if (g.t && (g.s || 0) < g.t) {
-                  const falta = g.t - (g.s || 0);
-                  const m = Math.min(plata, falta);
-                  registrarAporteExtra(p, g, m, datos.fecha);
-                  plata -= m;
-                } else if (!g.t) {
-                  registrarAporteExtra(p, g, plata, datos.fecha);
-                  plata = 0;
-                }
-              }
-              store.save();
-              pintarCuerpo();
-              toast(plata > 0
-                ? `Sugerencia aplicada; quedaron ${money(plata, p.cur)} sin asignar.`
-                : 'Sugerencia aplicada a las metas en orden.');
-            }
-          },
-          {
-            label: 'Repartir a mano',
-            onClick: () => abrirSelectorExtra(p, exc.metasYFondo, datos.fecha, (total) => {
-              pintarCuerpo();
-              toast(total > 0 ? `Repartiste ${money(total, p.cur)} entre tus metas.` : 'El ingreso extra quedó sin asignar.');
-            }),
-          },
-          {
-            label: 'Dejarlo sin asignar',
-            onClick: () => {}
-          }
-        ]
-      });
-    }
-  }
-
-  /* Un recurrente es la plantilla, no el movimiento: guarda el día del mes y
-     cada mes se agrega con un clic. Nada se crea solo. */
-  function guardarRecurrente(datos) {
-    const id = 'r' + Math.random().toString(36).slice(2, 9);
-    p.recurrentes.push({
-      id,
-      tipo: datos.tipo, monto: datos.monto, itemId: datos.itemId, lineId: datos.lineId,
-      goalId: datos.goalId, nota: datos.nota, abono: datos.abono,
-      dia: Number(datos.fecha.slice(8, 10)),
-    });
-    store.save();
-    toast('Guardado como recurrente. Cada mes lo agregas con un clic.');
-    return id;
-  }
+  const registrar = (tipo, movId) => abrirRegistro({
+    tipo,
+    movId,
+    alGuardar: (mov) => {
+      // lo que acabas de registrar tiene que verse: se salta el filtro y el mes
+      if (mov) {
+        periodo = periodoDe(mov.fecha);
+        if (filtroLinea && mov.lineId !== filtroLinea) filtroLinea = null;
+      }
+      pintarCuerpo();
+    },
+  });
 
   function nombreRecurrente(r) {
     if (r.nota) return r.nota;
@@ -380,37 +133,22 @@ export function renderMovimientos(root, args = {}) {
     });
   }
 
-  async function afinarConIA(mov, texto) {
-    const [r] = (await clasificarConIA([texto])) || [];
-    const valida = r && CATEGORIAS.some((c) => c.id === r.cat);
-    if (!valida || r.cat === mov.cat) return;
-    mov.cat = r.cat;
-    store.save();
-    pintarCuerpo();
-    toast(`Lo puse en ${nombreCategoria(r.cat)}`);
-  }
-
-  function editar(m) {
-    editId = m.id;
-    setTipo(m.tipo);
-    montoEl.value = plain(m.monto, p.cur);
-    fechaEl.value = m.fecha;
-    if (m.itemId) { itemEl.value = m.itemId; pintarRenglones(); lineEl.value = m.lineId || ''; }
-    goalEl.value = m.goalId || '';
-    notaEl.value = m.nota || '';
-    extraEl.checked = !!m.extra;
-    catEl.value = m.cat || '';
-    pintarAbono();
-    abonoEl.checked = !!m.abono;
-    $('#mvDetalle').hidden = false;
-    saveEl.textContent = 'Actualizar';
-    montoEl.focus();
+  function pintarFiltro() {
+    const box = $('#mvFiltro');
+    if (!filtroLinea) { box.innerHTML = ''; return; }
+    const it = p.items.find((x) => x.L?.some((l) => l.id === filtroLinea));
+    const l = it?.L?.find((x) => x.id === filtroLinea);
+    box.innerHTML = `<div class="card mov-filtro">
+      <span class="sub" style="margin:0">Viendo solo <b>${esc(l?.n || 'un renglón')}</b>.</span>
+      <button class="mini" id="mvVerTodo">Ver todos</button>
+    </div>`;
+    box.querySelector('#mvVerTodo').onclick = () => { filtroLinea = null; pintarCuerpo(); };
   }
 
   function pintarCuerpo() {
     $('#mvPeriodo').textContent = nombrePeriodo(periodo);
+    pintarFiltro();
     pintarRecurrentes();
-    const inc = store.incomeRepartir(p);
     const gastado = porItem(p.movs, periodo);
     const ing = ingresoReal(p.movs, periodo);
     const total = gastoTotal(p.movs, periodo);
@@ -444,12 +182,11 @@ export function renderMovimientos(root, args = {}) {
         </div>
       </div>`;
 
-    let delMes = enPeriodo(p.movs, periodo).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
-    if (args.lineId) delMes = delMes.filter((m) => m.lineId === args.lineId);
+    const delMes = visiblesDelMes(p.movs, periodo, filtroLinea);
 
     const lista = $('#mvLista');
     if (!delMes.length) {
-      lista.innerHTML = '<div class="card"><div class="empty">' + (args.lineId ? 'Sin movimientos para este renglón en este mes.' : 'Sin movimientos en este mes.') + '</div></div>';
+      lista.innerHTML = '<div class="card"><div class="empty">' + (filtroLinea ? 'Sin movimientos para este renglón en este mes.' : 'Sin movimientos en este mes.') + '</div></div>';
       return;
     }
 
@@ -465,7 +202,7 @@ export function renderMovimientos(root, args = {}) {
             <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--success)' : (it?.c || 'var(--line)')}"></span>
             <span class="mov-line-txt">
               <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}${m.cat && m.cat !== 'otros' ? ` <span class="badge">${icon(CATEGORIAS.find((c) => c.id === m.cat)?.ic || 'etiqueta', 'ic-sm')} ${esc(nombreCategoria(m.cat))}</span>` : ''}
-              ${m.nota ? `<span class="sub">${esc(m.nota)}</span>` : ''}
+              ${m.nota || m.medio ? `<span class="sub">${esc([m.nota, m.medio].filter(Boolean).join(' · '))}</span>` : ''}
             </span>
             <span class="num mov-line-n ${m.tipo === 'ingreso' ? 'in' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto, p.cur)}</span>
             <button class="mini mov-ed">Editar</button>
@@ -477,45 +214,20 @@ export function renderMovimientos(root, args = {}) {
     lista.querySelectorAll('.mov-line').forEach((el) => {
       const m = p.movs.find((x) => x.id === el.dataset.id);
       if (!m) return;
-      el.querySelector('.mov-ed').onclick = () => editar(m);
+      el.querySelector('.mov-ed').onclick = () => registrar(m.tipo, m.id);
       el.querySelector('.mov-del').onclick = () => {
         const idx = p.movs.indexOf(m);
         const { undo } = store.stageDelete(() => p.movs.splice(idx, 1), () => p.movs.splice(idx, 0, m));
-        if (editId === m.id) limpiar();
         pintarCuerpo();
         toast('Movimiento eliminado', () => { undo(); pintarCuerpo(); });
       };
     });
   }
 
-  root.querySelector('#mvTipo').onclick = (e) => {
-    const b = e.target.closest('.chip');
-    if (b) setTipo(b.dataset.tipo);
-  };
-  itemEl.onchange = () => { itemTocado = true; pintarRenglones(); };
-  /* Mientras el usuario escribe la nota se propone el bloque que suele pagar
-     esa categoría. Si él ya eligió uno a mano, no se le mueve nada. */
-  notaEl.oninput = () => {
-    if (itemTocado || tipo !== 'gasto') return;
-    const { cat, confianza } = clasificarLista(notaEl.value);
-    if (!confianza) return;
-    const rol = CATEGORIA_A_ROL[cat];
-    const destino = p.items.find((it) => it.r === rol);
-    if (destino && itemEl.value !== destino.id) {
-      itemEl.value = destino.id;
-      pintarRenglones();
-    }
-  };
-  lineEl.onchange = pintarAbono;
-  saveEl.onclick = guardar;
-  // Enter guarda y limpia sin soltar el foco: sirve para meter varios seguidos
-  root.querySelector('.mov-form').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); guardar(); } };
-  $('#mvMas').onclick = () => { const d = $('#mvDetalle'); d.hidden = !d.hidden; };
   $('#mvPrev').onclick = () => { periodo = correrMes(periodo, -1); pintarCuerpo(); };
   $('#mvNext').onclick = () => { periodo = correrMes(periodo, 1); pintarCuerpo(); };
+  $('#mvNuevoGasto').onclick = () => registrar('gasto');
+  $('#mvNuevoIngreso').onclick = () => registrar('ingreso');
 
-  pintarRenglones();
-  setTipo('gasto');
   pintarCuerpo();
-  montoEl.focus();
 }

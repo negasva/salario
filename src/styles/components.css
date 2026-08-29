@@ -18,12 +18,6 @@
 .sidebar .navlink.on{background:var(--pink);color:var(--on-pink)}
 .sidebar .navlink.on:hover{background:var(--pink);color:var(--on-pink)}
 .sidebar .logout{margin:0 0 0 auto}
-.palette-control{position:relative;flex:none}
-.palette-trigger{margin:0}
-.palette-menu{position:absolute;left:auto;right:0;bottom:auto;top:calc(100% + 8px);width:230px;padding:var(--space-3);
-  background:var(--white);border:1px solid var(--border-card);border-radius:var(--radius-md);
-  box-shadow:var(--shadow-xl);z-index:40}
-.palette-menu[hidden]{display:none}
 .palette-title{display:block;color:var(--ink-lighter);font-size:var(--text-xs);font-weight:var(--fw-bold);
   letter-spacing:var(--tracking-wide);text-transform:uppercase;margin:0 0 var(--space-2)}
 .palette-option{width:100%;display:flex;align-items:center;gap:var(--space-2);padding:8px;
@@ -279,8 +273,6 @@
 .goal.dragging{opacity:.4;cursor:grabbing}
 .goal.drag-over{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-wash)}
 /* F5 — la meta en fila se pinta atenuada: está ahí, pero todavía no cuenta */
-.goal-fila{opacity:.6;border-style:dashed}
-.ring-fila{opacity:.55}
 .goal-hecha .pbar i{background:var(--success)}
 
 /* ── anuncio ──────────────────────────────────────────────────────────── */
@@ -370,10 +362,7 @@
   .sidebar .brand{margin-bottom:0;width:36px;height:36px}
   .sidebar nav{flex-direction:row;overflow-x:auto}
   .sidebar .logout{margin:0 0 0 auto}
-  .palette-control{margin-left:0}
-  .palette-trigger{margin:0}
-  .palette-menu{left:auto;right:0;bottom:auto;top:calc(100% + 8px)}
-  .topbar{padding:0 var(--space-4)}
+        .topbar{padding:0 var(--space-4)}
   .topbar .search{width:auto;flex:1}
   .content{padding:var(--space-4)}
   .repline .nm{width:110px}
@@ -490,3 +479,70 @@
 .cc-cat .cc-n,.cc-dest .cc-n{flex:1;min-width:120px;font-weight:var(--fw-semibold);color:var(--ink);overflow-wrap:anywhere}
 .cc-cat b{flex:none}
 .cc-dest .fieldw{flex:0 0 150px}
+
+/* ── botón flotante (F3) ──────────────────────────────────────────────────
+   Una sola entrada para registrar, buscar y preguntar. Se queda fijo abajo a
+   la derecha, encima de todo menos de las hojas. */
+.fab-wrap{position:fixed;right:var(--space-5);bottom:var(--space-5);z-index:60;
+  display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-2)}
+.fab{width:56px;height:56px;border-radius:var(--radius-pill);padding:0;
+  background:var(--pink);color:var(--white);border:none;box-shadow:var(--shadow-xl);
+  font-size:28px;line-height:1;font-weight:var(--fw-bold);cursor:pointer}
+.fab:hover{filter:brightness(.95)}
+.fab-menu{display:flex;flex-direction:column;gap:var(--space-2);background:var(--white);
+  border:1px solid var(--border-card);border-radius:var(--radius-lg);padding:var(--space-3);
+  box-shadow:var(--shadow-xl);min-width:230px}
+.fab-menu[hidden]{display:none}
+.fab-menu button{display:flex;align-items:center;gap:var(--space-2);justify-content:flex-start;
+  width:100%;text-align:left}
+
+/* ── hoja de registro (F3) ────────────────────────────────────────────── */
+.reg-row{display:flex;gap:var(--space-3);margin-top:var(--space-3)}
+.reg-row .fld{min-width:0}
+.reg-row .fld[hidden]{display:none}
+.reg-sheet .mov-check{margin-top:var(--space-3)}
+.mov-acciones{margin-bottom:var(--space-4)}
+.mov-filtro{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
+  margin-bottom:var(--space-4)}
+.mov-filtro .prow,.mov-filtro button{margin-top:0}
+
+@media (max-width:720px){
+  .fab-wrap{right:var(--space-4);bottom:var(--space-4)}
+  .reg-row{flex-wrap:wrap}
+  .reg-row .fld{flex:1 1 100%!important}
+}
+
+/* estado del renglón (F4) */
+.line-estado{display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap}
+.line-estado .num{font-size:var(--text-xs)}
+.pagos-head .badge{margin-left:0}
+
+/* meta como bloque del reparto (F5) */
+.cat-meta .cat-name-fijo{flex:1;font-weight:var(--fw-bold);font-size:var(--text-base)}
+.cat-meta .hist-track{margin-top:var(--space-3)}
+
+/* ── análisis por categorías (F6) ─────────────────────────────────────── */
+.donut-wrap{position:relative;display:flex;justify-content:center;margin:var(--space-4) 0}
+.donut{width:min(260px,70vw);height:auto}
+.donut-centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;pointer-events:none;text-align:center}
+.donut-centro .num{font-size:var(--text-h3);font-weight:var(--fw-black)}
+.an-tabla{display:flex;flex-direction:column;margin-top:var(--space-4)}
+.an-fila{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-2);
+  border-top:1px solid var(--border-hairline)}
+.an-fila:nth-child(odd){background:var(--pink-wash)}
+.an-suelta .an-n{font-style:italic;color:var(--ink-lighter)}
+.an-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an-pct{flex:0 0 56px;text-align:right;color:var(--pink-dark);font-weight:var(--fw-bold)}
+.an-monto{flex:0 0 auto;font-weight:var(--fw-bold)}
+.an-dif{flex:0 0 auto;font-size:var(--text-xs)}
+
+/* paleta dentro de Ajustes (F7) */
+.palette-lista{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)}
+
+/* pestañas Registrar / Planear (F7) */
+.vista-head{margin-bottom:var(--space-4)}
+.vista-head h2{font-size:var(--text-h2);font-weight:var(--fw-black);letter-spacing:var(--tracking-tight)}
+.vista-head .sub{margin-top:2px}
+.card-desfase{border-color:var(--danger);margin-bottom:var(--space-4)}
+.cat-card.cat-desfase{border-color:var(--danger)}

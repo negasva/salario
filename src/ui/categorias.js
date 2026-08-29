@@ -1,23 +1,28 @@
 import * as store from '../store.js';
 import { balance, amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo, enPeriodo } from '../engine/movimientos.js';
-import { metasEnItem } from '../engine/metas.js';
+import { monthsToGoal, monthlyToward, plazo, whenText } from '../engine/metas.js';
+import { ordenadas, estadoDe } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
   pagosLibresDeItem } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
-import { abrirSelectorExtra } from './movimientos.js';
+import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
 
-const PALETTE = ['var(--ink)', 'var(--pink)', 'var(--danger)', 'var(--success)', 'var(--warning)',
-  'var(--pink-dark)', 'var(--ink-lighter)', 'var(--pink-light)'];
+const { PALETTE } = store;
 
 export function renderCategorias(root) {
   const p = store.active();
 
   root.innerHTML = `
+    <div class="vista-head">
+      <h2>Planear</h2>
+      <span class="sub">Cuánto piensas gastar cada mes en cada cosa. Lo que de verdad pasó se registra en Registrar.</span>
+    </div>
+    <div id="catDesfase"></div>
     <div id="catIngreso"></div>
     <div class="cats-head">
       <button id="catAdd" class="wide btn-primary">+ Agregar categoría</button>
@@ -27,7 +32,7 @@ export function renderCategorias(root) {
 
   root.querySelector('#catAdd').onclick = () => openNewCategory(root);
   root.querySelector('#catEqual').onclick = () => {
-    const b = balance(p.items, store.incomeRepartir(p));
+    const b = balance(p.items, store.incomeRepartir(p), p.goals);
     if (b.cuadrado) { toast('Ya está todo repartido'); return; }
     const unlocked = p.items.filter((it) => !it.locked && !it.auto);
     if (!unlocked.length) { toast('No hay categorías a las que repartirles'); return; }
@@ -39,6 +44,27 @@ export function renderCategorias(root) {
 
   paintList(root);
   paintIngreso(root);
+  paintDesfases(root);
+}
+
+/* F7 — en la vista de planeación se dice en la cara dónde te estás pasando:
+   la categoría que ya gastó más de lo asignado, con cuánto. */
+function paintDesfases(root) {
+  const p = store.active();
+  const periodo = periodoDe(hoyISO());
+  const gastadoLinea = porLinea(p.movs, periodo);
+  const pasados = p.items.map((it) => {
+    const res = resumenItem(it, gastadoLinea, periodo,
+      pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0));
+    return { it, exceso: r2(res.pagado - amount(it)) };
+  }).filter((x) => amount(x.it) > 0 && x.exceso > 0);
+
+  const box = root.querySelector('#catDesfase');
+  if (!pasados.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card card-desfase">
+    <span class="label">Te estás pasando en ${pasados.length} categoría${pasados.length > 1 ? 's' : ''}</span>
+    <div class="sub">${pasados.map(({ it, exceso }) => `<b>${esc(it.n)}</b> ${money(exceso, p.cur)} de más`).join(' · ')}</div>
+  </div>`;
 }
 
 /* Arriba de todo, la cuenta del mes: cuánto entra, cuánto tienes repartido y
@@ -88,9 +114,45 @@ function paintList(root) {
   const box = root.querySelector('#catList');
   const periodo = periodoDe(hoyISO());
   const gastadoLinea = porLinea(p.movs, periodo);
-  box.innerHTML = p.items.map((it) => catCard(it, p, gastadoLinea, periodo)).join('');
+  const metas = ordenadas(p.goals).filter((g) => estadoDe(g) !== 'completa');
+  box.innerHTML = p.items.map((it) => catCard(it, p, gastadoLinea, periodo)).join('')
+    + metas.map((g) => metaCard(g, p)).join('');
 
   p.items.forEach((it) => wireCard(root, it, p));
+  metas.forEach((g) => wireMeta(root, g, p));
+}
+
+/* El aporte es un movimiento y nada más: el progreso de la meta se recalcula
+   solo al guardar, así que no hay dos sitios que mantener a la par. */
+function wireMeta(root, g, p) {
+  const card = root.querySelector(`.cat-meta[data-gid="${g.id}"]`);
+  if (!card) return;
+
+  card.querySelector('.meta-mes').onchange = (e) => {
+    g.mes = digits(e.target.value);
+    store.save();
+    renderCategorias(root);
+  };
+
+  card.querySelector('.meta-abrir').onclick = () =>
+    window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: g.id } }));
+
+  card.querySelector('.meta-guardar')?.addEventListener('click', () => {
+    const monto = monthlyToward(g);
+    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha: hoyISO(), tipo: 'gasto',
+      monto, itemId: null, lineId: null, goalId: g.id, nota: `Aporte a ${g.n}`, extra: false });
+    store.save();
+    renderCategorias(root);
+    toast(`${money(monto, p.cur)} a ${g.n}`);
+  });
+
+  card.querySelector('.meta-deshacer')?.addEventListener('click', () => {
+    const mov = aporteDelMes(p, g.id);
+    if (mov) p.movs.splice(p.movs.indexOf(mov), 1);
+    store.save();
+    renderCategorias(root);
+    toast('Aporte deshecho');
+  });
 }
 
 function catCard(it, p, gastadoLinea, periodo) {
@@ -98,14 +160,14 @@ function catCard(it, p, gastadoLinea, periodo) {
   const res = resumenItem(it, gastadoLinea, periodo,
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
-  const metas = metasEnItem(p.goals, it);
   return `
-  <div class="card cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
+  <div class="card cat-card${it.locked ? ' locked' : ''}${budget > 0 && res.pagado > budget ? ' cat-desfase' : ''}" data-id="${it.id}">
     <div class="cat-top">
       <span class="dot" style="background:${it.c}"></span>
       <input class="cat-name" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}>
       <button class="mini cat-lock ${it.locked ? 'on is-locked' : ''}" aria-pressed="${!!it.locked}"
         title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
+      ${budget > 0 && res.pagado > budget ? `<span class="badge bad">desfase ${money(r2(res.pagado - budget), p.cur)}</span>` : ''}
       <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
     </div>
     ${cabeceraPagos(res, p, budget)}
@@ -134,26 +196,38 @@ function catCard(it, p, gastadoLinea, periodo) {
       ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
         ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
       </div>` : ''}
-      ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
-        <span class="label">Comprometido por metas</span></div>
-        <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
     </div>
   </div>`;
 }
 
-// El dinero de una meta no se edita desde aquí: texto plano, sin borrar,
-// sin toggle fijo/variable.
-function lineasMeta(metas, it, p) {
-  return metas.map(({ goal, monto }) => {
-    const ap = aporteDelMes(p, goal.id);
-    return `<div class="line line-meta ${goal.special ? 'line-fondo' : ''}" data-gid="${goal.id}">
-      <span class="lm-n">${esc(goal.n)}${goal.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
-      <span class="num lm-v">${money(monto, p.cur)}</span>
+/* F5 — cada meta es un bloque más del reparto: mismo tamaño, misma tarjeta,
+   con su monto mensual editable y el botón para registrar el aporte del mes. */
+function metaCard(g, p) {
+  const ap = aporteDelMes(p, g.id);
+  const mes = monthlyToward(g);
+  const n = monthsToGoal(g);
+  const pct = g.t > 0 ? Math.min(100, Math.round(((g.s || 0) / g.t) * 100)) : 0;
+  return `
+  <div class="card cat-card cat-meta" data-gid="${g.id}">
+    <div class="cat-top">
+      <span class="dot" style="background:var(--warning)"></span>
+      <span class="cat-name-fijo">${esc(g.n)}${g.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
+      <button class="mini meta-abrir">Editar</button>
+    </div>
+    <div class="cat-fields">
+      <label class="fieldw money-field"><span>Guardas al mes · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
+        <input class="meta-mes num" type="text" inputmode="numeric" value="${mes ? plain(mes, p.cur) : ''}" placeholder="0"></label>
+    </div>
+    <div class="hist-track"><i style="width:${pct}%;background:var(--warning)"></i></div>
+    <div class="sub">Llevas <b class="num">${money(g.s || 0, p.cur)}</b> de ${money(g.t, p.cur)}.
+      ${n ? `La tienes en ${plazo(n)}, hacia ${whenText(n)}.` : 'Sin aporte mensual todavía.'}</div>
+    <div class="prow">
       ${ap
-        ? `<button class="mini lm-ok" title="Deshacer el aporte">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
-        : '<button class="mini lm-pagar">Ya lo guardé</button>'}
-    </div>`;
-  }).join('');
+        ? `<button class="mini meta-deshacer">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
+        : `<button class="mini meta-guardar" ${mes > 0 ? '' : 'disabled'}>Ya lo guardé</button>`}
+    </div>
+  </div>`;
 }
 
 // Un aporte del mes en curso a esta meta, si existe
@@ -196,6 +270,7 @@ function cabeceraPagos(res, p, planeado) {
     <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
     ${planeado > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
       <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(diferencia), p.cur)}</b></div>` : ''}
+    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} pagados</span>` : ''}
   </div>`;
 }
 
@@ -270,7 +345,7 @@ function openPagoEditor(root, it, p, mov = null) {
 
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, pagado, arrastre, pendiente }) => {
+  return res.filas.map(({ l, plan, pagado, arrastre, pendiente, diferencia, estado }) => {
     return `
     <div class="concepto-card" data-lid="${l.id}">
       <div class="line">
@@ -287,12 +362,30 @@ function lines(it, p, res) {
         <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
         <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
           aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
+        ${l.fixed !== false ? `<button class="mini lauto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
+          title="Cada mes nuevo entra ya pagado, y lo puedes cambiar">${icon('recurrente', 'ic-sm')} Precargar cada mes</button>` : ''}
       </div>
+      ${filaEstado(estado, diferencia, plan, p)}
       ${listaPagos(l, p, res.periodo)}
       ${barraGasto(pagado, plan, p)}
       ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
     </div>`;
   }).join('');
+}
+
+/* F4 — cómo va el renglón en una línea: el estado y, cuando ya está cerrado,
+   si ahorraste o te pasaste. Un renglón abierto todavía no dice nada. */
+const ETIQUETA_ESTADO = { pendiente: 'pendiente', parcial: 'parcial', pagado: 'pagado', excedido: 'excedido' };
+
+function filaEstado(estado, diferencia, plan, p) {
+  const clase = estado === 'excedido' ? 'bad' : estado === 'pagado' ? 'ok' : estado === 'parcial' ? 'warn' : '';
+  const cerrado = estado === 'pagado' || estado === 'excedido';
+  const dif = r2(diferencia);
+  const texto = !cerrado || !(plan > 0) ? ''
+    : dif > 0 ? `<b class="num ok">ahorraste ${money(dif, p.cur)}</b>`
+    : dif < 0 ? `<b class="num over">te pasaste ${money(-dif, p.cur)}</b>`
+    : '<span class="sub">clavado al plan</span>';
+  return `<div class="line-estado"><span class="badge ${clase}">${ETIQUETA_ESTADO[estado]}</span>${texto}</div>`;
 }
 
 function barraGasto(pagado, plan, p) {
@@ -366,7 +459,7 @@ function wireCard(root, it, p) {
   });
 
   const fixBtn = card.querySelector('.cat-fix');
-  const b = balance(p.items, store.incomeRepartir(p));
+  const b = balance(p.items, store.incomeRepartir(p), p.goals);
   if (!it.locked && !it.auto && !b.cuadrado) {
     fixBtn.textContent = b.falta > 0
       ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
@@ -383,10 +476,9 @@ function wireCard(root, it, p) {
     if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
     if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
     const idx = p.items.indexOf(it);
-    const reclamos = p.goals.filter((g) => g.a[it.id] !== undefined).map((g) => ({ g, pct: g.a[it.id] }));
     const { undo } = store.stageDelete(
-      () => { p.items.splice(idx, 1); p.goals.forEach((g) => { delete g.a[it.id]; }); },
-      () => { p.items.splice(idx, 0, it); reclamos.forEach(({ g, pct }) => { g.a[it.id] = pct; }); }
+      () => p.items.splice(idx, 1),
+      () => p.items.splice(idx, 0, it)
     );
     renderCategorias(root);
     toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
@@ -398,48 +490,6 @@ function wireCard(root, it, p) {
     renderCategorias(root);
   };
   card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(root, it, p);
-
-  // El aporte es un movimiento y nada más: el progreso de la meta se recalcula
-  // solo al guardar, así que no hay dos sitios que mantener a la par.
-  function anotarAporte(goal, monto) {
-    const fecha = hoyISO();
-    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha, tipo: 'gasto',
-      monto, itemId: it.id, lineId: null, goalId: goal.id, nota: `Aporte a ${goal.n}`, extra: false });
-  }
-
-  function borrarAporte(goal, mov) {
-    p.movs.splice(p.movs.indexOf(mov), 1);
-  }
-
-  card.querySelectorAll('.line-meta').forEach((el) => {
-    const goal = p.goals.find((g) => g.id === el.dataset.gid);
-    if (!goal) return;
-    const { monto } = metasEnItem([goal], it)[0] || {};
-
-    el.querySelector('.lm-pagar')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!monto) { toast('Esta meta no reclama nada de este bloque'); return; }
-      anotarAporte(goal, monto);
-      store.save();
-      renderCategorias(root);
-      toast(`${money(monto, p.cur)} a ${goal.n}`, () => {
-        borrarAporte(goal, aporteDelMes(p, goal.id));
-        store.save();
-        renderCategorias(root);
-      });
-    });
-
-    el.querySelector('.lm-ok')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      borrarAporte(goal, aporteDelMes(p, goal.id));
-      store.save();
-      renderCategorias(root);
-      toast('Aporte deshecho');
-    });
-
-    // la fila entera, fuera del botón, lleva a la hoja de la meta
-    el.onclick = () => window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: goal.id } }));
-  });
 
   card.querySelectorAll('.deu-fila').forEach((el) => {
     const l = it.L.find((x) => x.id === el.dataset.lid);
@@ -486,6 +536,13 @@ function wireCard(root, it, p) {
     // Enter suma sin soltar el teclado: son varias compras seguidas, no una
     campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
 
+    el.querySelector('.lauto')?.addEventListener('click', () => {
+      l.autoPagar = !l.autoPagar;
+      store.save();
+      renderCategorias(root);
+      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
+    });
+
     el.querySelector('.lcerrar').onclick = () => {
       if (l.pagadoEn === periodo) {
         l.pagadoEn = null;
@@ -500,7 +557,6 @@ function wireCard(root, it, p) {
   });
 
   card.querySelectorAll('.pagos-lista').forEach((el) => {
-    const linea = it.L.find((x) => x.id === el.dataset.lid);
     el.querySelectorAll('.pago-chip').forEach((chip) => {
       chip.querySelector('.pago-ed').onclick = () => {
         const mov = p.movs.find((m) => m.id === chip.dataset.mid);
@@ -595,7 +651,7 @@ function openNewCategory(root) {
       <div class="fld"><label>Nombre</label><input id="ncName" placeholder="Ej: Mascotas"></div>
       <div class="label" style="margin:14px 0 8px">Plantilla de conceptos</div>
       <div class="chips" id="ncTpl">
-        <button class="chip" data-r="ese">Esenciales</button>
+        <button class="chip" data-r="ese">Gastos recurrentes</button>
         <button class="chip" data-r="deu">Deudas</button>
         <button class="chip" data-r="lib">Gasto libre</button>
         <button class="chip" data-r="cor">Ahorro corto</button>
@@ -639,7 +695,7 @@ function openNewCategory(root) {
 
     let monto = 0;
     if (src === 'sobra') {
-      monto = balance(p.items, store.incomeRepartir(p)).falta;
+      monto = balance(p.items, store.incomeRepartir(p), p.goals).falta;
     } else if (src === 'prop') {
       const unlocked = p.items.filter((it) => !it.locked);
       // ponytail: 10% de cada una, simple y ajustable a mano después

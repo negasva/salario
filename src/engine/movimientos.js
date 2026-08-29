@@ -15,6 +15,18 @@ export function enPeriodo(movs, periodo) {
   return movs.filter((m) => periodoDe(m.fecha) === periodo);
 }
 
+/* F3 — lo que se ve en el libro del mes, del más reciente al más viejo. El
+   filtro por renglón es opcional y ahí estaba el bug: se entraba a Movimientos
+   desde un renglón, se registraba un ingreso —que no tiene renglón— y la lista
+   filtrada no lo mostraba nunca. La vista ahora suelta el filtro cuando lo que
+   guardas no cabe en él. */
+export function visiblesDelMes(movs, periodo, lineId = null) {
+  const delMes = enPeriodo(movs, periodo)
+    .slice()
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  return lineId ? delMes.filter((m) => m.lineId === lineId) : delMes;
+}
+
 function acumular(movs, campo) {
   return movs.reduce((acc, m) => {
     const k = m[campo];

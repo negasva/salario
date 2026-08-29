@@ -1,14 +1,16 @@
 import { icon } from './icons.js';
 import { abrirBuscador } from './buscador.js';
+import { abrirRegistro } from './registrar.js';
+import { abrirIA } from './preguntar.js';
 import { signOut } from '../auth.js';
 import * as store from '../store.js';
-import { PALETAS, normalizarPaleta } from '../theme.js';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
-  { id: 'categorias', label: 'Categorías', ic: 'categorias' },
+  { id: 'movimientos', label: 'Registrar', ic: 'movimientos' },
+  { id: 'categorias', label: 'Planear', ic: 'categorias' },
   { id: 'metas', label: 'Metas', ic: 'metas' },
-  { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
+  { id: 'analisis', label: 'Análisis', ic: 'analisis' },
   { id: 'historial', label: 'Historial', ic: 'historial' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
 ];
@@ -23,6 +25,14 @@ function initials(name) {
     .join('') || '·';
 }
 
+/* El menú del botón flotante se cierra al tocar fuera. El shell se repinta en
+   cada navegación, así que el listener se registra una sola vez y siempre
+   apunta al menú vivo. */
+let cerrarFabActual = () => {};
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.fab-wrap')) cerrarFabActual();
+});
+
 export function renderShell(root, currentRoute, onNavigate) {
   const p = store.active();
   root.innerHTML = `
@@ -33,74 +43,60 @@ export function renderShell(root, currentRoute, onNavigate) {
           <nav>
             ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
           </nav>
-          <button class="navlink" id="btnBuscar" title="Buscar" aria-label="Buscar">${icon('buscar')}</button>
-          <div class="palette-control">
-            <button class="navlink palette-trigger" id="btnPalette" title="Cambiar paleta" aria-label="Cambiar paleta" aria-expanded="false">${icon('paleta')}</button>
-            <div class="palette-menu" id="paletteMenu" role="menu" aria-label="Paletas de colores" hidden>
-              <span class="palette-title">Paleta de colores</span>
-              ${Object.entries(PALETAS).map(([id, paleta]) => `
-                <button class="palette-option" data-palette="${id}" role="menuitemradio" aria-checked="${normalizarPaleta(p?.paleta) === id}">
-                  <span class="palette-swatches" aria-hidden="true">${paleta.swatches.map((color) => `<i style="background:${color}"></i>`).join('')}</span>
-                  <span>${paleta.label}</span>
-                  <span class="palette-check" aria-hidden="true">✓</span>
-                </button>`).join('')}
-            </div>
-          </div>
           <button class="navlink logout" id="btnLogout" title="Salir" aria-label="Salir">${icon('salir')}</button>
         </aside>
         <div class="main">
           <div class="topbar">
-            <label class="search">${icon('buscar', 'ic-sm')}<input id="chipSearch" placeholder="Buscar perfil…" aria-label="Buscar perfil"></label>
             <div class="user" id="userLabel"></div>
           </div>
           <div class="content" id="content"></div>
         </div>
       </div>
     </div>
+    <div class="fab-wrap">
+      <div class="fab-menu" id="fabMenu" hidden>
+        <button data-a="ingreso">${icon('movimientos', 'ic-sm')} Agregar ingreso</button>
+        <button data-a="egreso">${icon('movimientos', 'ic-sm')} Agregar egreso</button>
+        <button data-a="meta">${icon('metas', 'ic-sm')} Agregar meta</button>
+        <button data-a="buscar">${icon('buscar', 'ic-sm')} Buscar transacciones</button>
+        <button data-a="ia">${icon('ia', 'ic-sm')} Pregúntale a tus números</button>
+      </div>
+      <button class="fab" id="fab" aria-label="Agregar" aria-expanded="false">+</button>
+    </div>
     <div class="toast" id="toast" aria-live="polite" aria-atomic="true"><span id="toastMsg"></span></div>`;
 
-  root.querySelector('#btnBuscar').onclick = () => abrirBuscador();
   root.querySelectorAll('.navlink[data-r]').forEach((b) => {
     b.onclick = () => onNavigate(b.dataset.r);
   });
   root.querySelector('#btnLogout').onclick = async () => { await signOut(); location.reload(); };
 
-  const paletteButton = root.querySelector('#btnPalette');
-  const paletteMenu = root.querySelector('#paletteMenu');
-  const paintPaletteOptions = () => {
-    const selected = normalizarPaleta(store.active()?.paleta);
-    paletteMenu.querySelectorAll('.palette-option').forEach((option) => {
-      option.setAttribute('aria-checked', String(option.dataset.palette === selected));
-    });
-  };
-  paletteButton.onclick = () => {
-    paletteMenu.hidden = !paletteMenu.hidden;
-    paletteButton.setAttribute('aria-expanded', String(!paletteMenu.hidden));
-  };
-  paletteMenu.querySelectorAll('.palette-option').forEach((option) => {
-    option.onclick = () => {
-      store.setPalette(option.dataset.palette);
-      paintPaletteOptions();
-      paletteMenu.hidden = true;
-      paletteButton.setAttribute('aria-expanded', 'false');
-    };
-  });
-  paletteMenu.onkeydown = (e) => {
-    if (e.key === 'Escape') {
-      paletteMenu.hidden = true;
-      paletteButton.setAttribute('aria-expanded', 'false');
-      paletteButton.focus();
-    }
-  };
-
   root.querySelector('#userLabel').textContent = p ? `Hola, ${p.name}` : '';
 
-  root.querySelector('#chipSearch').onkeydown = (e) => {
-    if (e.key !== 'Enter') return;
-    const q = e.target.value.trim().toLowerCase();
-    const match = store.profiles().find((pr) => pr.name.toLowerCase().includes(q));
-    if (match) { store.setActive(match.id); onNavigate(currentRoute); }
+  /* F3 — el botón flotante: lo que antes era navegar a una vista ahora es una
+     hoja. La única acción que sigue siendo una vista es crear una meta, que
+     tiene su propio editor. */
+  const fab = root.querySelector('#fab');
+  const fabMenu = root.querySelector('#fabMenu');
+  const cerrarFab = () => { fabMenu.hidden = true; fab.setAttribute('aria-expanded', 'false'); };
+  fab.onclick = () => {
+    fabMenu.hidden = !fabMenu.hidden;
+    fab.setAttribute('aria-expanded', String(!fabMenu.hidden));
   };
+  const repintar = () => onNavigate(currentRoute);
+  fabMenu.onclick = (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    cerrarFab();
+    const acciones = {
+      ingreso: () => abrirRegistro({ tipo: 'ingreso', alGuardar: repintar }),
+      egreso: () => abrirRegistro({ tipo: 'gasto', alGuardar: repintar }),
+      meta: () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'metas', args: { nueva: true } } })),
+      buscar: () => abrirBuscador(),
+      ia: () => abrirIA(),
+    };
+    acciones[b.dataset.a]?.();
+  };
+  cerrarFabActual = cerrarFab;
 
   return root.querySelector('#content');
 }

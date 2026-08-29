@@ -109,6 +109,30 @@ export function agregarPagoLibre(movs, it, monto, fecha, nota) {
   return mov;
 }
 
+/* F4 — un renglón fijo marcado para precargarse llega al mes nuevo ya pagado:
+   el arriendo se paga igual todos los meses y teclearlo cada 30 días es
+   trabajo inventado. Solo toca renglones sin ningún pago en ese mes, así que
+   editarlo o borrarlo después manda; y nunca precarga dos veces. */
+export function precargarFijos(items = [], movs = [], periodo, fecha) {
+  let hechos = 0;
+  items.forEach((it) => {
+    (it.L || []).forEach((l) => {
+      if (!l.autoPagar || l.fixed === false) return;
+      // marca propia: si borras el pago precargado el renglón no se queda
+      // marcado como pagado, y aun así no se precarga dos veces en el mes
+      if (l.autoPagadoEn === periodo) return;
+      const yaPagado = movs.some((m) => m.lineId === l.id && periodoDe(m.fecha) === periodo);
+      if (yaPagado) return;
+      const plan = planDeLinea(l, periodo);
+      if (!(plan > 0)) return;
+      agregarPago(movs, it, l, plan, fecha, `${l.n || 'Fijo'} (precargado)`);
+      l.autoPagadoEn = periodo;
+      hechos += 1;
+    });
+  });
+  return hechos;
+}
+
 export function pagosLibresDeItem(movs, itemId, periodo) {
   return movs
     .filter((m) => m.tipo === 'gasto' && m.itemId === itemId && !m.lineId && !m.goalId && periodoDe(m.fecha) === periodo)

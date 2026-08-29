@@ -28,8 +28,8 @@ export function shareOf(item, income) {
 /* La cuenta del mes: lo repartido contra lo que entra. Si sobra, dice cuánto
    falta por repartir; si no alcanza, por cuánto te pasaste. Un peso de
    diferencia no es un descuadre, así que el margen es de una unidad. */
-export function balance(items, income) {
-  const asignado = total(items);
+export function balance(items, income, goals = []) {
+  const asignado = r2(total(items) + totalMetas(goals));
   const dif = r2((Number(income) || 0) - asignado);
   return {
     asignado,
@@ -57,20 +57,11 @@ export function fixedVariableSplit(item) {
   return { fixed, variable };
 }
 
-/* F5.2 — una meta en fila guarda su `a` pero no consume el bloque: no le baja
-   el tope a las que sí están corriendo. Lo que guarda `a` es plata: cuántos
-   pesos de esa categoría se lleva la meta cada mes. */
-export function claimedBy(goals, itemId, skip) {
-  return goals.reduce((s, g) => (g !== skip && g.estado !== 'en_fila' ? s + (Number(g.a?.[itemId]) || 0) : s), 0);
-}
-
-export function claimedAll(goals, itemId) {
-  return claimedBy(goals, itemId, null);
-}
-
-export function freeFor(goals, goal, item) {
-  const tope = amount(item);
-  return r2(clamp(tope - claimedBy(goals, item.id, goal), 0, tope));
+/* F5 — las metas ya no reclaman plata de las categorías: cada una es su propio
+   bloque y se reparte igual que las demás. */
+export function totalMetas(goals = []) {
+  return r2(goals.filter((g) => g.estado !== 'completa')
+    .reduce((s, g) => s + (Number(g.mes) || 0), 0));
 }
 
 // F1 — diagnóstico de esenciales

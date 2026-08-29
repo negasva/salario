@@ -31,6 +31,8 @@ export function movDesde(rec, periodo, id) {
     lineId: rec.lineId || null,
     goalId: rec.goalId || null,
     nota: rec.nota || '',
+    medio: rec.medio || null,
+    cur: rec.cur || null,
     extra: false,
     abono: !!rec.abono,
     cat: rec.cat || null,

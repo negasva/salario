@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { avisosPendientes, fueVisto } from '../engine/avisos.js';
 import { anuncio } from './anuncio.js';
-import { money, MESES } from '../format.js';
+import { MESES } from '../format.js';
 
 function nombreMes(periodo) {
   const [a, m] = String(periodo).split('-');
@@ -28,28 +28,6 @@ function avisosDeHoy() {
       cuerpo: `${auto.map(nombreMes).join(', ')}. Revisa que el cierre esté completo antes de darlo por bueno.`,
       vistas: ['dashboard', 'historial'],
       acciones: [{ label: 'Ver en Historial', onClick: () => irA('historial') }],
-    });
-  }
-
-  // F5 — una meta terminó y su plata espera dueño
-  const t = store.revisarFila();
-  if (t) {
-    lista.push({
-      clave: `traspaso-${t.desde.id}`,
-      titulo: `Terminaste la meta ${t.desde.n}`,
-      cuerpo: `Los ${money(t.monto, p.cur)} al mes pasan ahora a ${t.hacia.n}. Si no dices nada, en 24 horas se aplica solo.`,
-      vistas: ['dashboard', 'metas'],
-      acciones: [
-        { label: 'Aceptar', onClick: () => store.aplicarTraspasoPendiente() },
-        {
-          label: 'Repartirlo a mano',
-          onClick: () => {
-            // se libera el bloque sin repartirlo y se abre la meta que sigue
-            store.aplicarTraspasoPendiente(true);
-            window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: t.hacia.id } }));
-          },
-        },
-      ],
     });
   }
 

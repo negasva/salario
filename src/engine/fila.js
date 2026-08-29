@@ -1,14 +1,9 @@
-import { monthlyToward } from './metas.js';
-import { amount } from './reparto.js';
-
-// F5 — la fila de metas. Dos metas que compiten por un bloque ya no compiten
-// para siempre: se ponen una detrás de otra y el dinero de la que termina pasa
-// a la que sigue.
-
-export const DIA_MS = 24 * 60 * 60 * 1000;
+// F5 — el orden de las metas y nada más. El estado "en fila", el traspaso
+// automático y la proyección de turnos se fueron: una meta o está activa o ya
+// la cumpliste.
 
 export function estadoDe(g) {
-  return g.estado || 'activa';
+  return g.estado === 'completa' ? 'completa' : 'activa';
 }
 
 // El fondo de emergencia vive en orden 0 y no se mueve de ahí.
@@ -49,65 +44,4 @@ export function mover(goals, id, delta) {
 // arrastrar y soltar: `id` queda donde estaba `sobreId`
 export function soltar(goals, id, sobreId) {
   return recolocar(goals, id, sobreId);
-}
-
-export function siguienteEnFila(goals) {
-  return ordenadas(goals).find((g) => estadoDe(g) === 'en_fila') || null;
-}
-
-// una meta activa que ya llegó a su objetivo
-export function metaCumplida(goals) {
-  return ordenadas(goals).find((g) => estadoDe(g) === 'activa' && (g.t || 0) > 0 && (g.s || 0) >= g.t) || null;
-}
-
-/* Las asignaciones son plata, así que el tope de cada bloque es lo que ese
-   bloque tiene asignado: heredar la plata de otra meta no puede hacer que un
-   bloque prometa más de lo que le entra. */
-export function mezclarAsignacion(base, extra, items = []) {
-  const out = { ...(base || {}) };
-  Object.entries(extra || {}).forEach(([k, v]) => {
-    const it = items.find((x) => x.id === k);
-    const suma = (Number(out[k]) || 0) + (Number(v) || 0);
-    out[k] = it ? Math.min(amount(it), suma) : suma;
-  });
-  return out;
-}
-
-/* La meta termina y su asignación pasa entera a la que sigue en la fila.
-   `aMano` libera la plata sin repartirla: la acomoda el usuario. */
-export function aplicarTraspaso(desde, hacia, aMano = false, items = []) {
-  const asignacion = desde.a || {};
-  desde.estado = 'completa';
-  desde.a = {};
-  if (hacia) {
-    hacia.estado = 'activa';
-    if (!aMano) hacia.a = mezclarAsignacion(hacia.a, asignacion, items);
-  }
-  return { desde, hacia };
-}
-
-export function traspasoVencido(traspaso, ahora = Date.now()) {
-  return !!traspaso && ahora - (traspaso.creado || 0) >= DIA_MS;
-}
-
-/* F5.3 — cuándo arranca cada meta de la fila. Una meta en fila hereda la
-   asignación de la que tiene delante, así que su plazo se calcula con esa
-   plata, no con la que reclama hoy (que es cero mientras espera). */
-export function proyeccion(goals, items) {
-  const out = {};
-  let previa = null;
-  let libreEn = 0;
-  ordenadas(goals).filter((g) => estadoDe(g) !== 'completa').forEach((g) => {
-    const enFila = estadoDe(g) === 'en_fila';
-    const a = enFila && previa ? mezclarAsignacion(g.a, previa.a, items) : g.a;
-    const empieza = enFila ? libreEn : 0;
-    const mensual = monthlyToward({ a }, items);
-    const falta = Math.max(0, (g.t || 0) - (g.s || 0));
-    const dura = mensual > 0 ? Math.ceil(falta / mensual) : null;
-    const fin = empieza === null || dura === null ? null : empieza + dura;
-    out[g.id] = { empieza, dura, fin, mensual, predecesor: previa };
-    previa = { ...g, a };
-    libreEn = fin;
-  });
-  return out;
 }

@@ -11,6 +11,8 @@ import { ordenadas } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { periodoDe, hoyISO, ingresoReal, resumenFlujo, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
 import { tarjetaResumenFlujo } from './resumen.js';
+import { saldoActual, saldoBase } from '../engine/saldo.js';
+import { MONEDAS } from '../engine/moneda.js';
 import { resumenItem, pagosLibresDeItem } from '../engine/pagos.js';
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -77,11 +79,11 @@ function ringSvg(pct, color) {
    basta con guardar orden y ancho: nadie ve un hueco raro y no hay coordenadas
    que mantener. Fuera del modo edición nada se arrastra, para no mover una
    tarjeta sin querer al hacer scroll. */
-const WIDGETS = ['ingreso', 'mes', 'fondo', 'esenciales', 'alertas', 'buscar', 'pregunta', 'tasa', 'ahorro', 'reparto', 'metas'];
+const WIDGETS = ['ingreso', 'mes', 'tope', 'fondo', 'esenciales', 'alertas', 'buscar', 'pregunta', 'tasa', 'ahorro', 'reparto', 'metas'];
 const ANCHO_DEFECTO = { esenciales: 2, alertas: 2, tasa: 2, ahorro: 2, buscar: 1, pregunta: 1 };
 const NOMBRES = {
   ingreso: 'Ingreso del mes', mes: 'Tu mes', fondo: 'Fondo de emergencia',
-  esenciales: 'Aviso de gastos recurrentes', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
+  tope: 'Gasto máximo', esenciales: 'Aviso de gastos recurrentes', alertas: 'Alertas de renglón', tasa: 'Tasa de ahorro',
   ahorro: 'Ahorro acumulado', reparto: 'Reparto del ingreso', metas: 'Metas',
   buscar: 'Buscador', pregunta: 'Pregúntale a tus números',
 };
@@ -205,7 +207,7 @@ export async function renderDashboard(root) {
         <div class="income-head">
           <span class="label">${tituloIngreso}</span>
           <select id="dCurrency" aria-label="Moneda">
-            ${['COP', 'MXN', 'USD', 'ARS', 'CLP', 'PEN', 'EUR'].map((c) => `<option ${c === p.cur ? 'selected' : ''}>${c}</option>`).join('')}
+            ${MONEDAS.map((c) => `<option ${c === p.cur ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
         </div>
         ${hayNomina ? `<div class="kpi num">${money(ing.nomina, p.cur)}</div>` : ''}
@@ -246,6 +248,24 @@ export async function renderDashboard(root) {
         </div>
         ${diag.top3.length ? `<div class="sub">Lo que más pesa: ${diag.top3.map((l) => `${esc(l.n || 'sin nombre')} ${money(l.v, p.cur)} (${r2(l.pct)}%)`).join(' · ')}</div>` : ''}
       </div>` : '',
+
+    tope: (() => {
+      const tope = Number(p.gastoMaximo) || 0;
+      const techo = Math.round((inc * tope) / 100);
+      const gastado = flujo.gastos;
+      const pct = techo > 0 ? Math.round((gastado / techo) * 100) : 0;
+      const pasado = techo > 0 && gastado > techo;
+      return `<div class="card">
+        <span class="label">Gasto máximo recomendado</span>
+        <div class="kpi num">${money(techo, p.cur)}</div>
+        <div class="sub">Es el ${tope}% de lo que entra. Llevas gastado <b class="num ${pasado ? 'over' : ''}">${money(gastado, p.cur)}</b>${techo > 0 ? ` (${pct}%)` : ''}.</div>
+        <div class="hist-track" style="margin-top:var(--space-2)"><i style="width:${Math.min(100, pct)}%;background:${pasado ? 'var(--danger)' : 'var(--success)'}"></i></div>
+        <div class="sub">${pasado
+          ? `Te pasaste por ${money(gastado - techo, p.cur)}.`
+          : `Te quedan ${money(Math.max(0, techo - gastado), p.cur)} antes de pasarte.`}
+          <button class="mini" id="dTopeEdit">Cambiar el tope</button></div>
+      </div>`;
+    })(),
 
     alertas: '<div id="dAlertas"></div>',
 
@@ -315,7 +335,7 @@ export async function renderDashboard(root) {
   // que es la única forma de poder volver a encenderlo
   const visibles = edicion ? orden : orden.filter((id) => !ocultoDe(p, id));
   root.innerHTML = `
-    ${tarjetaResumenFlujo(flujo, p.cur)}
+    ${tarjetaResumenFlujo(flujo, p.cur, saldoActual(saldoBase(p), p.movs))}
     <div class="dash-tools">
       <button class="mini" id="dAcomodar">${edicion ? 'Listo' : 'Acomodar'}</button>
       ${edicion ? '<button class="mini" id="dReset">Restablecer</button>' : ''}
@@ -358,6 +378,24 @@ export async function renderDashboard(root) {
     store.save();
     renderDashboard(root);
   };
+  // el tope se ajusta donde se ve, sin ir a Ajustes
+  const topeEdit = root.querySelector('#dTopeEdit');
+  if (topeEdit) topeEdit.onclick = () => {
+    const campo = document.createElement('input');
+    campo.type = 'number';
+    campo.min = '10';
+    campo.max = '100';
+    campo.value = String(p.gastoMaximo || 70);
+    campo.className = 'num';
+    topeEdit.replaceWith(campo);
+    campo.focus();
+    campo.onchange = () => {
+      p.gastoMaximo = Math.min(100, Math.max(10, Number(campo.value) || 70));
+      store.save();
+      renderDashboard(root);
+    };
+  };
+
   const curEl = root.querySelector('#dCurrency');
   if (curEl) curEl.onchange = (e) => {
     p.cur = e.target.value;

@@ -36,6 +36,10 @@ export function renderMovimientos(root, args = {}) {
   let filtroLinea = args.lineId || null;
 
   root.innerHTML = `
+    <div class="vista-head">
+      <h2>Registrar</h2>
+      <span class="sub">Lo que de verdad entró y salió. El plan del mes se define en Planear.</span>
+    </div>
     <div class="prow mov-acciones">
       <button class="btn-primary" id="mvNuevoGasto">+ Registrar egreso</button>
       <button id="mvNuevoIngreso">+ Registrar ingreso</button>

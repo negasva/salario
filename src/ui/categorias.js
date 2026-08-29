@@ -18,6 +18,11 @@ export function renderCategorias(root) {
   const p = store.active();
 
   root.innerHTML = `
+    <div class="vista-head">
+      <h2>Planear</h2>
+      <span class="sub">Cuánto piensas gastar cada mes en cada cosa. Lo que de verdad pasó se registra en Registrar.</span>
+    </div>
+    <div id="catDesfase"></div>
     <div id="catIngreso"></div>
     <div class="cats-head">
       <button id="catAdd" class="wide btn-primary">+ Agregar categoría</button>
@@ -39,6 +44,27 @@ export function renderCategorias(root) {
 
   paintList(root);
   paintIngreso(root);
+  paintDesfases(root);
+}
+
+/* F7 — en la vista de planeación se dice en la cara dónde te estás pasando:
+   la categoría que ya gastó más de lo asignado, con cuánto. */
+function paintDesfases(root) {
+  const p = store.active();
+  const periodo = periodoDe(hoyISO());
+  const gastadoLinea = porLinea(p.movs, periodo);
+  const pasados = p.items.map((it) => {
+    const res = resumenItem(it, gastadoLinea, periodo,
+      pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0));
+    return { it, exceso: r2(res.pagado - amount(it)) };
+  }).filter((x) => amount(x.it) > 0 && x.exceso > 0);
+
+  const box = root.querySelector('#catDesfase');
+  if (!pasados.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card card-desfase">
+    <span class="label">Te estás pasando en ${pasados.length} categoría${pasados.length > 1 ? 's' : ''}</span>
+    <div class="sub">${pasados.map(({ it, exceso }) => `<b>${esc(it.n)}</b> ${money(exceso, p.cur)} de más`).join(' · ')}</div>
+  </div>`;
 }
 
 /* Arriba de todo, la cuenta del mes: cuánto entra, cuánto tienes repartido y
@@ -135,12 +161,13 @@ function catCard(it, p, gastadoLinea, periodo) {
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
   return `
-  <div class="card cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
+  <div class="card cat-card${it.locked ? ' locked' : ''}${budget > 0 && res.pagado > budget ? ' cat-desfase' : ''}" data-id="${it.id}">
     <div class="cat-top">
       <span class="dot" style="background:${it.c}"></span>
       <input class="cat-name" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}>
       <button class="mini cat-lock ${it.locked ? 'on is-locked' : ''}" aria-pressed="${!!it.locked}"
         title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
+      ${budget > 0 && res.pagado > budget ? `<span class="badge bad">desfase ${money(r2(res.pagado - budget), p.cur)}</span>` : ''}
       <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
     </div>
     ${cabeceraPagos(res, p, budget)}

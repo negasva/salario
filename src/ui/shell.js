@@ -4,13 +4,12 @@ import { abrirRegistro } from './registrar.js';
 import { abrirIA } from './preguntar.js';
 import { signOut } from '../auth.js';
 import * as store from '../store.js';
-import { PALETAS, normalizarPaleta } from '../theme.js';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
-  { id: 'categorias', label: 'Categorías', ic: 'categorias' },
+  { id: 'movimientos', label: 'Registrar', ic: 'movimientos' },
+  { id: 'categorias', label: 'Planear', ic: 'categorias' },
   { id: 'metas', label: 'Metas', ic: 'metas' },
-  { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
   { id: 'analisis', label: 'Análisis', ic: 'analisis' },
   { id: 'historial', label: 'Historial', ic: 'historial' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
@@ -44,18 +43,6 @@ export function renderShell(root, currentRoute, onNavigate) {
           <nav>
             ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
           </nav>
-          <div class="palette-control">
-            <button class="navlink palette-trigger" id="btnPalette" title="Cambiar paleta" aria-label="Cambiar paleta" aria-expanded="false">${icon('paleta')}</button>
-            <div class="palette-menu" id="paletteMenu" role="menu" aria-label="Paletas de colores" hidden>
-              <span class="palette-title">Paleta de colores</span>
-              ${Object.entries(PALETAS).map(([id, paleta]) => `
-                <button class="palette-option" data-palette="${id}" role="menuitemradio" aria-checked="${normalizarPaleta(p?.paleta) === id}">
-                  <span class="palette-swatches" aria-hidden="true">${paleta.swatches.map((color) => `<i style="background:${color}"></i>`).join('')}</span>
-                  <span>${paleta.label}</span>
-                  <span class="palette-check" aria-hidden="true">✓</span>
-                </button>`).join('')}
-            </div>
-          </div>
           <button class="navlink logout" id="btnLogout" title="Salir" aria-label="Salir">${icon('salir')}</button>
         </aside>
         <div class="main">
@@ -82,34 +69,6 @@ export function renderShell(root, currentRoute, onNavigate) {
     b.onclick = () => onNavigate(b.dataset.r);
   });
   root.querySelector('#btnLogout').onclick = async () => { await signOut(); location.reload(); };
-
-  const paletteButton = root.querySelector('#btnPalette');
-  const paletteMenu = root.querySelector('#paletteMenu');
-  const paintPaletteOptions = () => {
-    const selected = normalizarPaleta(store.active()?.paleta);
-    paletteMenu.querySelectorAll('.palette-option').forEach((option) => {
-      option.setAttribute('aria-checked', String(option.dataset.palette === selected));
-    });
-  };
-  paletteButton.onclick = () => {
-    paletteMenu.hidden = !paletteMenu.hidden;
-    paletteButton.setAttribute('aria-expanded', String(!paletteMenu.hidden));
-  };
-  paletteMenu.querySelectorAll('.palette-option').forEach((option) => {
-    option.onclick = () => {
-      store.setPalette(option.dataset.palette);
-      paintPaletteOptions();
-      paletteMenu.hidden = true;
-      paletteButton.setAttribute('aria-expanded', 'false');
-    };
-  });
-  paletteMenu.onkeydown = (e) => {
-    if (e.key === 'Escape') {
-      paletteMenu.hidden = true;
-      paletteButton.setAttribute('aria-expanded', 'false');
-      paletteButton.focus();
-    }
-  };
 
   root.querySelector('#userLabel').textContent = p ? `Hola, ${p.name}` : '';
 

@@ -5,6 +5,7 @@ import { ingresoEfectivo, excedente } from '../engine/consejo.js';
 import { estadoNotificaciones, pedirPermisoNotificaciones } from './avisos.js';
 import { MONEDAS, tasa } from '../engine/moneda.js';
 import { abrirOnboarding } from './onboarding.js';
+import { PALETAS, normalizarPaleta } from '../theme.js';
 
 export function renderAjustes(root) {
   const p = store.active();
@@ -72,6 +73,18 @@ export function renderAjustes(root) {
         <span class="label">Avisos</span>
         <div class="sub" id="ajNotifTexto" style="margin-top:8px"></div>
         <div class="prow"><button id="ajNotif">Permitir notificaciones</button></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Paleta de colores</span>
+        <div class="palette-lista" id="ajPaleta">
+          ${Object.entries(PALETAS).map(([pid, paleta]) => `
+            <button class="palette-option" data-palette="${pid}" role="menuitemradio" aria-checked="${normalizarPaleta(p.paleta) === pid}">
+              <span class="palette-swatches" aria-hidden="true">${paleta.swatches.map((color) => `<i style="background:${color}"></i>`).join('')}</span>
+              <span>${paleta.label}</span>
+              <span class="palette-check" aria-hidden="true">✓</span>
+            </button>`).join('')}
+        </div>
       </div>
 
       <div class="card">
@@ -209,6 +222,10 @@ export function renderAjustes(root) {
     pintarNotif();
   };
   pintarNotif();
+
+  root.querySelectorAll('#ajPaleta .palette-option').forEach((b) => {
+    b.onclick = () => { store.setPalette(b.dataset.palette); renderAjustes(root); };
+  });
 
   root.querySelector('#ajWizard').onclick = () => abrirOnboarding(() => renderAjustes(root));
 

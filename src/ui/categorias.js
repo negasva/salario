@@ -452,8 +452,6 @@ function abrirItemSheet(root, it, l, p) {
       <div class="line-pago">
         <button class="mini lcerrar is-cerrar ${l.pagadoEn === periodo ? 'on' : ''}"
           aria-pressed="${l.pagadoEn === periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-        ${l.fixed !== false ? `<button class="mini is-auto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
-          title="Cada mes nuevo entra ya pagado, y lo puedes cambiar">${icon('recurrente', 'ic-sm')} Precargar cada mes</button>` : ''}
       </div>
       ${filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
       <button class="wide is-del danger-action">Borrar concepto</button>`;
@@ -481,12 +479,6 @@ function abrirItemSheet(root, it, l, p) {
       }
       guardar();
     };
-
-    cuerpo.querySelector('.is-auto')?.addEventListener('click', () => {
-      l.autoPagar = !l.autoPagar;
-      guardar();
-      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
-    });
 
     wirePagos(cuerpo, it, p, guardar);
     wireArrastre(cuerpo, l, p, periodo, guardar);

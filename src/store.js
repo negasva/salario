@@ -3,7 +3,7 @@ import { ingresoEfectivo } from './engine/consejo.js';
 import { emergencyTarget, emergencyStatus } from './engine/metas.js';
 import { ordenadas, reasignar, mover, soltar } from './engine/fila.js';
 import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
-import { resumenItem, precargarFijos, sinHuerfanos } from './engine/pagos.js';
+import { resumenItem, sinHuerfanos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -144,8 +144,6 @@ export function activeId() {
   return db.active;
 }
 
-let precargado = false;
-
 function normalizeProfile(p) {
   p.items = p.items || [];
   p.items.forEach((it) => {
@@ -213,13 +211,6 @@ function normalizeProfile(p) {
   p.ingresoHistorial ??= [];
   p.tasaInteres ??= 10;
   p.fondoMeses ??= 4;
-  // F4 — los fijos marcados llegan pagados al mes nuevo, y se pueden editar.
-  // La marca dice que hay que persistirlo: normalizeProfile corre dentro de
-  // load(), antes de que exista un perfil activo al que guardarle.
-  if (precargarFijos(p.items, p.movs || [], periodoDe(hoyISO()), hoyISO())) {
-    sincronizarMetas(p);
-    precargado = true;
-  }
   sincronizarAutomaticas(p);
   p.recurrentes ??= [];
   p.medios ??= [...MEDIOS_BASE];
@@ -255,7 +246,6 @@ export function load() {
     db = { active: p.id, profiles: [p] };
     aplicarPaleta(p.paleta);
   }
-  if (precargado) { precargado = false; save(); }
 }
 
 function writeLocal() {
@@ -405,7 +395,6 @@ export async function bootAuth(uid) {
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;
     aplicarPaleta(active()?.paleta);
-    if (precargado) { precargado = false; db.profiles.forEach((x) => schedulePush(x.id)); }
     writeLocal();
     notify();
     return { migrated: false };

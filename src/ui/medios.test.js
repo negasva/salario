@@ -8,8 +8,14 @@ describe('estiloMedio', () => {
     expect(estiloMedio('Tarjeta de crédito').emoji).toBe('💳');
   });
 
+  it('cada medio conocido trae el ícono de su tipo de entidad', () => {
+    expect(estiloMedio('Bancolombia').ic).toBe('banco');
+    expect(estiloMedio('Nequi').ic).toBe('celular');
+    expect(estiloMedio('Efectivo').ic).toBe('billete');
+  });
+
   it('un medio inventado por el usuario cae en el ícono por defecto con su inicial', () => {
-    expect(estiloMedio('Alcancía')).toMatchObject({ emoji: '🏷️', inicial: 'A' });
+    expect(estiloMedio('Mi bolsillo')).toMatchObject({ emoji: '🏷️', ic: 'etiqueta', inicial: 'M' });
     expect(estiloMedio('')).toMatchObject({ inicial: '·' });
   });
 

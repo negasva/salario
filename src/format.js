@@ -5,12 +5,22 @@ export function noDecimals(cur) {
   return cur === 'COP' || cur === 'CLP' || cur === 'ARS';
 }
 
-export function money(v, cur) {
+/* En pesos las unidades sobran: $ 1.479.418 se lee peor que $ 1.479.400 y no
+   dice nada más. Se redondea a la centena más cercana solo de mil para arriba,
+   para no convertir un gasto de $ 30 en $ 0. `exacto` deja el número tal cual,
+   para lo que sí necesita cada peso: una tasa de cambio. */
+export function redondeoVista(v, cur) {
+  const n = Number(v) || 0;
+  return noDecimals(cur) && Math.abs(n) >= 1000 ? Math.round(n / 100) * 100 : n;
+}
+
+export function money(v, cur, exacto = false) {
   const d = noDecimals(cur) ? 0 : 2;
+  const n = exacto ? (Number(v) || 0) : redondeoVista(v, cur);
   try {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: cur, minimumFractionDigits: d, maximumFractionDigits: d }).format(v || 0);
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: cur, minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
   } catch {
-    return `${cur} ${Math.round(v || 0)}`;
+    return `${cur} ${Math.round(n)}`;
   }
 }
 

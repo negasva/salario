@@ -333,9 +333,9 @@
 /* ── historial ────────────────────────────────────────────────────────── */
 .line-arrastre{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:6px}
 .line-arrastre .sub{margin-top:0}
-.line-arrastre .arr-pasar{margin-left:auto}
-.arr-pasar{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
-.arr-pasar:hover{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
+.line-arrastre .arr-toggle{margin-left:auto}
+.arr-toggle.danger-action{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
+.arr-toggle.danger-action:hover{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
 .line-progreso{margin-top:var(--space-2)}
 .line-progreso-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)}
 .line-progreso-head .sub{margin-top:0}

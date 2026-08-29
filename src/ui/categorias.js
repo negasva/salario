@@ -526,21 +526,18 @@ function wireArrastre(scope, l, p, periodo, repintar) {
   if (!el) return;
   const siguiente = siguientePeriodo(periodo);
 
-  el.querySelector('.arr-pasar')?.addEventListener('click', () => {
+  el.querySelector('.arr-toggle')?.addEventListener('click', () => {
+    if (arrastreDe(l, siguiente) > 0) {
+      quitarArrastre(l, siguiente);
+      repintar();
+      toast('Ya no pasa nada al mes siguiente');
+      return;
+    }
     const falta = Math.max(0, planDeLinea(l, periodo) - (porLinea(p.movs, periodo)[l.id] || 0));
     if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
     pasarAlSiguiente(l, periodo, falta);
     repintar();
-    toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
-      quitarArrastre(l, siguiente);
-      repintar();
-    });
-  });
-
-  el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
-    quitarArrastre(l, siguiente);
-    repintar();
-    toast('Ya no pasa nada al mes siguiente');
+    toast(`${money(falta, p.cur)} pasan al mes siguiente`);
   });
 
   el.querySelector('.arr-quitar')?.addEventListener('click', () => {
@@ -601,12 +598,10 @@ function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
          este mes el renglón vale <b class="num">${money(plan, p.cur)}</b>.</span>
          <button class="mini arr-quitar">Quitar esa deuda</button>`
       : ''}
-    ${pendiente > 0 && esDeuda
-      ? `<button class="mini arr-pasar danger-action">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
-      : ''}
     ${yaPasado > 0
-      ? `<span class="sub">Ya pasaste <b class="num">${money(yaPasado, p.cur)}</b> a ${mes(siguientePeriodo(periodo))}.</span>
-         <button class="mini arr-deshacer">Deshacer</button>`
+      ? '<button class="mini arr-toggle on" aria-pressed="true">DEUDA PASADA AL SIGUIENTE MES</button>'
+      : pendiente > 0 && esDeuda
+      ? `<button class="mini arr-toggle danger-action" aria-pressed="false">Pasar los ${money(pendiente, p.cur)} que faltan a ${mes(siguientePeriodo(periodo))}</button>`
       : ''}
   </div>`;
 }

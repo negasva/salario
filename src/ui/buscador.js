@@ -48,7 +48,7 @@ export function abrirBuscador() {
   const { cuerpo, cerrar } = abrirModal({ titulo: 'Buscar' });
   cuerpo.innerHTML = `
       <label class="search wide">${icon('buscar', 'ic-sm')}
-        <input id="bqInput" placeholder="Un gasto, una meta, un renglón…" aria-label="Buscar en el perfil"></label>
+        <input id="bqInput" placeholder="Un gasto, una meta, un tipo de concepto…" aria-label="Buscar en el perfil"></label>
       <div id="bqRes"></div>`;
 
   const input = cuerpo.querySelector('#bqInput');

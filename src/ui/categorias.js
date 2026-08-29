@@ -222,7 +222,7 @@ function abrirCatSheet(root, it, p) {
       </div>
       ${cabeceraPagos(res, p, budget)}
       ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
-      ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
+      ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los tipos de concepto que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
       ${!it.locked && !it.auto && !b.cuadrado
         ? `<button class="wide mini cs-fix">${b.falta > 0
             ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
@@ -351,7 +351,7 @@ function explicacionAuto(res, p) {
   if (!res.cerradas) {
     return `${base}. Cuando pagues alguno, se ajusta con lo que de verdad te costó.`;
   }
-  const cuales = res.cerradas === 1 ? 'el renglón que ya pagaste' : `los ${res.cerradas} que ya pagaste`;
+  const cuales = res.cerradas === 1 ? 'el tipo de concepto que ya pagaste' : `los ${res.cerradas} que ya pagaste`;
   const ajustes = [
     res.ahorrado > 0 ? `menos <b class="num">${money(res.ahorrado, p.cur)}</b> que ahorraste` : '',
     res.excedido > 0 ? `más <b class="num">${money(res.excedido, p.cur)}</b> que se pasaron` : '',
@@ -567,7 +567,7 @@ function wireArrastre(scope, l, p, periodo, repintar) {
       return;
     }
     const falta = Math.max(0, planDeLinea(l, periodo) - (porLinea(p.movs, periodo)[l.id] || 0));
-    if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
+    if (!(falta > 0)) { toast('Este tipo de concepto ya está al día'); return; }
     pasarAlSiguiente(l, periodo, falta);
     repintar();
     toast(`${money(falta, p.cur)} pasan al mes siguiente`);
@@ -628,7 +628,7 @@ function filaArrastre(l, p, periodo, arrastre, pendiente, plan) {
   return `<div class="line-arrastre" data-lid="${l.id}">
     ${arrastre > 0
       ? `<span class="sub">Vienen <b class="num">${money(arrastre, p.cur)}</b> sin pagar de ${mes(mesAnterior(periodo))}:
-         este mes el renglón vale <b class="num">${money(plan, p.cur)}</b>.</span>
+         este mes el tipo de concepto vale <b class="num">${money(plan, p.cur)}</b>.</span>
          <button class="mini arr-quitar">Quitar esa deuda</button>`
       : ''}
     ${yaPasado > 0

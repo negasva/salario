@@ -107,7 +107,7 @@ function abrirCierre(root, p, periodo, cierres) {
         <span class="cc-n">${esc(c.it.n)}</span>
         <span class="num">${money(c.plan, p.cur)} → ${money(c.pagado, p.cur)}</span>
         <b class="num ${c.diferencia >= 0 ? 'ok' : 'over'}">${c.diferencia >= 0 ? '+' : '−'}${money(Math.abs(c.diferencia), p.cur)}</b>
-      </div>`).join('') || '<div class="empty">Ninguna categoría tiene renglones.</div>'}
+      </div>`).join('') || '<div class="empty">Ninguna categoría tiene tipos de concepto.</div>'}
       ${ahorro > 0 ? `
         <div class="label" style="margin:16px 0 8px">Repartir el ahorro</div>
         <div class="sub">Sobraron <b class="num ok">${money(ahorro, p.cur)}</b>. Repártelos entre los destinos que quieras;
@@ -208,7 +208,7 @@ function tarjetaPromedios(cierres, p) {
   const filas = promedioVariables(cierres);
   if (!filas.length) return '';
   return `<div class="card" style="margin-bottom:var(--sp-4)">
-    <span class="label">Gasto real promedio de tus renglones variables</span>
+    <span class="label">Gasto real promedio de tus tipos de concepto variables</span>
     <div class="hist-list" style="margin-top:8px">${filas.map((f) => `
       <div class="sub cc-cat">
         <span class="cc-n">${esc(f.nombre || 'sin nombre')}</span>
@@ -216,7 +216,7 @@ function tarjetaPromedios(cierres, p) {
         <b class="num ${f.brecha >= 0 ? 'ok' : 'over'}">${f.brecha >= 0 ? 'sobra' : 'falta'} ${money(Math.abs(f.brecha), p.cur)}</b>
       </div>`).join('')}</div>
     <div class="sub" style="margin-top:8px">Promedios de ${filas[0].meses} mes${filas[0].meses > 1 ? 'es' : ''} cerrados.
-      Si un renglón sobra todos los meses, bájale el plan y manda la diferencia a una meta.</div>
+      Si un tipo de concepto sobra todos los meses, bájale el plan y manda la diferencia a una meta.</div>
   </div>`;
 }
 

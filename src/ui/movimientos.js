@@ -139,7 +139,7 @@ export function renderMovimientos(root, args = {}) {
     const it = p.items.find((x) => x.L?.some((l) => l.id === filtroLinea));
     const l = it?.L?.find((x) => x.id === filtroLinea);
     box.innerHTML = `<div class="card mov-filtro">
-      <span class="sub" style="margin:0">Viendo solo <b>${esc(l?.n || 'un renglón')}</b>.</span>
+      <span class="sub" style="margin:0">Viendo solo <b>${esc(l?.n || 'un tipo de concepto')}</b>.</span>
       <button class="mini" id="mvVerTodo">Ver todos</button>
     </div>`;
     box.querySelector('#mvVerTodo').onclick = () => { filtroLinea = null; pintarCuerpo(); };
@@ -186,7 +186,7 @@ export function renderMovimientos(root, args = {}) {
 
     const lista = $('#mvLista');
     if (!delMes.length) {
-      lista.innerHTML = '<div class="card"><div class="empty">' + (filtroLinea ? 'Sin movimientos para este renglón en este mes.' : 'Sin movimientos en este mes.') + '</div></div>';
+      lista.innerHTML = '<div class="card"><div class="empty">' + (filtroLinea ? 'Sin movimientos para este tipo de concepto en este mes.' : 'Sin movimientos en este mes.') + '</div></div>';
       return;
     }
 

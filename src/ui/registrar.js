@@ -159,7 +159,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
           <select id="regItem">${p.items.length
             ? p.items.map((it) => `<option value="${it.id}" data-c="${it.c}" style="color:${it.c}" ${previo?.itemId === it.id ? 'selected' : ''}>● ${esc(it.n)}</option>`).join('')
             : '<option value="">Sin categorías todavía</option>'}</select></span></div>
-        <div class="fld"><label for="regLine">Renglón</label>
+        <div class="fld"><label for="regLine">Tipo de concepto</label>
           <select id="regLine"></select></div>
       </div>
 
@@ -200,7 +200,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
 
   function pintarRenglones() {
     const it = p.items.find((x) => x.id === itemEl.value);
-    lineEl.innerHTML = `<option value="">Sin renglón</option>${(it?.L || [])
+    lineEl.innerHTML = `<option value="">Sin tipo de concepto</option>${(it?.L || [])
       .map((l) => `<option value="${l.id}" ${previo?.lineId === l.id ? 'selected' : ''}>${esc(l.n || 'sin nombre')}</option>`).join('')}`;
     pintarPuntoItem();
     pintarAbono();

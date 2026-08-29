@@ -6,8 +6,9 @@ import { ordenadas, estadoDe } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
-  pagosLibresDeItem } from '../engine/pagos.js';
+  pagosLibresDeItem, quitarMovsDe, estadoLinea, pctPagado } from '../engine/pagos.js';
 import { icon } from './icons.js';
+import { abrirModal } from './modal.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
@@ -155,49 +156,123 @@ function wireMeta(root, g, p) {
   });
 }
 
+/* F11 — la categoría es un bloque como sus ítems, pero con su propio color:
+   colapsada solo dice nombre, cifras y editar. El resto va al pop-up. */
 function catCard(it, p, gastadoLinea, periodo) {
   const pagosLibres = pagosLibresDeItem(p.movs, it.id, periodo);
   const res = resumenItem(it, gastadoLinea, periodo,
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
+  const estado = estadoLinea(res.pagado, budget, false);
   return `
-  <div class="card cat-card${it.locked ? ' locked' : ''}${budget > 0 && res.pagado > budget ? ' cat-desfase' : ''}" data-id="${it.id}">
-    <div class="cat-top">
+  <div class="cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
+    <div class="bloque bloque-cat est-${estado}" style="--pct:${pctPagado(res.pagado, budget)}%">
       <span class="dot" style="background:${it.c}"></span>
-      <input class="cat-name" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}>
-      <button class="mini cat-lock ${it.locked ? 'on is-locked' : ''}" aria-pressed="${!!it.locked}"
-        title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
-      ${budget > 0 && res.pagado > budget ? `<span class="badge bad">desfase ${money(r2(res.pagado - budget), p.cur)}</span>` : ''}
-      <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
+      <span class="bloque-n">${esc(it.n)}
+        ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
+        ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
+      <b class="bloque-m num">${money(budget, p.cur)}</b>
+      <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
+      <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
+        ${res.total ? ` · ${res.cerradas} de ${res.total} pagados` : ''}
+        ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
     </div>
-    ${cabeceraPagos(res, p, budget)}
-    <div class="cat-fields">
-      <label class="fieldw money-field"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
-        <span class="money-symbol" aria-hidden="true">$</span>
-        <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
-          ${it.locked || it.auto ? 'disabled' : ''}></label>
-      <div class="chips cat-modo">
-        <button class="chip ${it.auto ? '' : 'on'}" data-auto="0" ${it.locked ? 'disabled' : ''}>A mano</button>
-        <button class="chip ${it.auto ? 'on' : ''}" data-auto="1" ${it.locked ? 'disabled' : ''}
-          title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
-      </div>
-    </div>
-    ${(it.auto || (!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1)) ? `<div class="sub cat-share">
-      ${it.auto ? `<span>${explicacionAuto(res, p)}</span>` : ''}
-      ${!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1
-        ? `<button class="mini cat-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>`
-        : ''}</div>` : ''}
-    <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
-    <div class="cat-detail">
-      <div class="detail-head"><span class="label">Detalle</span>
-        <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
-        <button class="btn-plus cat-plus">+</button></div>
+    <div class="cat-items">
       <div class="lines">${lines(it, p, res)}</div>
       ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
         ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
       </div>` : ''}
+      <div class="cat-acciones">
+        <button class="mini cat-plus">+ Concepto</button>
+        <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
+      </div>
     </div>
   </div>`;
+}
+
+/* El pop-up de la categoría: el mismo componente modal que usan los ítems. */
+function abrirCatSheet(root, it, p) {
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Categoría', alCerrar: () => renderCategorias(root) });
+
+  const guardar = () => { store.save(); pintar(); };
+
+  function setMonto(v) {
+    if (it.locked) { toast('Desbloquea la categoría para cambiarle el monto'); return; }
+    it.m = Math.max(0, Math.round(v));
+    guardar();
+  }
+
+  function pintar() {
+    const periodo = periodoDe(hoyISO());
+    const res = resumenItem(it, porLinea(p.movs, periodo), periodo,
+      pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0));
+    const budget = amount(it);
+    const b = balance(p.items, store.incomeRepartir(p), p.goals);
+    const desajuste = !it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1;
+
+    cuerpo.innerHTML = `
+      <div class="fieldw"><span>Nombre</span><input class="cs-n" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}></div>
+      <div class="fieldw money-field"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
+        <input class="cs-m num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
+          ${it.locked || it.auto ? 'disabled' : ''}></div>
+      <div class="chips cs-modo">
+        <button class="chip ${it.auto ? '' : 'on'}" data-auto="0" ${it.locked ? 'disabled' : ''}>A mano</button>
+        <button class="chip ${it.auto ? 'on' : ''}" data-auto="1" ${it.locked ? 'disabled' : ''}
+          title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
+      </div>
+      ${cabeceraPagos(res, p, budget)}
+      ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
+      ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
+      ${!it.locked && !it.auto && !b.cuadrado
+        ? `<button class="wide mini cs-fix">${b.falta > 0
+            ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
+            : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`}</button>`
+        : ''}
+      <div class="label">Color</div>
+      <div class="cs-colores">${PALETTE.map((c) => `<button class="cs-color${c === it.c ? ' on' : ''}"
+        data-c="${c}" style="background:${c}" aria-label="Color ${c}" aria-pressed="${c === it.c}"></button>`).join('')}</div>
+      <button class="wide mini cs-lock ${it.locked ? 'on' : ''}" aria-pressed="${!!it.locked}">
+        ${icon('candado', 'ic-sm')} ${it.locked ? 'Desbloquear categoría' : 'Bloquear categoría'}</button>
+      <button class="wide cs-del danger-action">Borrar categoría</button>`;
+
+    cuerpo.querySelector('.cs-n').onchange = (e) => { it.n = e.target.value; guardar(); };
+    cuerpo.querySelector('.cs-m').onchange = (e) => setMonto(digits(e.target.value));
+    cuerpo.querySelector('.cs-ajustar')?.addEventListener('click', () => setMonto(res.costo));
+    cuerpo.querySelector('.cs-fix')?.addEventListener('click', () => setMonto(budget + b.dif));
+
+    cuerpo.querySelector('.cs-modo').onclick = (e) => {
+      const btn = e.target.closest('.chip');
+      if (!btn || btn.disabled) return;
+      it.auto = btn.dataset.auto === '1';
+      guardar();
+      toast(it.auto ? 'Esta categoría ya se calcula sola' : 'Ahora le pones el monto tú');
+    };
+
+    cuerpo.querySelector('.cs-colores').onclick = (e) => {
+      const btn = e.target.closest('.cs-color');
+      if (!btn) return;
+      it.c = btn.dataset.c;
+      guardar();
+    };
+
+    cuerpo.querySelector('.cs-lock').onclick = () => { it.locked = !it.locked; guardar(); };
+
+    cuerpo.querySelector('.cs-del').onclick = () => {
+      if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
+      if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
+      const idx = p.items.indexOf(it);
+      let pagos = [];
+      const { undo } = store.stageDelete(
+        () => { p.items.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'itemId', it.id); },
+        () => { p.items.splice(idx, 0, it); p.movs.push(...pagos); }
+      );
+      cerrar();
+      toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
+    };
+  }
+
+  pintar();
 }
 
 /* F5 — cada meta es un bloque más del reparto: mismo tamaño, misma tarjeta,
@@ -295,82 +370,197 @@ function pagoChip(m, p) {
   </span>`;
 }
 
-function openPagoEditor(root, it, p, mov = null) {
+function openPagoEditor(it, p, mov = null, repintar) {
   const line = mov?.lineId ? it.L.find((l) => l.id === mov.lineId) : null;
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay on';
-  document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-  overlay.innerHTML = `
-    <div class="sheet pago-sheet">
-      <div class="sheet-head">
-        <h3>${mov ? 'Editar pago' : 'Agregar pago'}</h3>
-        <button class="btn-del" id="pagoClose" aria-label="Cerrar">${icon('cerrar')}</button>
-      </div>
+  const { cuerpo, cerrar } = abrirModal({ titulo: mov ? 'Editar pago' : 'Agregar pago' });
+  cuerpo.innerHTML = `
       <div class="pago-form">
         <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(mov?.nota || line?.n || '')}" placeholder="Ej. almuerzo"></label>
         <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
         <label class="fieldw"><span>Fecha</span><input id="pagoFecha" type="date" value="${mov?.fecha || hoyISO()}"></label>
       </div>
       <button class="wide btn-primary" id="pagoSave">${mov ? 'Guardar cambios' : 'Guardar pago'}</button>
-      <button class="wide" id="pagoCancel">Cancelar</button>
-    </div>`;
+      <button class="wide" id="pagoCancel">Cancelar</button>`;
 
-  const close = () => {
-    overlay.remove();
-    document.body.style.overflow = '';
-  };
-  overlay.querySelector('#pagoClose').onclick = close;
-  overlay.querySelector('#pagoCancel').onclick = close;
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  overlay.querySelector('#pagoSave').onclick = () => {
-    const monto = digits(overlay.querySelector('#pagoMonto').value);
+  cuerpo.querySelector('#pagoCancel').onclick = cerrar;
+  cuerpo.querySelector('#pagoSave').onclick = () => {
+    const monto = digits(cuerpo.querySelector('#pagoMonto').value);
     if (monto <= 0) {
-      overlay.querySelector('#pagoMonto').focus();
+      cuerpo.querySelector('#pagoMonto').focus();
       return;
     }
     const datos = {
-      fecha: overlay.querySelector('#pagoFecha').value || hoyISO(),
+      fecha: cuerpo.querySelector('#pagoFecha').value || hoyISO(),
       monto,
-      nota: overlay.querySelector('#pagoNombre').value.trim() || (line?.n || 'Pago'),
+      nota: cuerpo.querySelector('#pagoNombre').value.trim() || (line?.n || 'Pago'),
     };
     if (mov) Object.assign(mov, datos);
     else agregarPagoLibre(p.movs, it, datos.monto, datos.fecha, datos.nota);
     store.save();
-    close();
-    renderCategorias(root);
+    cerrar();
+    repintar();
     toast(mov ? 'Pago actualizado' : 'Pago guardado');
   };
 }
 
+/* F10 — cada concepto es un solo bloque: nombre, monto y editar. El bloque ES
+   la barra de progreso —el relleno va detrás del texto— y todo lo demás
+   (pagos, toggles, arrastre, borrar) vive en el pop-up. */
 function lines(it, p, res) {
   if (!res.total) return '<div class="empty">Sin nada en la lista.</div>';
-  return res.filas.map(({ l, plan, pagado, arrastre, pendiente, diferencia, estado }) => {
-    return `
-    <div class="concepto-card" data-lid="${l.id}">
-      <div class="line">
-        <input class="ln" value="${esc(l.n)}" placeholder="Concepto">
-        <label class="money-input" title="Monto planeado">
-          <span class="money-symbol" aria-hidden="true">$</span>
-          <input class="lv num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0">
-        </label>
-        <button class="mini lx" title="Eliminar concepto" aria-label="Eliminar concepto">${icon('cerrar', 'ic-sm')}</button>
-      </div>
-      <div class="line-pago" data-lid="${l.id}">
+  return res.filas.map((f) => bloqueItem(f, p)).join('');
+}
+
+function bloqueItem({ l, plan, pagado, estado }, p) {
+  return `
+    <div class="bloque bloque-item est-${estado}" data-lid="${l.id}" style="--pct:${pctPagado(pagado, plan)}%">
+      <span class="bloque-n">${esc(l.n || 'Sin nombre')}${estado === 'pagado'
+        ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}</span>
+      <b class="bloque-m num">${money(plan, p.cur)}</b>
+      <button class="bloque-ed" aria-label="Editar ${esc(l.n || 'concepto')}">${icon('lapiz', 'ic-sm')}</button>
+    </div>`;
+}
+
+/* El pop-up del concepto: todo lo que antes colgaba de la tarjeta. Se repinta
+   solo tras cada cambio y la lista de atrás se refresca al cerrar. */
+function abrirItemSheet(root, it, l, p) {
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Concepto', alCerrar: () => renderCategorias(root) });
+
+  const guardar = () => { store.save(); pintar(); };
+
+  function pintar() {
+    const periodo = periodoDe(hoyISO());
+    const plan = planDeLinea(l, periodo);
+    const pagado = r2(porLinea(p.movs, periodo)[l.id] || 0);
+    const pendiente = Math.max(0, r2(plan - pagado));
+    const estado = estadoLinea(pagado, plan, l.pagadoEn === periodo);
+
+    cuerpo.innerHTML = `
+      <div class="fieldw"><span>Nombre</span><input class="is-n" value="${esc(l.n)}" placeholder="Concepto"></div>
+      <div class="fieldw money-field"><span>Monto planeado · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
+        <input class="is-v num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0"></div>
+      ${filaEstado(estado, r2(plan - pagado), plan, p)}
+      ${barraGasto(pagado, plan, p)}
+      <div class="line-pago">
         <label class="fieldw money-field"><span>Agregar pago</span><span class="money-symbol" aria-hidden="true">$</span>
-          <input class="lpag num" inputmode="numeric" placeholder="0"></label>
-        <button class="mini lpag-add" title="Sumar este pago al renglón">+</button>
-        <button class="mini lcerrar ${l.pagadoEn === res.periodo ? 'on' : ''}"
-          aria-pressed="${l.pagadoEn === res.periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-        ${l.fixed !== false ? `<button class="mini lauto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
+          <input class="is-pago num" inputmode="numeric" placeholder="0"></label>
+        <label class="fieldw"><span>Fecha</span><input class="is-fecha" type="date" value="${hoyISO()}"></label>
+        <button class="mini is-pago-add" title="Sumar este pago al concepto">+</button>
+      </div>
+      ${listaPagos(l, p, periodo)}
+      <div class="line-pago">
+        <button class="mini lcerrar is-cerrar ${l.pagadoEn === periodo ? 'on' : ''}"
+          aria-pressed="${l.pagadoEn === periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
+        ${l.fixed !== false ? `<button class="mini is-auto ${l.autoPagar ? 'on' : ''}" aria-pressed="${!!l.autoPagar}"
           title="Cada mes nuevo entra ya pagado, y lo puedes cambiar">${icon('recurrente', 'ic-sm')} Precargar cada mes</button>` : ''}
       </div>
-      ${filaEstado(estado, diferencia, plan, p)}
-      ${listaPagos(l, p, res.periodo)}
-      ${barraGasto(pagado, plan, p)}
-      ${filaArrastre(l, p, res.periodo, arrastre, pendiente, plan)}
-    </div>`;
-  }).join('');
+      ${filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
+      <button class="wide is-del danger-action">Borrar concepto</button>`;
+
+    cuerpo.querySelector('.is-n').onchange = (e) => { l.n = e.target.value; guardar(); };
+    cuerpo.querySelector('.is-v').onchange = (e) => { l.v = digits(e.target.value); guardar(); };
+
+    const campo = cuerpo.querySelector('.is-pago');
+    function sumar() {
+      const monto = digits(campo.value);
+      if (!monto) { campo.focus(); return; }
+      agregarPago(p.movs, it, l, monto, cuerpo.querySelector('.is-fecha').value || hoyISO());
+      guardar();
+    }
+    cuerpo.querySelector('.is-pago-add').onclick = sumar;
+    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
+
+    cuerpo.querySelector('.is-cerrar').onclick = () => {
+      if (l.pagadoEn === periodo) {
+        l.pagadoEn = null;
+      } else {
+        // autocompleta solo si todavía no hay ningún pago; con plata puesta, la respeta
+        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO());
+        l.pagadoEn = periodo;
+      }
+      guardar();
+    };
+
+    cuerpo.querySelector('.is-auto')?.addEventListener('click', () => {
+      l.autoPagar = !l.autoPagar;
+      guardar();
+      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
+    });
+
+    wirePagos(cuerpo, it, p, guardar);
+    wireArrastre(cuerpo, l, p, periodo, guardar);
+
+    cuerpo.querySelector('.is-del').onclick = () => {
+      const idx = it.L.indexOf(l);
+      let pagos = [];
+      const { undo } = store.stageDelete(
+        () => { it.L.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'lineId', l.id); },
+        () => { it.L.splice(idx, 0, l); p.movs.push(...pagos); }
+      );
+      cerrar();
+      toast('Concepto eliminado', () => { undo(); renderCategorias(root); });
+    };
+  }
+
+  pintar();
+}
+
+/* Los chips de pago se editan y se borran igual en el pop-up del concepto y en
+   los pagos sueltos de la categoría. */
+function wirePagos(scope, it, p, repintar) {
+  scope.querySelectorAll('.pago-chip').forEach((chip) => {
+    chip.querySelector('.pago-ed').onclick = () => {
+      const mov = p.movs.find((m) => m.id === chip.dataset.mid);
+      if (mov) openPagoEditor(it, p, mov, repintar);
+    };
+    chip.querySelector('.pago-x').onclick = () => {
+      const mov = p.movs.find((m) => m.id === chip.dataset.mid);
+      const { undo } = store.stageDelete(
+        () => quitarPago(p.movs, chip.dataset.mid),
+        () => p.movs.push(mov)
+      );
+      repintar();
+      toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); repintar(); });
+    };
+  });
+}
+
+/* Lo que no alcanzaste a pagar este mes se pasa al siguiente. Es un botón y
+   no algo automático a propósito: la app no cierra meses sola cuando estás
+   sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. */
+function wireArrastre(scope, l, p, periodo, repintar) {
+  const el = scope.querySelector('.line-arrastre');
+  if (!el) return;
+  const siguiente = siguientePeriodo(periodo);
+
+  el.querySelector('.arr-pasar')?.addEventListener('click', () => {
+    const falta = Math.max(0, planDeLinea(l, periodo) - (porLinea(p.movs, periodo)[l.id] || 0));
+    if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
+    pasarAlSiguiente(l, periodo, falta);
+    repintar();
+    toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
+      quitarArrastre(l, siguiente);
+      repintar();
+    });
+  });
+
+  el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
+    quitarArrastre(l, siguiente);
+    repintar();
+    toast('Ya no pasa nada al mes siguiente');
+  });
+
+  el.querySelector('.arr-quitar')?.addEventListener('click', () => {
+    const monto = arrastreDe(l, periodo);
+    quitarArrastre(l, periodo);
+    repintar();
+    toast(`Quitaste ${money(monto, p.cur)} de deuda vieja`, () => {
+      l.arrastre = l.arrastre || {};
+      l.arrastre[periodo] = monto;
+      repintar();
+    });
+  });
 }
 
 /* F4 — cómo va el renglón en una línea: el estado y, cuando ya está cerrado,
@@ -433,211 +623,26 @@ function wireCard(root, it, p) {
   const card = root.querySelector(`.cat-card[data-id="${it.id}"]`);
   if (!card) return;
 
-  // la plata asignada es lo único que se edita: el porcentaje sale de ella
-  function setMonto(v) {
-    it.m = Math.max(0, Math.round(v));
-    store.save();
-    renderCategorias(root);
-  }
+  // el bloque entero abre su pop-up; el lápiz es solo la señal de que se puede
+  card.querySelector('.bloque-cat').onclick = () => abrirCatSheet(root, it, p);
 
-  card.querySelector('.cat-name').oninput = (e) => { it.n = e.target.value; store.save(); };
-  card.querySelector('.cat-monto').onchange = (e) => setMonto(digits(e.target.value));
-
-  // el plan de renglones ya está sumado abajo: un clic lo sube al presupuesto
-  card.querySelector('.cat-ajustar')?.addEventListener('click', () => {
-    if (it.locked) { toast('Desbloquea la categoría para cambiarle el monto'); return; }
-    setMonto(resumenItem(it, porLinea(p.movs, periodoDe(hoyISO())), periodoDe(hoyISO())).costo);
+  card.querySelectorAll('.bloque-item').forEach((el) => {
+    const l = it.L.find((x) => x.id === el.dataset.lid);
+    if (l) el.onclick = () => abrirItemSheet(root, it, l, p);
   });
-
-  card.querySelector('.cat-modo').addEventListener('click', (e) => {
-    const btn = e.target.closest('.chip');
-    if (!btn || btn.disabled) return;
-    it.auto = btn.dataset.auto === '1';
-    store.save();
-    renderCategorias(root);
-    toast(it.auto ? 'Esta categoría ya se calcula sola' : 'Ahora le pones el monto tú');
-  });
-
-  const fixBtn = card.querySelector('.cat-fix');
-  const b = balance(p.items, store.incomeRepartir(p), p.goals);
-  if (!it.locked && !it.auto && !b.cuadrado) {
-    fixBtn.textContent = b.falta > 0
-      ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
-      : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`;
-    fixBtn.onclick = () => setMonto(amount(it) + b.dif);
-  } else {
-    fixBtn.textContent = b.cuadrado ? 'Cuadrado' : it.auto ? 'Se calcula sola' : 'Bloqueada';
-    fixBtn.disabled = true;
-  }
-
-  card.querySelector('.cat-lock').onclick = () => { it.locked = !it.locked; store.save(); renderCategorias(root); };
-
-  card.querySelector('.cat-del').onclick = () => {
-    if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
-    if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
-    const idx = p.items.indexOf(it);
-    const { undo } = store.stageDelete(
-      () => p.items.splice(idx, 1),
-      () => p.items.splice(idx, 0, it)
-    );
-    renderCategorias(root);
-    toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
-  };
 
   card.querySelector('.cat-plus').onclick = () => {
-    it.L.push({ id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true });
+    const l = { id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true };
+    it.L.push(l);
     store.save();
     renderCategorias(root);
+    abrirItemSheet(root, it, l, p);
   };
-  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(root, it, p);
 
-  card.querySelectorAll('.deu-fila').forEach((el) => {
-    const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-    el.querySelectorAll('.dv').forEach((inp) => {
-      inp.onchange = (e) => {
-        const k = inp.dataset.k;
-        l[k] = k === 'tasa' ? Number(String(e.target.value).replace(',', '.')) || 0
-          : k === 'diaPago' ? Math.min(31, Math.max(0, digits(e.target.value)))
-            : digits(e.target.value);
-        store.save();
-        renderCategorias(root);
-      };
-    });
-    // una deuda es indefinida (solo día de corte) o tiene fecha final
-    el.querySelectorAll('.deu-tipo').forEach((b) => {
-      b.onclick = () => {
-        l.fechaLimite = b.dataset.tipo === 'fecha' ? (l.fechaLimite || hoyISO()) : null;
-        store.save();
-        renderCategorias(root);
-      };
-    });
-    const fecha = el.querySelector('.deu-fecha');
-    if (fecha) fecha.onchange = (e) => { l.fechaLimite = e.target.value || null; store.save(); renderCategorias(root); };
-  });
+  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
 
-  /* El pago real. El campo es el total del mes: escribirlo ajusta el libro de
-     movimientos, que es el único sitio donde vive lo pagado. El toggle solo
-     autocompleta si el campo está vacío; con plata escrita, respeta el número. */
-  const periodo = periodoDe(hoyISO());
-  card.querySelectorAll('.line-pago').forEach((el) => {
-    const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-
-    const campo = el.querySelector('.lpag');
-    function sumar() {
-      const monto = digits(campo.value);
-      if (!monto) { campo.focus(); return; }
-      agregarPago(p.movs, it, l, monto, hoyISO());
-      store.save();
-      renderCategorias(root);
-    }
-    el.querySelector('.lpag-add').onclick = sumar;
-    // Enter suma sin soltar el teclado: son varias compras seguidas, no una
-    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
-
-    el.querySelector('.lauto')?.addEventListener('click', () => {
-      l.autoPagar = !l.autoPagar;
-      store.save();
-      renderCategorias(root);
-      toast(l.autoPagar ? 'Cada mes nuevo entrará marcado como pagado' : 'Ya no se precarga');
-    });
-
-    el.querySelector('.lcerrar').onclick = () => {
-      if (l.pagadoEn === periodo) {
-        l.pagadoEn = null;
-      } else {
-        // autocompleta solo si todavía no hay ningún pago; con plata puesta, la respeta
-        if (!(porLinea(p.movs, periodo)[l.id] || 0)) agregarPago(p.movs, it, l, planDeLinea(l, periodo), hoyISO());
-        l.pagadoEn = periodo;
-      }
-      store.save();
-      renderCategorias(root);
-    };
-  });
-
-  card.querySelectorAll('.pagos-lista').forEach((el) => {
-    el.querySelectorAll('.pago-chip').forEach((chip) => {
-      chip.querySelector('.pago-ed').onclick = () => {
-        const mov = p.movs.find((m) => m.id === chip.dataset.mid);
-        if (mov) openPagoEditor(root, it, p, mov);
-      };
-      chip.querySelector('.pago-x').onclick = () => {
-        const mov = p.movs.find((m) => m.id === chip.dataset.mid);
-        const { undo } = store.stageDelete(
-          () => quitarPago(p.movs, chip.dataset.mid),
-          () => p.movs.push(mov)
-        );
-        renderCategorias(root);
-        toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); renderCategorias(root); });
-      };
-    });
-  });
-
-  /* Lo que no alcanzaste a pagar este mes se pasa al siguiente. Es un botón y
-     no algo automático a propósito: la app no cierra meses sola cuando estás
-     sin conexión, y adivinar deudas ajenas sería peor que preguntarlas. */
-  card.querySelectorAll('.line-arrastre').forEach((el) => {
-    const l = it.L.find((x) => x.id === el.dataset.lid);
-    if (!l) return;
-    const siguiente = siguientePeriodo(periodo);
-
-    el.querySelector('.arr-pasar')?.addEventListener('click', () => {
-      const pagados = porLinea(p.movs, periodo);
-      const falta = Math.max(0, planDeLinea(l, periodo) - (pagados[l.id] || 0));
-      if (!(falta > 0)) { toast('Este renglón ya está al día'); return; }
-      pasarAlSiguiente(l, periodo, falta);
-      store.save();
-      renderCategorias(root);
-      toast(`${money(falta, p.cur)} pasan al mes siguiente`, () => {
-        quitarArrastre(l, siguiente);
-        store.save();
-        renderCategorias(root);
-      });
-    });
-
-    el.querySelector('.arr-deshacer')?.addEventListener('click', () => {
-      quitarArrastre(l, siguiente);
-      store.save();
-      renderCategorias(root);
-      toast('Ya no pasa nada al mes siguiente');
-    });
-
-    el.querySelector('.arr-quitar')?.addEventListener('click', () => {
-      const monto = arrastreDe(l, periodo);
-      quitarArrastre(l, periodo);
-      store.save();
-      renderCategorias(root);
-      toast(`Quitaste ${money(monto, p.cur)} de deuda vieja`, () => {
-        l.arrastre = l.arrastre || {};
-        l.arrastre[periodo] = monto;
-        store.save();
-        renderCategorias(root);
-      });
-    });
-  });
-
-  card.querySelector('.deu-metodo')?.addEventListener('click', (e) => {
-    const b = e.target.closest('.chip');
-    if (!b) return;
-    p.metodoDeuda = b.dataset.m;
-    store.save();
-    renderCategorias(root);
-  });
-
-  card.querySelectorAll('.line:not(.line-meta)').forEach((lineEl) => {
-    const lid = lineEl.dataset.lid || lineEl.closest('.concepto-card')?.dataset.lid;
-    const l = it.L.find((x) => x.id === lid);
-    if (!l) return;
-    lineEl.querySelector('.ln').oninput = (e) => { l.n = e.target.value; store.save(); };
-    lineEl.querySelector('.lv').onchange = (e) => { l.v = digits(e.target.value); store.save(); renderCategorias(root); };
-    lineEl.querySelector('.lx').onclick = () => {
-      const idx = it.L.indexOf(l);
-      const { undo } = store.stageDelete(() => it.L.splice(idx, 1), () => it.L.splice(idx, 0, l));
-      renderCategorias(root);
-      toast('Renglón eliminado', () => { undo(); renderCategorias(root); });
-    };
-  });
+  // los pagos sueltos de la categoría: los del concepto viven en su pop-up
+  wirePagos(card, it, p, () => renderCategorias(root));
 }
 
 // F12 — plantillas + F16 — de dónde sale la plata de una categoría nueva

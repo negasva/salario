@@ -3,7 +3,7 @@ import { ingresoEfectivo } from './engine/consejo.js';
 import { emergencyTarget, emergencyStatus } from './engine/metas.js';
 import { ordenadas, reasignar, mover, soltar } from './engine/fila.js';
 import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
-import { resumenItem, precargarFijos } from './engine/pagos.js';
+import { resumenItem, precargarFijos, sinHuerfanos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { periodosPendientes, construirSnapshot } from './engine/cierre.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
@@ -192,7 +192,7 @@ function normalizeProfile(p) {
   // primero se fija la base con todos los movimientos, y lo que la poda se lleve
   // se suma a esa base: podar dos años de libro no puede borrar tu progreso
   sincronizarMetas(p);
-  const antes = p.movs ?? [];
+  const antes = sinHuerfanos(p.movs ?? [], p.items);
   p.movs = podar(antes);
   const podados = antes.filter((m) => !p.movs.includes(m));
   if (podados.length) {

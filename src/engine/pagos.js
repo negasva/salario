@@ -48,6 +48,13 @@ export function estadoLinea(pagado, plan, cerrado) {
   return pagado > 0 ? 'parcial' : 'pendiente';
 }
 
+/* Cuánto se llena el bloque: lo pagado sobre lo planeado, tope 100. Pasarse
+   no pinta más del 100%, se marca con el color de exceso. */
+export function pctPagado(pagado, plan) {
+  const pct = plan > 0 ? (pagado / plan) * 100 : pagado > 0 ? 100 : 0;
+  return Math.min(100, Math.max(0, Math.round(pct)));
+}
+
 const CERRADAS = ['pagado', 'excedido'];
 
 export function resumenItem(it, pagadoPorLinea = {}, periodo, pagadoLibre = 0) {
@@ -186,4 +193,22 @@ export function promedioVariables(cierres, minimoMeses = 2) {
       promedio: r2(a.real / a.meses), brecha: r2(a.plan - r2(a.real / a.meses)) }))
     .filter((x) => x.meses >= minimoMeses)
     .sort((a, b) => Math.abs(b.brecha) - Math.abs(a.brecha));
+}
+
+/* Borrar un renglón o una categoría se lleva sus pagos. Si no, quedan
+   movimientos huérfanos: el buscador los sigue encontrando y, al recrear el
+   gasto con el mismo nombre, salen las dos versiones. Devuelve lo quitado
+   para poder deshacer. */
+export function quitarMovsDe(movs, campo, id) {
+  const fuera = movs.filter((m) => m[campo] === id);
+  fuera.forEach((m) => movs.splice(movs.indexOf(m), 1));
+  return fuera;
+}
+
+/* Perfiles viejos ya traen pagos huérfanos de renglones y categorías borrados
+   antes de que el borrado se los llevara. Se limpian al cargar, una vez. */
+export function sinHuerfanos(movs = [], items = []) {
+  const itemIds = new Set(items.map((it) => it.id));
+  const lineIds = new Set(items.flatMap((it) => (it.L || []).map((l) => l.id)));
+  return movs.filter((m) => (!m.itemId || itemIds.has(m.itemId)) && (!m.lineId || lineIds.has(m.lineId)));
 }

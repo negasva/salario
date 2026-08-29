@@ -1,5 +1,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;max-width:100%;overflow-x:hidden}
+/* el body nunca se desplaza en horizontal, y no por taparlo con overflow
+   hidden: lo ancho —nav, tablas, gráficas— se desplaza dentro de su caja */
+html,body{width:100%;max-width:100%}
 html{background:var(--pink-wash)}
 body{margin:0;background:var(--pink-wash);color:var(--ink);font-family:var(--font-sans);
   font-size:var(--text-sm);line-height:1.45;-webkit-font-smoothing:antialiased}
@@ -19,6 +21,8 @@ button.mini{padding:6px 10px;font-size:var(--text-xs)}
 
 input,select{background:var(--white);border:1px solid var(--pink-lighter);border-radius:var(--radius-sm);
   padding:9px 12px;font-size:var(--text-sm)}
+/* un select se estira hasta su opción más larga y saca la pantalla de quicio */
+select{max-width:100%;min-width:0}
 input:focus,select:focus{outline:none;border-color:var(--pink)}
 input::placeholder{color:var(--ink-lighter);opacity:.7}
 

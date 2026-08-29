@@ -8,6 +8,7 @@ import { excedente } from '../engine/consejo.js';
 import { clasificarConIA } from '../ia.js';
 import { anuncio } from './anuncio.js';
 import { icon } from './icons.js';
+import { etiquetaMedio } from './medios.js';
 import { toast } from './shell.js';
 
 /* F3 — un solo formulario de movimientos, en hoja, para toda la app: el botón
@@ -148,7 +149,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
           <input type="date" id="regFecha" value="${previo?.fecha || hoyISO()}"></div>
         <div class="fld" style="flex:1"><label for="regMedio">Medio de pago</label>
           <select id="regMedio"><option value="">Sin medio</option>
-            ${(p.medios || []).map((m) => `<option value="${esc(m)}" ${previo?.medio === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+            ${(p.medios || []).map((m) => `<option value="${esc(m)}" ${previo?.medio === m ? 'selected' : ''}>${esc(etiquetaMedio(m))}</option>`).join('')}
           </select></div>
       </div>
 

@@ -6,6 +6,7 @@ import { estadoNotificaciones, pedirPermisoNotificaciones } from './avisos.js';
 import { MONEDAS, tasa } from '../engine/moneda.js';
 import { abrirOnboarding } from './onboarding.js';
 import { PALETAS, normalizarPaleta } from '../theme.js';
+import { badgeMedio } from './medios.js';
 
 export function renderAjustes(root) {
   const p = store.active();
@@ -185,6 +186,7 @@ export function renderAjustes(root) {
   function pintarMedios() {
     p.medios = p.medios || [];
     mediosBox.innerHTML = p.medios.map((m, i) => `<div class="set-row">
+      ${badgeMedio(m)}
       <input class="ajMedio" data-i="${i}" value="${esc(m)}" aria-label="Medio de pago ${i + 1}">
       <button class="mini ajMedioDel" data-i="${i}" aria-label="Quitar ${esc(m)}" title="Quitar">×</button>
     </div>`).join('') || '<div class="empty">Sin medios de pago. Agrega el primero.</div>';

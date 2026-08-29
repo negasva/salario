@@ -1,7 +1,8 @@
 import * as store from '../store.js';
 import { balance, amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo, enPeriodo } from '../engine/movimientos.js';
-import { metasEnItem } from '../engine/metas.js';
+import { monthsToGoal, monthlyToward, plazo, whenText } from '../engine/metas.js';
+import { ordenadas, estadoDe } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
@@ -26,7 +27,7 @@ export function renderCategorias(root) {
 
   root.querySelector('#catAdd').onclick = () => openNewCategory(root);
   root.querySelector('#catEqual').onclick = () => {
-    const b = balance(p.items, store.incomeRepartir(p));
+    const b = balance(p.items, store.incomeRepartir(p), p.goals);
     if (b.cuadrado) { toast('Ya está todo repartido'); return; }
     const unlocked = p.items.filter((it) => !it.locked && !it.auto);
     if (!unlocked.length) { toast('No hay categorías a las que repartirles'); return; }
@@ -87,9 +88,45 @@ function paintList(root) {
   const box = root.querySelector('#catList');
   const periodo = periodoDe(hoyISO());
   const gastadoLinea = porLinea(p.movs, periodo);
-  box.innerHTML = p.items.map((it) => catCard(it, p, gastadoLinea, periodo)).join('');
+  const metas = ordenadas(p.goals).filter((g) => estadoDe(g) !== 'completa');
+  box.innerHTML = p.items.map((it) => catCard(it, p, gastadoLinea, periodo)).join('')
+    + metas.map((g) => metaCard(g, p)).join('');
 
   p.items.forEach((it) => wireCard(root, it, p));
+  metas.forEach((g) => wireMeta(root, g, p));
+}
+
+/* El aporte es un movimiento y nada más: el progreso de la meta se recalcula
+   solo al guardar, así que no hay dos sitios que mantener a la par. */
+function wireMeta(root, g, p) {
+  const card = root.querySelector(`.cat-meta[data-gid="${g.id}"]`);
+  if (!card) return;
+
+  card.querySelector('.meta-mes').onchange = (e) => {
+    g.mes = digits(e.target.value);
+    store.save();
+    renderCategorias(root);
+  };
+
+  card.querySelector('.meta-abrir').onclick = () =>
+    window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: g.id } }));
+
+  card.querySelector('.meta-guardar')?.addEventListener('click', () => {
+    const monto = monthlyToward(g);
+    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha: hoyISO(), tipo: 'gasto',
+      monto, itemId: null, lineId: null, goalId: g.id, nota: `Aporte a ${g.n}`, extra: false });
+    store.save();
+    renderCategorias(root);
+    toast(`${money(monto, p.cur)} a ${g.n}`);
+  });
+
+  card.querySelector('.meta-deshacer')?.addEventListener('click', () => {
+    const mov = aporteDelMes(p, g.id);
+    if (mov) p.movs.splice(p.movs.indexOf(mov), 1);
+    store.save();
+    renderCategorias(root);
+    toast('Aporte deshecho');
+  });
 }
 
 function catCard(it, p, gastadoLinea, periodo) {
@@ -97,7 +134,6 @@ function catCard(it, p, gastadoLinea, periodo) {
   const res = resumenItem(it, gastadoLinea, periodo,
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
-  const metas = metasEnItem(p.goals, it);
   return `
   <div class="card cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
     <div class="cat-top">
@@ -133,26 +169,38 @@ function catCard(it, p, gastadoLinea, periodo) {
       ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
         ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
       </div>` : ''}
-      ${metas.length ? `<div class="detail-head" style="margin:var(--space-4) 0 var(--space-2)">
-        <span class="label">Comprometido por metas</span></div>
-        <div class="lines">${lineasMeta(metas, it, p)}</div>` : ''}
     </div>
   </div>`;
 }
 
-// El dinero de una meta no se edita desde aquí: texto plano, sin borrar,
-// sin toggle fijo/variable.
-function lineasMeta(metas, it, p) {
-  return metas.map(({ goal, monto }) => {
-    const ap = aporteDelMes(p, goal.id);
-    return `<div class="line line-meta ${goal.special ? 'line-fondo' : ''}" data-gid="${goal.id}">
-      <span class="lm-n">${esc(goal.n)}${goal.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
-      <span class="num lm-v">${money(monto, p.cur)}</span>
+/* F5 — cada meta es un bloque más del reparto: mismo tamaño, misma tarjeta,
+   con su monto mensual editable y el botón para registrar el aporte del mes. */
+function metaCard(g, p) {
+  const ap = aporteDelMes(p, g.id);
+  const mes = monthlyToward(g);
+  const n = monthsToGoal(g);
+  const pct = g.t > 0 ? Math.min(100, Math.round(((g.s || 0) / g.t) * 100)) : 0;
+  return `
+  <div class="card cat-card cat-meta" data-gid="${g.id}">
+    <div class="cat-top">
+      <span class="dot" style="background:var(--warning)"></span>
+      <span class="cat-name-fijo">${esc(g.n)}${g.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
+      <button class="mini meta-abrir">Editar</button>
+    </div>
+    <div class="cat-fields">
+      <label class="fieldw money-field"><span>Guardas al mes · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
+        <input class="meta-mes num" type="text" inputmode="numeric" value="${mes ? plain(mes, p.cur) : ''}" placeholder="0"></label>
+    </div>
+    <div class="hist-track"><i style="width:${pct}%;background:var(--warning)"></i></div>
+    <div class="sub">Llevas <b class="num">${money(g.s || 0, p.cur)}</b> de ${money(g.t, p.cur)}.
+      ${n ? `La tienes en ${plazo(n)}, hacia ${whenText(n)}.` : 'Sin aporte mensual todavía.'}</div>
+    <div class="prow">
       ${ap
-        ? `<button class="mini lm-ok" title="Deshacer el aporte">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
-        : '<button class="mini lm-pagar">Ya lo guardé</button>'}
-    </div>`;
-  }).join('');
+        ? `<button class="mini meta-deshacer">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
+        : `<button class="mini meta-guardar" ${mes > 0 ? '' : 'disabled'}>Ya lo guardé</button>`}
+    </div>
+  </div>`;
 }
 
 // Un aporte del mes en curso a esta meta, si existe
@@ -384,7 +432,7 @@ function wireCard(root, it, p) {
   });
 
   const fixBtn = card.querySelector('.cat-fix');
-  const b = balance(p.items, store.incomeRepartir(p));
+  const b = balance(p.items, store.incomeRepartir(p), p.goals);
   if (!it.locked && !it.auto && !b.cuadrado) {
     fixBtn.textContent = b.falta > 0
       ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
@@ -401,10 +449,9 @@ function wireCard(root, it, p) {
     if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
     if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
     const idx = p.items.indexOf(it);
-    const reclamos = p.goals.filter((g) => g.a[it.id] !== undefined).map((g) => ({ g, pct: g.a[it.id] }));
     const { undo } = store.stageDelete(
-      () => { p.items.splice(idx, 1); p.goals.forEach((g) => { delete g.a[it.id]; }); },
-      () => { p.items.splice(idx, 0, it); reclamos.forEach(({ g, pct }) => { g.a[it.id] = pct; }); }
+      () => p.items.splice(idx, 1),
+      () => p.items.splice(idx, 0, it)
     );
     renderCategorias(root);
     toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
@@ -416,48 +463,6 @@ function wireCard(root, it, p) {
     renderCategorias(root);
   };
   card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(root, it, p);
-
-  // El aporte es un movimiento y nada más: el progreso de la meta se recalcula
-  // solo al guardar, así que no hay dos sitios que mantener a la par.
-  function anotarAporte(goal, monto) {
-    const fecha = hoyISO();
-    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9), fecha, tipo: 'gasto',
-      monto, itemId: it.id, lineId: null, goalId: goal.id, nota: `Aporte a ${goal.n}`, extra: false });
-  }
-
-  function borrarAporte(goal, mov) {
-    p.movs.splice(p.movs.indexOf(mov), 1);
-  }
-
-  card.querySelectorAll('.line-meta').forEach((el) => {
-    const goal = p.goals.find((g) => g.id === el.dataset.gid);
-    if (!goal) return;
-    const { monto } = metasEnItem([goal], it)[0] || {};
-
-    el.querySelector('.lm-pagar')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!monto) { toast('Esta meta no reclama nada de este bloque'); return; }
-      anotarAporte(goal, monto);
-      store.save();
-      renderCategorias(root);
-      toast(`${money(monto, p.cur)} a ${goal.n}`, () => {
-        borrarAporte(goal, aporteDelMes(p, goal.id));
-        store.save();
-        renderCategorias(root);
-      });
-    });
-
-    el.querySelector('.lm-ok')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      borrarAporte(goal, aporteDelMes(p, goal.id));
-      store.save();
-      renderCategorias(root);
-      toast('Aporte deshecho');
-    });
-
-    // la fila entera, fuera del botón, lleva a la hoja de la meta
-    el.onclick = () => window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: goal.id } }));
-  });
 
   card.querySelectorAll('.deu-fila').forEach((el) => {
     const l = it.L.find((x) => x.id === el.dataset.lid);
@@ -664,7 +669,7 @@ function openNewCategory(root) {
 
     let monto = 0;
     if (src === 'sobra') {
-      monto = balance(p.items, store.incomeRepartir(p)).falta;
+      monto = balance(p.items, store.incomeRepartir(p), p.goals).falta;
     } else if (src === 'prop') {
       const unlocked = p.items.filter((it) => !it.locked);
       // ponytail: 10% de cada una, simple y ajustable a mano después

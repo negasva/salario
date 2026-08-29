@@ -1,16 +1,19 @@
 import * as store from '../store.js';
-import { amount, freeFor, clamp, r2 } from '../engine/reparto.js';
+import { amount, clamp } from '../engine/reparto.js';
 import {
-  monthlyToward, monthsToGoal, whenText, plazo, escalonActual,
-  cuotaPorFecha, cuotaPorMeses, planRecorte, escenarios, costoOportunidad,
-  conflictosDeMetas, secuenciaPlazos, aplicarRecorte,
+  monthlyToward, monthsToGoal, whenText, plazo, escalonActual, cuotaPorMeses, cuotaPorFecha,
 } from '../engine/metas.js';
-import { estadoDe, ordenadas, proyeccion } from '../engine/fila.js';
+import { estadoDe, ordenadas } from '../engine/fila.js';
 import { aportesAMeta, hoyISO } from '../engine/movimientos.js';
 import { deudasDelPerfil, minimosCubiertos } from '../engine/deudas.js';
 import { money, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
+
+/* F5 — metas simples. Una meta es un nombre, un costo, lo que llevas y cuánto
+   guardas al mes; con eso la app dice cuántos meses faltan. Se acabaron el
+   estado "en fila", el aporte de hoy, el reparto por bloque y el costo de
+   oportunidad: cada meta es su propio bloque dentro de Categorías. */
 
 function id() { return Math.random().toString(36).slice(2, 9); }
 
@@ -23,8 +26,7 @@ const escalonDe = (p) => escalonActual({
   tieneMetasActivas: p.goals.some((g) => !g.special && estadoDe(g) === 'activa'),
 });
 
-// Categorías pide abrir una meta; se guarda aquí y renderMetas la destapa
-// al montar, así la hoja siempre vive dentro de su propia vista.
+// Categorías pide abrir una meta; se guarda aquí y renderMetas la destapa al montar
 let pendiente = null;
 export function abrirMeta(goalId) { pendiente = goalId; }
 
@@ -36,70 +38,56 @@ export function renderMetas(root, args = {}) {
     <button id="metaAdd" class="wide btn-primary" style="margin-bottom:var(--sp-4)">+ Nueva meta</button>
     <div id="metaList" class="grid"></div>`;
 
-  const nuevaMeta = () => {
-    const escalon = escalonDe(p);
-    const g = { id: 'g' + id(), n: 'Nueva meta', t: 0, s: 0, a: {}, priority: 'media', modo: 'monto',
-      base: 0, estado: 'activa', orden: p.goals.length + 1 };
-    p.goals.push(g);
-    store.save();
-    openGoalSheet(root, g, escalon < 4);
-  };
-  root.querySelector('#metaAdd').onclick = nuevaMeta;
+  root.querySelector('#metaAdd').onclick = () => abrirPasoAPaso(root);
 
   paint(root);
 
-  // el botón flotante entra por aquí: crea la meta y abre su editor
-  if (args.nueva) { nuevaMeta(); return; }
+  if (args.nueva) { abrirPasoAPaso(root); return; }
 
   if (pendiente) {
     const g = p.goals.find((x) => x.id === pendiente);
     pendiente = null;
-    if (g) openGoalSheet(root, g, false);
+    if (g) openGoalSheet(root, g);
   }
 }
 
 function paint(root) {
   const p = store.active();
-  const inc = store.incomeRepartir(p);
   const box = root.querySelector('#metaList');
-  const conflictos = conflictosDeMetas(p.goals);
   const lista = ordenadas(p.goals);
-  const proy = proyeccion(p.goals, p.items);
   const movibles = lista.filter((g) => !g.special);
 
   box.innerHTML = lista.map((g) => {
     const est = estadoDe(g);
     const pct = g.t > 0 ? Math.round(clamp((g.s || 0) / g.t * 100, 0, 100)) : 0;
-    const n = monthsToGoal(g, p.items);
-    const enConflicto = conflictos.some((c) => c.goals.includes(g));
+    const n = monthsToGoal(g);
     const i = movibles.indexOf(g);
     const arrastrable = !g.special && est !== 'completa';
     return `
-    <div class="card goal ${g.special ? 'goal-esp' : ''} ${est === 'en_fila' ? 'goal-fila' : ''} ${est === 'completa' ? 'goal-hecha' : ''}"
+    <div class="card goal ${g.special ? 'goal-esp' : ''} ${est === 'completa' ? 'goal-hecha' : ''}"
       data-id="${g.id}" ${arrastrable ? 'draggable="true"' : ''}>
       <div class="goal-top">
         <div>
-          <div class="goal-name">${esc(g.n)} ${g.special ? '<span class="badge warn">fondo</span>' : ''} ${badgeEstado(est)} <span class="badge ${g.priority === 'alta' ? 'bad' : g.priority === 'media' ? 'warn' : 'ok'}">${g.priority}</span></div>
+          <div class="goal-name">${esc(g.n)} ${g.special ? '<span class="badge warn">fondo</span>' : ''} ${est === 'completa' ? '<span class="badge ok">completa</span>' : ''}</div>
           <div class="sub num">${money(g.t, p.cur)}</div>
         </div>
         <div class="goal-acts">
           ${arrastrable ? `<div class="goal-move">
-            <button class="mini goal-up" title="Subir en la fila" aria-label="Subir ${esc(g.n)}" ${i <= 0 ? 'disabled' : ''}>${icon('flecha-arriba', 'ic-sm')}</button>
-            <button class="mini goal-down" title="Bajar en la fila" aria-label="Bajar ${esc(g.n)}" ${i < 0 || i >= movibles.length - 1 ? 'disabled' : ''}>${icon('flecha-abajo', 'ic-sm')}</button>
+            <button class="mini goal-up" title="Subir" aria-label="Subir ${esc(g.n)}" ${i <= 0 ? 'disabled' : ''}>${icon('flecha-arriba', 'ic-sm')}</button>
+            <button class="mini goal-down" title="Bajar" aria-label="Bajar ${esc(g.n)}" ${i < 0 || i >= movibles.length - 1 ? 'disabled' : ''}>${icon('flecha-abajo', 'ic-sm')}</button>
           </div>` : ''}
           <button class="mini goal-edit">Editar</button>
         </div>
       </div>
       <div class="pbar"><i style="width:${pct}%"></i></div>
-      <div class="sub">${textoPlazo(g, est, n, proy[g.id], p, inc)}</div>
-      ${enConflicto ? '<div class="sub" style="color:var(--amber);margin-top:6px">Compite por bloque con otra meta. Ponla en fila y arranca cuando la otra termine.</div>' : ''}
+      <div class="sub">${textoPlazo(g, est, n, p)}</div>
     </div>`;
   }).join('');
 
   lista.forEach((g) => {
     const card = box.querySelector(`.goal[data-id="${g.id}"]`);
     if (!card) return;
-    card.querySelector('.goal-edit')?.addEventListener('click', () => openGoalSheet(root, g, false));
+    card.querySelector('.goal-edit')?.addEventListener('click', () => openGoalSheet(root, g));
     card.querySelector('.goal-up')?.addEventListener('click', () => { store.moverMeta(g.id, -1); paint(root); });
     card.querySelector('.goal-down')?.addEventListener('click', () => { store.moverMeta(g.id, 1); paint(root); });
   });
@@ -107,24 +95,10 @@ function paint(root) {
   cablearArrastre(root, box);
 }
 
-function badgeEstado(est) {
-  if (est === 'en_fila') return '<span class="badge">en fila</span>';
-  if (est === 'completa') return '<span class="badge ok">completa</span>';
-  return '';
-}
-
-// La meta en fila no dice un plazo suyo: dice cuándo le toca el turno.
-function textoPlazo(g, est, n, pr, p, inc) {
-  if (est === 'completa') return `Terminaste esta meta con ${money(g.s || 0, p.cur)}. Su bloque quedó libre.`;
-  if (est === 'en_fila') {
-    const antes = pr?.predecesor;
-    const cuando = pr && pr.empieza !== null ? `, hacia ${whenText(pr.empieza)}` : '';
-    return antes
-      ? `Empieza cuando termines la meta ${esc(antes.n)}${cuando}.`
-      : 'En fila. Empieza cuando la pongas activa.';
-  }
+function textoPlazo(g, est, n, p) {
+  if (est === 'completa') return `Terminaste esta meta con ${money(g.s || 0, p.cur)}.`;
   return n
-    ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g, p.items), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.`
+    ? `Llevas ${money(g.s || 0, p.cur)}. Guardas <b class="num">${money(monthlyToward(g), p.cur)}</b> al mes, la tienes en ${plazo(n)}, hacia ${whenText(n)}.`
     : `Llevas ${money(g.s || 0, p.cur)}. Sin aporte mensual todavía.`;
 }
 
@@ -152,67 +126,122 @@ function cablearArrastre(root, box) {
     card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
     card.addEventListener('drop', (e) => {
       e.preventDefault();
-      const id = origen || e.dataTransfer.getData('text/plain');
+      const idSoltado = origen || e.dataTransfer.getData('text/plain');
       card.classList.remove('drag-over');
-      if (id && store.soltarMeta(id, card.dataset.id)) paint(root);
+      if (idSoltado && store.soltarMeta(idSoltado, card.dataset.id)) paint(root);
     });
   });
 }
 
-function openGoalSheet(root, g, warnEscalon) {
+/* Paso a paso de creación: tres preguntas, una por pantalla. La tercera es la
+   única que importa —cuánto guardas al mes— y contesta con el plazo. */
+function abrirPasoAPaso(root) {
   const p = store.active();
-  const inc = store.incomeRepartir(p);
+  const d = { n: '', t: 0, mes: 0 };
+  let paso = 0;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay on';
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  const cerrar = () => { overlay.remove(); document.body.style.overflow = ''; paint(root); };
+
+  const pintar = () => {
+    const meses = d.mes > 0 ? Math.ceil(d.t / d.mes) : null;
+    const pasos = [
+      { titulo: '¿Qué quieres comprar?', ayuda: 'Ponle el nombre con el que la reconoces.',
+        campo: `<input id="mpV" autocomplete="off" placeholder="Moto" value="${esc(d.n)}">`, boton: 'Siguiente' },
+      { titulo: '¿Cuánto cuesta?', ayuda: 'El precio completo, aunque hoy no lo tengas.',
+        campo: `<input id="mpV" class="num" inputmode="numeric" placeholder="24.000.000" value="${d.t ? plain(d.t, p.cur) : ''}">`, boton: 'Siguiente' },
+      { titulo: '¿Cuánto vas a guardar al mes?', ayuda: 'Escribe la cifra exacta y te digo cuánto tardas.',
+        campo: `<input id="mpV" class="num" inputmode="numeric" placeholder="500.000" value="${d.mes ? plain(d.mes, p.cur) : ''}">`, boton: 'Crear meta' },
+    ];
+    const s = pasos[paso];
+    overlay.innerHTML = `
+      <div class="sheet ob-sheet">
+        <div class="ob-pasos" aria-label="Paso ${paso + 1} de 3">${pasos.map((_, i) => `<i class="${i <= paso ? 'on' : ''}"></i>`).join('')}</div>
+        <div class="sheet-head"><h3>${esc(s.titulo)}</h3></div>
+        <p class="sub">${esc(s.ayuda)}</p>
+        <div class="fld" style="margin-top:var(--space-4)">${s.campo}</div>
+        <div class="sub" id="mpPlazo">${paso === 2 && meses ? `Con ${money(d.mes, p.cur)} al mes la tienes en <b>${plazo(meses)}</b>, hacia ${whenText(meses)}.` : ''}</div>
+        <div id="mpErr" class="auth-err"></div>
+        <button class="wide btn-primary" id="mpNext" style="margin-top:var(--space-4)">${esc(s.boton)}</button>
+        <div class="prow">
+          ${paso > 0 ? '<button id="mpBack">Atrás</button>' : ''}
+          <button id="mpCancel">Cancelar</button>
+        </div>
+      </div>`;
+
+    const input = overlay.querySelector('#mpV');
+    const err = overlay.querySelector('#mpErr');
+    const seguir = () => {
+      if (paso === 0) {
+        d.n = input.value.trim();
+        if (!d.n) { err.textContent = 'Ponle un nombre.'; return; }
+      } else if (paso === 1) {
+        d.t = digits(input.value);
+        if (d.t <= 0) { err.textContent = 'Escribe cuánto cuesta.'; return; }
+      } else {
+        d.mes = digits(input.value);
+        const g = { id: 'g' + id(), n: d.n, t: d.t, s: 0, mes: d.mes, base: 0,
+          modo: 'monto', priority: 'media', estado: 'activa', orden: p.goals.length + 1 };
+        p.goals.push(g);
+        store.save();
+        cerrar();
+        if (escalonDe(p) < 4) toast('Ojo: todavía te falta fondo de emergencia o mínimos de deuda.');
+        return;
+      }
+      paso += 1;
+      pintar();
+    };
+    overlay.querySelector('#mpNext').onclick = seguir;
+    overlay.querySelector('#mpCancel').onclick = cerrar;
+    overlay.querySelector('#mpBack')?.addEventListener('click', () => { paso -= 1; pintar(); });
+    // el plazo se ve mientras escribes, no después de guardar
+    if (paso === 2) {
+      const plazoBox = overlay.querySelector('#mpPlazo');
+      input.oninput = () => {
+        d.mes = digits(input.value);
+        const n = d.mes > 0 ? Math.ceil(d.t / d.mes) : null;
+        plazoBox.innerHTML = n
+          ? `Con ${money(d.mes, p.cur)} al mes la tienes en <b>${plazo(n)}</b>, hacia ${whenText(n)}.`
+          : '';
+      };
+    }
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); seguir(); } };
+    input.focus();
+  };
+
+  pintar();
+}
+
+function openGoalSheet(root, g) {
+  const p = store.active();
   const overlay = document.createElement('div');
   overlay.className = 'overlay on';
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
 
   function close() {
-    // 0.12 — una meta nueva que nunca se llenó no debe quedar en la lista
-    const idx = p.goals.indexOf(g);
-    if (idx >= 0 && !g.special && g.n === 'Nueva meta' && !g.t) { p.goals.splice(idx, 1); store.save(); }
     overlay.remove();
     document.body.style.overflow = '';
     paint(root);
   }
 
   function paintSheet() {
-    const conflictos = conflictosDeMetas(p.goals).find((c) => c.goals.includes(g));
-    const m = monthlyToward(g, p.items);
-    const co = costoOportunidad(m * 12, p.tasaInteres);
+    const n = monthsToGoal(g);
+    const falta = Math.max(0, (g.t || 0) - (g.s || 0));
 
     overlay.innerHTML = `
       <div class="sheet">
         <div class="sheet-head"><h3>Meta de ahorro</h3><button class="btn-del" id="gClose">${icon('cerrar')}</button></div>
-        ${warnEscalon ? `<div class="sub" style="color:var(--amber);margin-bottom:12px">Estás en el escalón ${escalonDe(p)}, esta meta es del escalón 4.</div>` : ''}
         <div class="fld"><label>Qué quieres comprar</label><input id="gName" value="${esc(g.n)}" ${g.special ? 'disabled' : ''}></div>
         <div class="fld"><label>Cuánto cuesta</label><input id="gCost" value="${plain(g.t, p.cur)}" inputmode="numeric"></div>
         <div class="fld"><label>Cuánto llevas ahorrado</label><input id="gSaved" value="${plain(g.s, p.cur)}" inputmode="numeric">
-          <div class="hint">Escribe aquí el total que ya tienes guardado, venga de donde venga. Los aportes que has registrado en la app suman ${money(aportesAMeta(p.movs, g.id).total, p.cur)}; si el total que escribes es mayor, la diferencia queda como lo que ya tenías desde antes.</div>
+          <div class="hint">Los aportes registrados suman ${money(aportesAMeta(p.movs, g.id).total, p.cur)}; si escribes más, la diferencia queda como lo que ya tenías desde antes.</div>
         </div>
-        <div class="fld"><label>Estado en la fila</label>
-          <div class="chips">
-            <button class="chip ${estadoDe(g) === 'activa' ? 'on' : ''}" data-estado="activa">Activa</button>
-            <button class="chip ${estadoDe(g) === 'en_fila' ? 'on' : ''}" data-estado="en_fila">En fila</button>
-          </div>
-          <div class="hint">${estadoDe(g) === 'en_fila'
-            ? 'En fila no consume nada de tus bloques. Su reparto se guarda y arranca cuando termine la meta de adelante.'
-            : 'Activa se lleva cada mes la plata que le asignes de cada categoría.'}</div>
-        </div>
-        <div class="fld"><label>Prioridad</label>
-          <select id="gPriority">
-            ${['alta', 'media', 'baja'].map((v) => `<option value="${v}" ${g.priority === v ? 'selected' : ''}>${v}</option>`).join('')}
-          </select>
-        </div>
-        <div class="fld"><label>Aporte de hoy</label>
-          <div style="display:flex;gap:8px">
-            <input id="gAporte" placeholder="0" inputmode="numeric" style="flex:1">
-            <button id="gAporteBtn" class="mini">Aplicar</button>
-          </div>
-          ${(() => {
-            const ap = p.movs.filter((m) => m.goalId === g.id).slice(-5).reverse();
-            return ap.length ? `<div class="sub" style="margin-top:6px">${ap.map((m) => `${money(m.monto, p.cur)} · ${m.fecha}`).join('<br>')}</div>` : '';
-          })()}
+        <div class="fld"><label>Cuánto guardas al mes</label><input id="gMes" value="${g.mes ? plain(g.mes, p.cur) : ''}" inputmode="numeric" placeholder="0">
+          <div class="hint" id="gPlazo"></div>
         </div>
 
         <div class="label" style="margin-bottom:8px">Cómo quieres calcularla</div>
@@ -222,35 +251,26 @@ function openGoalSheet(root, g, warnEscalon) {
           <button class="chip ${g.modo === 'fecha' ? 'on' : ''}" data-modo="fecha">Para una fecha</button>
         </div>
         ${g.modo === 'meses' ? `<div class="fld"><label>¿En cuántos meses la quieres?</label>
-          <input type="number" id="gMeses" min="1" max="600" inputmode="numeric"
-            placeholder="12" value="${g.plazoMeses || ''}"></div>` : ''}
+          <input type="number" id="gMeses" min="1" max="600" placeholder="12" value="${g.plazoMeses || ''}"></div>` : ''}
         ${g.modo === 'fecha' ? `<div class="fld"><label>Fecha objetivo</label>
           <input type="date" id="gDate" value="${g.dueDate || ''}"></div>` : ''}
         ${g.modo !== 'monto' ? '<div id="gCuota" class="sub"></div>' : ''}
 
-        ${conflictos ? (() => {
-          const { paralelo, secuencia } = secuenciaPlazos(conflictos.goals, p.items);
-          return `<div class="sub" style="color:var(--amber);margin-bottom:12px">Esta meta compite por el mismo bloque con ${conflictos.goals.length - 1} otra(s).
-          En paralelo: ${paralelo.map((m) => m ? plazo(m) : 'sin aporte').join(' / ')}.
-          En secuencia (por prioridad): ${secuencia.join(' → ')} meses.</div>`;
-        })() : ''}
-
-        <div class="label" style="margin:14px 0 8px">Rutas sugeridas</div>
-        <div id="gOpts"></div>
-        <div class="divider"></div>
-        <div class="label" style="margin-bottom:8px">O ajústalo bloque por bloque</div>
-        <div id="gAlloc"></div>
-
-        <details style="margin-top:14px">
-          <summary class="label">Costo de oportunidad</summary>
-          <div class="sub" style="margin-top:8px">Ese dinero, invertido al ${p.tasaInteres}% anual, sería ${money(co.vf5, p.cur)} en 5 años y ${money(co.vf10, p.cur)} en 10.</div>
-        </details>
-
-        <div id="gPlan"></div>
+        <div class="fld" style="margin-top:var(--space-4)"><label>Registrar lo que ya guardaste</label>
+          <div style="display:flex;gap:8px">
+            <input id="gAporte" placeholder="0" inputmode="numeric" style="flex:1">
+            <button id="gAporteBtn" class="mini">Guardar aporte</button>
+          </div>
+        </div>
 
         <button class="wide btn-primary" id="gDone" style="margin-top:16px">Listo</button>
-        ${!g.special ? `<button class="wide" id="gDel" style="margin-top:8px">Eliminar esta meta</button>` : ''}
+        ${!g.special ? '<button class="wide" id="gDel" style="margin-top:8px">Eliminar esta meta</button>' : ''}
       </div>`;
+
+    const plazoBox = overlay.querySelector('#gPlazo');
+    plazoBox.innerHTML = n
+      ? `Te faltan ${money(falta, p.cur)}: la tienes en <b>${plazo(n)}</b>, hacia ${whenText(n)}.`
+      : 'Escribe cuánto guardas al mes y te digo cuántos meses tardas.';
 
     overlay.querySelector('#gClose').onclick = close;
     overlay.querySelector('#gDone').onclick = close;
@@ -261,13 +281,8 @@ function openGoalSheet(root, g, warnEscalon) {
       store.save();
       paintSheet();
     };
-    overlay.querySelector('#gPriority').onchange = (e) => { g.priority = e.target.value; store.save(); };
+    overlay.querySelector('#gMes').onchange = (e) => { g.mes = digits(e.target.value); store.save(); paintSheet(); };
 
-    overlay.querySelectorAll('.chip[data-estado]').forEach((b) => {
-      b.onclick = () => { store.cambiarEstadoMeta(g, b.dataset.estado); paintSheet(); };
-    });
-
-    // un aporte es un movimiento del libro: una sola puerta, un solo número
     overlay.querySelector('#gAporteBtn').onclick = () => {
       const monto = digits(overlay.querySelector('#gAporte').value);
       if (monto <= 0) return;
@@ -283,7 +298,6 @@ function openGoalSheet(root, g, warnEscalon) {
       b.onclick = () => { g.modo = b.dataset.modo; store.save(); paintSheet(); };
     });
 
-    // los dos modos con plazo comparten el mismo calculo: faltante / meses
     const cuotaBox = overlay.querySelector('#gCuota');
     const mesesInput = overlay.querySelector('#gMeses');
     const dateInput = overlay.querySelector('#gDate');
@@ -293,170 +307,30 @@ function openGoalSheet(root, g, warnEscalon) {
       const r = g.modo === 'meses'
         ? (g.plazoMeses > 0 ? cuotaPorMeses(g.t, g.s, g.plazoMeses) : null)
         : (g.dueDate ? cuotaPorFecha(g.t, g.s, new Date(g.dueDate)) : null);
-
       if (!r) {
         cuotaBox.innerHTML = g.modo === 'meses'
           ? 'Escribe en cuántos meses la quieres y te digo cuánto guardar al mes.'
           : 'Elige la fecha y te digo cuánto guardar al mes.';
-        paintPlan(0);
         return;
       }
       if (r.meses <= 0) {
         cuotaBox.innerHTML = `Ese plazo ya pasó. Te faltan <b class="num">${money(r.cuota, p.cur)}</b> de una vez.`;
-        paintPlan(0);
         return;
       }
-
-      const falta = Math.max(0, (g.t || 0) - (g.s || 0));
-      const disp = monthlyToward(g, p.items);
-      const brecha = r.cuota - disp;
-      cuotaBox.innerHTML = `
-        Te faltan ${money(falta, p.cur)}. En ${plazo(r.meses)} son
-        <b class="num">${money(r.cuota, p.cur)}</b> al mes, hacia ${whenText(r.meses)}.<br>
-        ${brecha <= 0
-          ? `Hoy destinas ${money(disp, p.cur)}: ya te alcanza.`
-          : `Hoy destinas ${money(disp, p.cur)}, te falta reunir <b class="num">${money(brecha, p.cur)}</b> más al mes.`}`;
-      paintPlan(brecha);
-    }
-
-    if (mesesInput) {
-      mesesInput.oninput = () => {
-        g.plazoMeses = Math.max(0, Math.floor(Number(mesesInput.value)) || 0);
+      const brecha = r.cuota - monthlyToward(g);
+      cuotaBox.innerHTML = `En ${plazo(r.meses)} son <b class="num">${money(r.cuota, p.cur)}</b> al mes, hacia ${whenText(r.meses)}.
+        ${brecha <= 0 ? 'Con lo que guardas hoy te alcanza.' : `Te falta subir <b class="num">${money(brecha, p.cur)}</b> al mes.`}
+        <button class="mini" id="gAdoptar" style="margin-top:6px">Guardar esa cuota al mes</button>`;
+      cuotaBox.querySelector('#gAdoptar').onclick = () => {
+        g.mes = Math.round(r.cuota);
         store.save();
-        paintCuota();
+        paintSheet();
       };
     }
-    if (dateInput) {
-      dateInput.oninput = () => { g.dueDate = dateInput.value; store.save(); paintCuota(); };
-    }
-    if (g.modo === 'monto') overlay.querySelector('#gPlan').innerHTML = '';
-    else paintCuota();
 
-    function paintPlan(faltante) {
-      const planBox = overlay.querySelector('#gPlan');
-      if (!faltante || faltante <= 0) { planBox.innerHTML = ''; return; }
-      const ef = estadoFondo(p);
-      const recortes = planRecorte(faltante, { items: p.items, income: inc, fondoCompleto: ef.estado === 'completo' });
-      let cubierto = 0;
-      planBox.innerHTML = `
-        <div class="label" style="margin:14px 0 8px">Plan de recorte</div>
-        <div class="sub" id="gPlanCounter">Faltan ${money(faltante, p.cur)}</div>
-        <div id="gPlanCards"></div>`;
-      const cardsBox = planBox.querySelector('#gPlanCards');
-      if (!recortes.length) {
-        cardsBox.innerHTML = '<div class="empty">No hay más de dónde recortar sin tocar lo intocable.</div>';
-      }
-      recortes.forEach((r) => {
-        const el = document.createElement('div');
-        el.className = 'card-2';
-        el.style.padding = '10px';
-        el.style.marginTop = '8px';
-        el.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-          <div><b>${r.bloque}</b><div class="sub">${r.costo}</div></div>
-          <div style="text-align:right"><div class="num" style="font-weight:700">${money(r.monto, p.cur)}</div>
-          <button class="mini" style="margin-top:4px">Aplicar</button></div></div>`;
-        // aplicar mueve la plata de verdad; un botón que solo opaca una
-        // tarjeta es peor que no tener botón
-        el.querySelector('button').onclick = () => {
-          if (!aplicarRecorte(r, p.items, g)) {
-            toast('Ese recorte no tiene de dónde salir');
-            return;
-          }
-          store.save();
-          cubierto += r.monto;
-          const restante = Math.max(0, faltante - cubierto);
-          toast(restante > 0
-            ? `Listo. ${money(r.monto, p.cur)} más al mes hacia ${g.n}.`
-            : `Cubierto: ya sale la cuota de ${g.n}.`);
-          paintSheet();
-        };
-        cardsBox.appendChild(el);
-      });
-
-      // F7 — tres escenarios comparables
-      const disp = monthlyToward(g, p.items);
-      const escBox = document.createElement('div');
-      escBox.className = 'grid';
-      escBox.style.marginTop = '14px';
-      escenarios(g.s, g.t, disp, recortes).forEach((e) => {
-        const el = document.createElement('div');
-        el.className = 'card-2';
-        el.style.padding = '10px';
-        el.innerHTML = `<b style="text-transform:capitalize">${e.nombre}</b>
-          <div class="sub num" style="margin-top:4px">${money(e.cuota, p.cur)} al mes</div>
-          <div class="sub" style="margin-top:4px">${e.meses ? `${plazo(e.meses)}, hacia ${e.fecha}` : 'no alcanza'}</div>
-          <div class="sub" style="margin-top:4px">Sacrificas: ${e.sacrificio}</div>`;
-        escBox.appendChild(el);
-      });
-      planBox.appendChild(escBox);
-    }
-
-    function paintOpts() {
-      const box = overlay.querySelector('#gOpts');
-      const presets = [
-        { title: 'Con tus ahorros', desc: 'Todo el largo plazo y la mitad del corto.', map: { lar: 100, cor: 50 } },
-        { title: 'Sin tocar la inversión', desc: 'Todo el ahorro corto más el gasto libre.', map: { cor: 100, lib: 100 } },
-        { title: 'Acelerado', desc: 'Corto, largo y gasto libre completos.', map: { cor: 100, lar: 100, lib: 100 } },
-      ];
-      box.innerHTML = presets.map((pr) => {
-        let m = 0;
-        p.items.forEach((it) => { if (it.r && pr.map[it.r] !== undefined) m += montoPreset(pr, it); });
-        const f = Math.max(0, (g.t || 0) - (g.s || 0));
-        const n = m > 0 ? Math.ceil(f / m) : null;
-        return `<div class="opt" data-t="${pr.title}"><b>${pr.title}</b><p>${pr.desc}</p>
-          <div class="r"><span class="num">${money(m, p.cur)} al mes</span><span class="num" style="color:var(--text);font-weight:800">${n ? plazo(n) : 'sin aporte'}</span></div></div>`;
-      }).join('');
-      box.querySelectorAll('.opt').forEach((el, i) => {
-        el.onclick = () => {
-          const pr = presets[i];
-          p.items.forEach((it) => { g.a[it.id] = it.r && pr.map[it.r] !== undefined ? montoPreset(pr, it) : 0; });
-          store.save();
-          paintAlloc();
-        };
-      });
-    }
-
-    /* Un preset es una receta en porcentajes ("todo el largo plazo"), pero lo
-       que se guarda es plata: se traduce al aplicarlo y nunca pasa del tope. */
-    function montoPreset(pr, it) {
-      return Math.round(Math.min(amount(it) * (pr.map[it.r] / 100), freeFor(p.goals, g, it)));
-    }
-
-    function paintAlloc() {
-      const box = overlay.querySelector('#gAlloc');
-      box.innerHTML = p.items.map((it) => {
-        const bloque = amount(it);
-        const libre = freeFor(p.goals, g, it);
-        const v = Number(g.a[it.id]) || 0;
-        const tomadoPorOtras = r2(bloque - libre);
-        return `<div class="alloc" data-id="${it.id}">
-          <div class="alloc-head"><span>${esc(it.n)}</span>
-            <span class="sub num">de ${money(bloque, p.cur)}</span></div>
-          <div class="alloc-row">
-            <label class="fieldw"><span>${p.cur}</span>
-              <input class="alloc-monto num" inputmode="numeric" value="${v ? plain(v, p.cur) : ''}" placeholder="0"></label>
-            <button class="mini alloc-todo" ${libre > 0 ? '' : 'disabled'}>Todo lo libre</button>
-          </div>
-          <div class="hint">${tomadoPorOtras > 0
-            ? `Otras metas ya se llevan ${money(tomadoPorOtras, p.cur)} de aquí. Te quedan ${money(libre, p.cur)}.`
-            : `Libre para esta meta: ${money(libre, p.cur)}.`}</div>
-        </div>`;
-      }).join('');
-
-      box.querySelectorAll('.alloc').forEach((el) => {
-        const it = p.items.find((x) => x.id === el.dataset.id);
-        function fijar(v) {
-          g.a[it.id] = Math.round(clamp(v, 0, freeFor(p.goals, g, it)));
-          store.save();
-          paintAlloc();
-        }
-        el.querySelector('.alloc-monto').onchange = (e) => fijar(digits(e.target.value));
-        el.querySelector('.alloc-todo').onclick = () => fijar(freeFor(p.goals, g, it));
-      });
-    }
-
-    paintOpts();
-    paintAlloc();
+    if (mesesInput) mesesInput.oninput = () => { g.plazoMeses = Math.max(0, Math.floor(Number(mesesInput.value)) || 0); store.save(); paintCuota(); };
+    if (dateInput) dateInput.oninput = () => { g.dueDate = dateInput.value; store.save(); paintCuota(); };
+    paintCuota();
 
     if (!g.special) {
       overlay.querySelector('#gDel').onclick = () => {
@@ -468,6 +342,5 @@ function openGoalSheet(root, g, warnEscalon) {
     }
   }
 
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   paintSheet();
 }

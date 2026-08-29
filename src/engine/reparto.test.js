@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { total, balance, amount, shareOf, spentInItem, fixedVariableSplit, freeFor, diagnosticoEsenciales } from './reparto.js';
+import {
+  amount, total, shareOf, balance, spentInItem, spentAll, fixedVariableSplit,
+  totalMetas, diagnosticoEsenciales, r2, clamp, lines,
+} from './reparto.js';
 
 describe('reparto basico', () => {
   it('suma la plata asignada a cada categoria', () => {
@@ -56,18 +59,19 @@ describe('fijo/variable', () => {
   });
 });
 
-describe('metas en competencia (freeFor)', () => {
-  const item = { id: 'i1', m: 1000000 };
-
-  it('el tope baja con la plata que otra meta ya reclamó del bloque', () => {
-    const g1 = { a: { i1: 600000 } };
-    const g2 = { a: { i1: 0 } };
-    expect(freeFor([g1, g2], g2, item)).toBe(400000);
+describe('las metas cuentan en el reparto', () => {
+  it('suma lo que cada meta guarda al mes', () => {
+    expect(totalMetas([{ mes: 300000 }, { mes: 200000 }])).toBe(500000);
   });
 
-  it('un bloque ya repartido del todo no deja nada libre', () => {
-    const g1 = { a: { i1: 1200000 } };
-    expect(freeFor([g1], { a: {} }, item)).toBe(0);
+  it('una meta completa ya no consume nada', () => {
+    expect(totalMetas([{ mes: 300000, estado: 'completa' }, { mes: 200000 }])).toBe(200000);
+  });
+
+  it('el balance cuenta categorías y metas juntas', () => {
+    const b = balance([{ m: 3000000 }], 5000000, [{ mes: 500000 }]);
+    expect(b.asignado).toBe(3500000);
+    expect(b.falta).toBe(1500000);
   });
 });
 

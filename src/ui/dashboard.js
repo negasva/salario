@@ -7,7 +7,7 @@ import { pintarResultados } from './buscador.js';
 import { preguntarIA, explicar } from '../ia.js';
 import { contextoIA } from './preguntar.js';
 import { icon } from './icons.js';
-import { ordenadas, estadoDe, proyeccion } from '../engine/fila.js';
+import { ordenadas } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { periodoDe, hoyISO, ingresoReal, resumenFlujo, serieAhorro, serieTasaAhorro } from '../engine/movimientos.js';
 import { tarjetaResumenFlujo } from './resumen.js';
@@ -170,7 +170,7 @@ export async function renderDashboard(root) {
   const p = store.active();
   const inc = store.incomeRepartir(p);
   const incEse = store.incomeEsenciales(p);
-  const b = balance(p.items, inc);
+  const b = balance(p.items, inc, p.goals);
 
   const ese = p.items.find((it) => it.r === 'ese');
   const diag = ese ? diagnosticoEsenciales(ese, incEse) : null;
@@ -197,8 +197,6 @@ export async function renderDashboard(root) {
   const tasaReal = serieTasaAhorro(p.movs, bloquesAhorro, 1).at(-1)?.tasa ?? 0;
   const planAhorro = tasaAhorro(p, inc);
   const ahorroHoy = ing.total > 0 ? tasaReal : planAhorro;
-
-  const proy = proyeccion(p.goals, p.items);
 
   const badgeClass = fondoEstado === 'completo' ? 'ok' : fondoEstado === 'parcial' ? 'warn' : 'bad';
 
@@ -296,13 +294,9 @@ export async function renderDashboard(root) {
         ${p.goals.length ? `<div class="rings">
           ${ordenadas(p.goals).map((g) => {
             const pct = g.t > 0 ? Math.min(1, (g.s || 0) / g.t) : 0;
-            const est = estadoDe(g);
-            const n = monthsToGoal(g, p.items);
-            const antes = proy[g.id]?.predecesor;
-            const segunda = est === 'en_fila'
-              ? (antes ? `Empieza cuando termines la ${esc(antes.n)}` : 'En fila')
-              : n ? `faltan ${plazo(n)} · hacia ${whenText(n)}` : 'sin aporte mensual';
-            return `<div class="ring${est === 'en_fila' ? ' ring-fila' : ''}">
+            const n = monthsToGoal(g);
+            const segunda = n ? `faltan ${plazo(n)} · hacia ${whenText(n)}` : 'sin aporte mensual';
+            return `<div class="ring">
               <div class="wrap">
                 ${ringSvg(pct, g.special === 'emergencia' ? 'var(--warning)' : 'var(--pink)')}
                 <div class="pct num">${Math.round(pct * 100)}%</div>

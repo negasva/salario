@@ -31,28 +31,6 @@ function avisosDeHoy() {
     });
   }
 
-  // F5 — una meta terminó y su plata espera dueño
-  const t = store.revisarFila();
-  if (t) {
-    lista.push({
-      clave: `traspaso-${t.desde.id}`,
-      titulo: `Terminaste la meta ${t.desde.n}`,
-      cuerpo: `Los ${money(t.monto, p.cur)} al mes pasan ahora a ${t.hacia.n}. Si no dices nada, en 24 horas se aplica solo.`,
-      vistas: ['dashboard', 'metas'],
-      acciones: [
-        { label: 'Aceptar', onClick: () => store.aplicarTraspasoPendiente() },
-        {
-          label: 'Repartirlo a mano',
-          onClick: () => {
-            // se libera el bloque sin repartirlo y se abre la meta que sigue
-            store.aplicarTraspasoPendiente(true);
-            window.dispatchEvent(new CustomEvent('ir-a-meta', { detail: { goalId: t.hacia.id } }));
-          },
-        },
-      ],
-    });
-  }
-
   // F6 — fin de mes y metas con fecha encima
   avisosPendientes(p).forEach((av) => {
     lista.push({

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ordenadas, reasignar, mover, soltar, siguienteEnFila, metaCumplida,
-  mezclarAsignacion, aplicarTraspaso, traspasoVencido, proyeccion, DIA_MS,
-} from './fila.js';
+import { estadoDe, ordenadas, reasignar, mover, soltar } from './fila.js';
 import { claimedBy, freeFor } from './reparto.js';
 import { metasEnItem, conflictosDeMetas } from './metas.js';
 
@@ -51,107 +48,5 @@ describe('F5.1 orden', () => {
     const gs = metas();
     expect(soltar(gs, 'viaje', 'moto')).toBe(true);
     expect(ordenadas(gs).map((g) => g.id)).toEqual(['fondo', 'viaje', 'moto']);
-  });
-});
-
-describe('F5.2 una meta en fila no consume bloque', () => {
-  it('no cuenta en claimedBy ni le baja el tope a las activas', () => {
-    const gs = metas();
-    gs[2].a = { cor: 500000 }; // su reparto se guarda...
-    expect(claimedBy(gs, 'cor', null)).toBe(800000); // ...pero no cuenta
-    expect(freeFor(gs, gs[1], items[0])).toBe(1000000);
-  });
-
-  it('no aparece como comprometida en el bloque', () => {
-    const gs = metas();
-    gs[2].a = { cor: 500000 };
-    expect(metasEnItem(gs, items[0]).map((x) => x.goal.id)).toEqual(['moto']);
-  });
-
-  it('no pelea con nadie: una meta en fila no esta en conflicto', () => {
-    const gs = metas();
-    gs[2].a = { cor: 500000 };
-    expect(conflictosDeMetas(gs)).toEqual([]);
-  });
-});
-
-describe('F5.2 traspaso', () => {
-  it('detecta la meta activa que llego a su objetivo', () => {
-    const gs = metas();
-    gs[1].s = 24000000;
-    expect(metaCumplida(gs).id).toBe('moto');
-  });
-
-  it('una meta en fila cumplida no dispara nada', () => {
-    const gs = metas();
-    gs[2].s = 99999999;
-    expect(metaCumplida(gs)).toBe(null);
-  });
-
-  it('la siguiente de la fila es la de menor orden', () => {
-    const gs = metas();
-    expect(siguienteEnFila(gs).id).toBe('viaje');
-  });
-
-  it('la asignacion pasa entera y la meta queda completa', () => {
-    const gs = metas();
-    gs[1].s = 24000000;
-    aplicarTraspaso(gs[1], gs[2]);
-    expect(gs[1].estado).toBe('completa');
-    expect(gs[1].a).toEqual({});
-    expect(gs[2].estado).toBe('activa');
-    expect(gs[2].a).toEqual({ cor: 800000 });
-  });
-
-  it('a mano libera el bloque sin repartirlo', () => {
-    const gs = metas();
-    aplicarTraspaso(gs[1], gs[2], true);
-    expect(gs[1].a).toEqual({});
-    expect(gs[2].a).toEqual({});
-    expect(gs[2].estado).toBe('activa');
-  });
-
-  it('lo que la meta de la fila ya reclamaba se suma, con tope en lo que el bloque tiene', () => {
-    expect(mezclarAsignacion({ cor: 400000 }, { cor: 800000, lar: 100000 }, items))
-      .toEqual({ cor: 1000000, lar: 100000 });
-  });
-
-  it('sin conocer el bloque no hay tope que aplicar', () => {
-    expect(mezclarAsignacion({ cor: 400000 }, { cor: 800000 })).toEqual({ cor: 1200000 });
-  });
-
-  it('vence a las 24 horas', () => {
-    const t = { creado: 0 };
-    expect(traspasoVencido(t, DIA_MS - 1)).toBe(false);
-    expect(traspasoVencido(t, DIA_MS)).toBe(true);
-    expect(traspasoVencido(null, DIA_MS)).toBe(false);
-  });
-});
-
-describe('F5.3 proyeccion de la fila', () => {
-  it('la meta en fila arranca cuando termina la de adelante', () => {
-    const gs = metas();
-    const pr = proyeccion(gs, items);
-    // moto: 24.000.000 a 800.000 al mes = 30 meses
-    expect(pr.moto.dura).toBe(30);
-    expect(pr.viaje.empieza).toBe(30);
-    expect(pr.viaje.predecesor.n).toBe('Moto');
-    // hereda los 800.000: 6.000.000 son 8 meses mas
-    expect(pr.viaje.dura).toBe(8);
-    expect(pr.viaje.fin).toBe(38);
-  });
-
-  it('sin aporte no hay fecha, ni para la que espera', () => {
-    const gs = metas();
-    gs[1].a = {};
-    const pr = proyeccion(gs, items);
-    expect(pr.moto.dura).toBe(null);
-    expect(pr.viaje.empieza).toBe(null);
-  });
-
-  it('las metas completas no ocupan puesto en la fila', () => {
-    const gs = metas();
-    gs[1].estado = 'completa';
-    expect(proyeccion(gs, items).moto).toBe(undefined);
   });
 });

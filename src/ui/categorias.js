@@ -145,6 +145,8 @@ function wireMeta(root, g, p) {
     toast(`${money(monto, p.cur)} a ${g.n}`);
   });
 
+  card.querySelector('.meta-add').onclick = () => openAhorroEditor(g, p, () => renderCategorias(root));
+
   card.querySelector('.meta-deshacer')?.addEventListener('click', () => {
     const mov = aporteDelMes(p, g.id);
     if (mov) p.movs.splice(p.movs.indexOf(mov), 1);
@@ -298,8 +300,35 @@ function metaCard(g, p) {
       ${ap
         ? `<button class="mini meta-deshacer">${icon('check', 'ic-sm')} Guardado el ${diaCorto(ap.fecha)}</button>`
         : `<button class="mini meta-guardar" ${mes > 0 ? '' : 'disabled'}>Ya lo guardé</button>`}
+      <button class="mini meta-add" title="Guardar otro monto a esta meta" aria-label="Agregar ahorro a ${esc(g.n)}">+</button>
     </div>
   </div>`;
+}
+
+/* Un ahorro suelto a la meta: mismo movimiento que el botón "Ya lo guardé",
+   pero con monto libre, para poder guardar varias veces en el mismo mes. */
+function openAhorroEditor(g, p, repintar) {
+  const { cuerpo, cerrar } = abrirModal({ titulo: `Ahorro a ${g.n}` });
+  cuerpo.innerHTML = `
+      <div class="pago-form">
+        <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="ahMonto" class="num" inputmode="numeric" placeholder="0"></label>
+        <label class="fieldw"><span>Fecha</span><input id="ahFecha" type="date" value="${hoyISO()}"></label>
+      </div>
+      <button class="wide btn-primary" id="ahSave">Guardar ahorro</button>
+      <button class="wide" id="ahCancel">Cancelar</button>`;
+
+  cuerpo.querySelector('#ahCancel').onclick = cerrar;
+  cuerpo.querySelector('#ahSave').onclick = () => {
+    const monto = digits(cuerpo.querySelector('#ahMonto').value);
+    if (monto <= 0) { cuerpo.querySelector('#ahMonto').focus(); return; }
+    p.movs.push({ id: 'm' + Math.random().toString(36).slice(2, 9),
+      fecha: cuerpo.querySelector('#ahFecha').value || hoyISO(), tipo: 'gasto',
+      monto, itemId: null, lineId: null, goalId: g.id, nota: `Ahorro a ${g.n}`, extra: false });
+    store.save();
+    cerrar();
+    repintar();
+    toast(`${money(monto, p.cur)} a ${g.n}`);
+  };
 }
 
 // Un aporte del mes en curso a esta meta, si existe

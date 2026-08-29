@@ -32,7 +32,9 @@
   /* F10/F11 — bloques: la categoría es oscura y sus ítems claros, para que la
      jerarquía se lea de un vistazo. El relleno marca lo pagado sobre lo planeado. */
   --bloque-cat-bg:     var(--ink);
-  --bloque-cat-fill:   var(--pink);
+  /* el relleno de la categoría aclara la tinta en vez de teñirla de rosa:
+     el texto blanco tiene que leerse igual sobre las dos mitades */
+  --bloque-cat-fill:   var(--ink-lighter);
   --bloque-cat-text:   var(--on-ink);
   --bloque-item-bg:    var(--pink-wash);
   --bloque-item-fill:  var(--pink-lighter);

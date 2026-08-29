@@ -156,49 +156,124 @@ function wireMeta(root, g, p) {
   });
 }
 
+/* F11 — la categoría es un bloque como sus ítems, pero con su propio color:
+   colapsada solo dice nombre, cifras y editar. El resto va al pop-up. */
 function catCard(it, p, gastadoLinea, periodo) {
   const pagosLibres = pagosLibresDeItem(p.movs, it.id, periodo);
   const res = resumenItem(it, gastadoLinea, periodo,
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
+  const estado = estadoLinea(res.pagado, budget, false);
   return `
-  <div class="card cat-card${it.locked ? ' locked' : ''}${budget > 0 && res.pagado > budget ? ' cat-desfase' : ''}" data-id="${it.id}">
-    <div class="cat-top">
+  <div class="cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
+    <div class="bloque bloque-cat est-${estado}" style="--pct:${pctPagado(res.pagado, budget)}%">
       <span class="dot" style="background:${it.c}"></span>
-      <input class="cat-name" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}>
-      <button class="mini cat-lock ${it.locked ? 'on is-locked' : ''}" aria-pressed="${!!it.locked}"
-        title="${it.locked ? 'Bloqueada: desbloquéala para poder editarla' : 'Bloquear para que no se le cambie el monto'}">${icon('candado', 'ic-sm')}</button>
-      ${budget > 0 && res.pagado > budget ? `<span class="badge bad">desfase ${money(r2(res.pagado - budget), p.cur)}</span>` : ''}
-      <button class="mini cat-del">${icon('cerrar', 'ic-sm')}</button>
+      <span class="bloque-n">${esc(it.n)}
+        ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
+        ${it.locked ? `<span class="bloque-candado" title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
+      <b class="bloque-m num">${money(budget, p.cur)}</b>
+      <button class="bloque-ed cat-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
+      <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
+        ${res.total ? ` · ${res.cerradas} de ${res.total} pagados` : ''}
+        ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
     </div>
-    ${cabeceraPagos(res, p, budget)}
-    <div class="cat-fields">
-      <label class="fieldw money-field"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
-        <span class="money-symbol" aria-hidden="true">$</span>
-        <input class="cat-monto num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
-          ${it.locked || it.auto ? 'disabled' : ''}></label>
-      <div class="chips cat-modo">
-        <button class="chip ${it.auto ? '' : 'on'}" data-auto="0" ${it.locked ? 'disabled' : ''}>A mano</button>
-        <button class="chip ${it.auto ? 'on' : ''}" data-auto="1" ${it.locked ? 'disabled' : ''}
-          title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
-      </div>
-    </div>
-    ${(it.auto || (!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1)) ? `<div class="sub cat-share">
-      ${it.auto ? `<span>${explicacionAuto(res, p)}</span>` : ''}
-      ${!it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1
-        ? `<button class="mini cat-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>`
-        : ''}</div>` : ''}
-    <button class="wide mini cat-fix" ${it.locked ? 'disabled' : ''}></button>
-    <div class="cat-detail">
-      <div class="detail-head"><span class="label">Detalle</span>
-        <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
-        <button class="btn-plus cat-plus">+</button></div>
+    <div class="cat-items">
       <div class="lines">${lines(it, p, res)}</div>
       ${pagosLibres.length ? `<div class="pagos-lista pagos-libres">
         ${pagosLibres.map((m) => pagoChip(m, p)).join('')}
       </div>` : ''}
+      <div class="cat-acciones">
+        <button class="mini cat-plus">+ Concepto</button>
+        <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
+      </div>
     </div>
   </div>`;
+}
+
+/* El pop-up de la categoría: el mismo componente modal que usan los ítems. */
+function abrirCatSheet(root, it, p) {
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Categoría', clase: 'cat-sheet',
+    alCerrar: () => renderCategorias(root) });
+
+  const guardar = () => { store.save(); pintar(); };
+
+  function setMonto(v) {
+    if (it.locked) { toast('Desbloquea la categoría para cambiarle el monto'); return; }
+    it.m = Math.max(0, Math.round(v));
+    guardar();
+  }
+
+  function pintar() {
+    const periodo = periodoDe(hoyISO());
+    const res = resumenItem(it, porLinea(p.movs, periodo), periodo,
+      pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0));
+    const budget = amount(it);
+    const b = balance(p.items, store.incomeRepartir(p), p.goals);
+    const desajuste = !it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1;
+
+    cuerpo.innerHTML = `
+      <div class="fieldw"><span>Nombre</span><input class="cs-n" value="${esc(it.n)}" ${it.locked ? 'disabled' : ''}></div>
+      <div class="fieldw money-field"><span>${it.auto ? 'Cuesta al mes' : 'Asignas al mes'} · ${p.cur}</span>
+        <span class="money-symbol" aria-hidden="true">$</span>
+        <input class="cs-m num" type="text" inputmode="numeric" value="${plain(budget, p.cur)}"
+          ${it.locked || it.auto ? 'disabled' : ''}></div>
+      <div class="chips cs-modo">
+        <button class="chip ${it.auto ? '' : 'on'}" data-auto="0" ${it.locked ? 'disabled' : ''}>A mano</button>
+        <button class="chip ${it.auto ? 'on' : ''}" data-auto="1" ${it.locked ? 'disabled' : ''}
+          title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
+      </div>
+      ${cabeceraPagos(res, p, budget)}
+      ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
+      ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los renglones que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
+      ${!it.locked && !it.auto && !b.cuadrado
+        ? `<button class="wide mini cs-fix">${b.falta > 0
+            ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
+            : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`}</button>`
+        : ''}
+      <div class="label">Color</div>
+      <div class="cs-colores">${PALETTE.map((c) => `<button class="cs-color${c === it.c ? ' on' : ''}"
+        data-c="${c}" style="background:${c}" aria-label="Color ${c}" aria-pressed="${c === it.c}"></button>`).join('')}</div>
+      <button class="wide mini cs-lock ${it.locked ? 'on' : ''}" aria-pressed="${!!it.locked}">
+        ${icon('candado', 'ic-sm')} ${it.locked ? 'Desbloquear categoría' : 'Bloquear categoría'}</button>
+      <button class="wide cs-del danger-action">Borrar categoría</button>`;
+
+    cuerpo.querySelector('.cs-n').onchange = (e) => { it.n = e.target.value; guardar(); };
+    cuerpo.querySelector('.cs-m').onchange = (e) => setMonto(digits(e.target.value));
+    cuerpo.querySelector('.cs-ajustar')?.addEventListener('click', () => setMonto(res.costo));
+    cuerpo.querySelector('.cs-fix')?.addEventListener('click', () => setMonto(budget + b.dif));
+
+    cuerpo.querySelector('.cs-modo').onclick = (e) => {
+      const btn = e.target.closest('.chip');
+      if (!btn || btn.disabled) return;
+      it.auto = btn.dataset.auto === '1';
+      guardar();
+      toast(it.auto ? 'Esta categoría ya se calcula sola' : 'Ahora le pones el monto tú');
+    };
+
+    cuerpo.querySelector('.cs-colores').onclick = (e) => {
+      const btn = e.target.closest('.cs-color');
+      if (!btn) return;
+      it.c = btn.dataset.c;
+      guardar();
+    };
+
+    cuerpo.querySelector('.cs-lock').onclick = () => { it.locked = !it.locked; guardar(); };
+
+    cuerpo.querySelector('.cs-del').onclick = () => {
+      if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
+      if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
+      const idx = p.items.indexOf(it);
+      let pagos = [];
+      const { undo } = store.stageDelete(
+        () => { p.items.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'itemId', it.id); },
+        () => { p.items.splice(idx, 0, it); p.movs.push(...pagos); }
+      );
+      cerrar();
+      toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
+    };
+  }
+
+  pintar();
 }
 
 /* F5 — cada meta es un bloque más del reparto: mismo tamaño, misma tarjeta,
@@ -550,70 +625,23 @@ function wireCard(root, it, p) {
   const card = root.querySelector(`.cat-card[data-id="${it.id}"]`);
   if (!card) return;
 
-  // la plata asignada es lo único que se edita: el porcentaje sale de ella
-  function setMonto(v) {
-    it.m = Math.max(0, Math.round(v));
-    store.save();
-    renderCategorias(root);
-  }
+  // el bloque entero abre su pop-up; el lápiz es solo la señal de que se puede
+  card.querySelector('.bloque-cat').onclick = () => abrirCatSheet(root, it, p);
 
-  card.querySelector('.cat-name').oninput = (e) => { it.n = e.target.value; store.save(); };
-  card.querySelector('.cat-monto').onchange = (e) => setMonto(digits(e.target.value));
-
-  // el plan de renglones ya está sumado abajo: un clic lo sube al presupuesto
-  card.querySelector('.cat-ajustar')?.addEventListener('click', () => {
-    if (it.locked) { toast('Desbloquea la categoría para cambiarle el monto'); return; }
-    setMonto(resumenItem(it, porLinea(p.movs, periodoDe(hoyISO())), periodoDe(hoyISO())).costo);
-  });
-
-  card.querySelector('.cat-modo').addEventListener('click', (e) => {
-    const btn = e.target.closest('.chip');
-    if (!btn || btn.disabled) return;
-    it.auto = btn.dataset.auto === '1';
-    store.save();
-    renderCategorias(root);
-    toast(it.auto ? 'Esta categoría ya se calcula sola' : 'Ahora le pones el monto tú');
-  });
-
-  const fixBtn = card.querySelector('.cat-fix');
-  const b = balance(p.items, store.incomeRepartir(p), p.goals);
-  if (!it.locked && !it.auto && !b.cuadrado) {
-    fixBtn.textContent = b.falta > 0
-      ? `Sumar aquí los ${money(b.falta, p.cur)} que faltan`
-      : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`;
-    fixBtn.onclick = () => setMonto(amount(it) + b.dif);
-  } else {
-    fixBtn.textContent = b.cuadrado ? 'Cuadrado' : it.auto ? 'Se calcula sola' : 'Bloqueada';
-    fixBtn.disabled = true;
-  }
-
-  card.querySelector('.cat-lock').onclick = () => { it.locked = !it.locked; store.save(); renderCategorias(root); };
-
-  card.querySelector('.cat-del').onclick = () => {
-    if (p.items.length < 2) { toast('Deja al menos una categoría'); return; }
-    if (it.locked) { toast('Desbloquea la categoría antes de borrarla'); return; }
-    const idx = p.items.indexOf(it);
-    let pagos = [];
-    const { undo } = store.stageDelete(
-      () => { p.items.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'itemId', it.id); },
-      () => { p.items.splice(idx, 0, it); p.movs.push(...pagos); }
-    );
-    renderCategorias(root);
-    toast(`"${it.n}" eliminada`, () => { undo(); renderCategorias(root); });
-  };
-
-  card.querySelector('.cat-plus').onclick = () => {
-    it.L.push({ id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true });
-    store.save();
-    renderCategorias(root);
-  };
-  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
-
-  // el bloque entero abre el pop-up: el botón de editar es solo la señal
   card.querySelectorAll('.bloque-item').forEach((el) => {
     const l = it.L.find((x) => x.id === el.dataset.lid);
     if (l) el.onclick = () => abrirItemSheet(root, it, l, p);
   });
+
+  card.querySelector('.cat-plus').onclick = () => {
+    const l = { id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true };
+    it.L.push(l);
+    store.save();
+    renderCategorias(root);
+    abrirItemSheet(root, it, l, p);
+  };
+
+  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
 
   // los pagos sueltos de la categoría: los del concepto viven en su pop-up
   wirePagos(card, it, p, () => renderCategorias(root));

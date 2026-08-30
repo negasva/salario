@@ -5,6 +5,7 @@ import { ordenadas, reasignar, mover, soltar } from './engine/fila.js';
 import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from './engine/movimientos.js';
 import { resumenItem, sinHuerfanos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
+import { colorDeItem } from './engine/semantica.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 
 const KEY = 'reparto:v8';
@@ -54,8 +55,9 @@ function nid(prefix) {
 const INGRESO_INICIAL = 5500000;
 
 export function nuevoItem(n, m = 0, r = null, c) {
-  c = c || PALETTE[(active()?.items?.length || 0) % PALETTE.length];
-  return { id: nid('i'), n, m: Math.round(m), r, c, d: '', locked: false, L: [] };
+  const it = { id: nid('i'), n, m: Math.round(m), r, c: null, d: '', locked: false, L: [] };
+  it.c = c || colorDeItem(it, active()?.items?.length || 0);
+  return it;
 }
 
 export function freshProfile(name) {
@@ -145,7 +147,7 @@ export function activeId() {
 
 function normalizeProfile(p) {
   p.items = p.items || [];
-  p.items.forEach((it) => {
+  p.items.forEach((it, i) => {
     // F1 — el bloque se llama Gastos recurrentes; el rol interno sigue igual
     if (it.n === 'Esenciales') it.n = 'Gastos recurrentes';
     /* Migración: los perfiles viejos guardaban el reparto en porcentaje. Se
@@ -156,6 +158,10 @@ function normalizeProfile(p) {
     it.L = it.L || [];
     it.L.forEach((l) => { if (l.fixed === undefined) l.fixed = true; });
     if (it.locked === undefined) it.locked = false;
+    /* El color de una categoría es ahora su significado, así que se recalcula
+       siempre: los perfiles viejos traen colores de la paleta decorativa y
+       conservarlos dejaría medio presupuesto pintado al revés. */
+    it.c = colorDeItem(it, i);
   });
   p.goals = p.goals || [];
   /* Migración: lo que una meta reclamaba de un bloque era un porcentaje de ese

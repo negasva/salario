@@ -1,3 +1,4 @@
+import { colorDe, claseDeMovimiento } from '../engine/semantica.js';
 import * as store from '../store.js';
 import { amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, visiblesDelMes, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
@@ -175,7 +176,7 @@ export function renderMovimientos(root, args = {}) {
             return `<div class="mov-res">
               <span class="dot" style="background:${it.c}"></span>
               <span class="nm" title="${esc(it.n)}">${esc(it.n)}</span>
-              <span class="hist-track"><i style="width:${pct}%;background:${pasado ? 'var(--danger)' : it.c}"></i></span>
+              <span class="hist-track"><i style="width:${pct}%;background:${pasado ? 'var(--sem-gasto-1)' : it.c}"></i></span>
               <span class="mov-res-n num">${money(real, p.cur)} <span class="sub">de ${money(pres, p.cur)}</span></span>
               <span class="mov-res-d num ${pasado ? 'over' : ''}">${pasado ? `+${money(dif, p.cur)}` : money(dif, p.cur)}</span>
             </div>`;
@@ -200,7 +201,7 @@ export function renderMovimientos(root, args = {}) {
           const g = p.goals.find((x) => x.id === m.goalId);
           const etiqueta = m.tipo === 'ingreso' ? (m.extra ? 'Ingreso extra' : 'Ingreso') : (it?.n || 'sin categoría');
           return `<div class="mov-line" data-id="${m.id}">
-            <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--success)' : (it?.c || 'var(--line)')}"></span>
+            <span class="dot" style="background:${colorDe(claseDeMovimiento(m), 0)}"></span>
             <span class="mov-line-txt">
               <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}${m.cat && m.cat !== 'otros' ? ` <span class="badge">${icon(CATEGORIAS.find((c) => c.id === m.cat)?.ic || 'etiqueta', 'ic-sm')} ${esc(nombreCategoria(m.cat))}</span>` : ''}
               ${m.nota || m.medio ? `<span class="sub">${esc([m.nota, m.medio].filter(Boolean).join(' · '))}</span>` : ''}

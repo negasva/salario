@@ -1,3 +1,4 @@
+import { colorDe } from './semantica.js';
 import { amount, r2 } from './reparto.js';
 import { enPeriodo } from './movimientos.js';
 
@@ -24,7 +25,7 @@ export function segmentosReal(items = [], goals = [], movs = [], periodo, ingres
   const segmentos = [
     ...items.map((it) => ({ id: it.id, nombre: it.n, color: it.c,
       monto: porItem[it.id] || 0, plan: amount(it) })),
-    ...goals.map((g) => ({ id: g.id, nombre: g.n, color: 'var(--warning)',
+    ...goals.map((g) => ({ id: g.id, nombre: g.n, color: colorDe('ahorro'),
       monto: porMeta[g.id] || 0, plan: Number(g.mes) || 0, meta: true })),
   ].filter((s) => s.monto > 0);
 
@@ -36,10 +37,10 @@ export function segmentosDeSnapshot(snapshot) {
   if (!snapshot || snapshot.version < 2) return [];
   const base = snapshot.ingresoReal || snapshot.ingresoPlan || 0;
   const segmentos = [
-    ...(snapshot.items || []).map((it) => ({ id: it.itemId, nombre: it.nombre, color: 'var(--pink)',
+    ...(snapshot.items || []).map((it, i) => ({ id: it.itemId, nombre: it.nombre, color: colorDe('gasto', i),
       monto: it.real, plan: it.plan })),
     ...(snapshot.metas || []).filter((g) => g.aportado > 0)
-      .map((g) => ({ id: g.goalId, nombre: g.nombre, color: 'var(--warning)', monto: g.aportado, plan: 0, meta: true })),
+      .map((g) => ({ id: g.goalId, nombre: g.nombre, color: colorDe('ahorro'), monto: g.aportado, plan: 0, meta: true })),
   ].filter((s) => s.monto > 0);
   return conPorcentaje(segmentos, base).map((s) => ({ ...s, diferencia: r2(s.plan - s.monto) }));
 }

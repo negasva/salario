@@ -57,5 +57,8 @@ input[type=range]:disabled{opacity:.45}
    estirarlo todo dejaría la vista con la mitad de información por pantalla. */
 @media (pointer:coarse){
   button,select,input:not([type=checkbox]):not([type=radio]),[role="button"]{min-height:44px}
+  /* los botones de un solo icono también por ancho, que 32px de lado no se
+     aciertan con el dedo por muy altos que sean */
+  button{min-width:44px}
   .mini{min-height:44px;padding-top:10px;padding-bottom:10px}
 }

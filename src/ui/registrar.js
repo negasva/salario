@@ -130,9 +130,9 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
         <h3>${previo ? 'Editar movimiento' : 'Registrar movimiento'}</h3>
         <button class="btn-del" id="regClose" aria-label="Cerrar">${icon('cerrar')}</button>
       </div>
-      <div class="chips" id="regTipo">
-        <button class="chip ${tipo === 'gasto' ? 'on' : ''}" data-tipo="gasto">Egreso</button>
-        <button class="chip ${tipo === 'ingreso' ? 'on' : ''}" data-tipo="ingreso">Ingreso</button>
+      <div class="chips chips-tipo" id="regTipo">
+        <button class="chip chip-gasto ${tipo === 'gasto' ? 'on' : ''}" data-tipo="gasto">Egreso</button>
+        <button class="chip chip-ingreso ${tipo === 'ingreso' ? 'on' : ''}" data-tipo="ingreso">Ingreso</button>
       </div>
 
       <div class="fld"><label for="regNota">Descripción</label>

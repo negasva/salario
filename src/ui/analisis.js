@@ -31,27 +31,91 @@ function donut(segmentos, cur) {
       <circle cx="80" cy="80" r="${R}" fill="none" stroke="var(--pink-wash)" stroke-width="22"></circle>
     </svg>`;
   }
-  return `<svg class="donut" viewBox="0 0 160 160" role="img" aria-label="Reparto por categoría">
+  /* F9 — cada trozo es pulsable y enfocable. El giro de -90° pasó del atributo
+     `transform` a CSS: si se queda como atributo, la clase `.on` no le puede
+     añadir la escala sin pisarlo. */
+  return `<svg class="donut" viewBox="0 0 160 160" role="group" aria-label="Reparto por categoría">
     ${trozos.map((t) => `<circle class="donut-seg" data-seg="${esc(t.id)}" cx="80" cy="80" r="${R}"
-      fill="none" stroke="${t.color}" stroke-width="22"
+      fill="none" stroke="${t.color}" stroke-width="22" tabindex="0" role="button"
+      aria-label="${esc(t.nombre)}: ${money(t.monto, cur)}, ${t.pct}%"
       stroke-dasharray="${t.largo} ${t.resto}" stroke-dashoffset="${t.offset}"
-      transform="rotate(-90 80 80)"><title>${esc(t.nombre)}: ${money(t.monto, cur)} · ${t.pct}%</title></circle>`).join('')}
+      ><title>${esc(t.nombre)}: ${money(t.monto, cur)} · ${t.pct}%</title></circle>`).join('')}
   </svg>`;
 }
 
-/* Pasar el cursor por un ítem de la lista apaga los demás trozos del donut.
-   El donut al que pertenece una fila es el de su propio desglose si lo tiene,
-   y si no el grande de la tarjeta. */
+/* Pasar el cursor por un ítem de la lista apaga los demás trozos del donut, y
+   ahora el click fija esa selección en los dos sentidos: del donut a la lista y
+   de la lista al donut. El hover se queda para el ratón, pero no basta —en un
+   móvil no hay hover, y ahí el donut era un dibujo y nada más—.
+
+   La selección vive en una variable de módulo y se vuelve a aplicar en cada
+   render. Tiene que ser así: al pulsar una fila la vista se repinta entera para
+   desplegar su detalle, y una selección guardada solo en el DOM se perdía en
+   ese repintado —era justo el caso "de la lista al donut"—. Si el segmento
+   elegido ya no existe, no se encuentra y no pasa nada. */
+let segSeleccionado = null;
+
 function enlazarResalte(box) {
-  box.querySelectorAll('.an-fila[data-seg]').forEach((fila) => {
+  const pares = [...box.querySelectorAll('.an-fila[data-seg]')].map((fila) => {
     const grupo = fila.closest('.an-detalle') || box;
     const svg = grupo.querySelector('.donut');
     const trozo = svg?.querySelector(`.donut-seg[data-seg="${CSS.escape(fila.dataset.seg)}"]`);
-    if (!trozo) return;
-    fila.onmouseenter = () => { svg.classList.add('atenuado'); trozo.classList.add('on'); };
-    fila.onmouseleave = () => { svg.classList.remove('atenuado'); trozo.classList.remove('on'); };
+    return trozo ? { fila, svg, trozo } : null;
+  }).filter(Boolean);
+
+  const limpiar = (svg) => {
+    svg.classList.remove('atenuado');
+    svg.querySelectorAll('.donut-seg').forEach((c) => c.classList.remove('sel', 'on'));
+  };
+
+  function pintar({ fila, svg, trozo }, conResalte) {
+    svg.classList.add('atenuado');
+    trozo.classList.add('sel', 'on');
+    if (!conResalte) return;
+    fila.classList.remove('resaltada');
+    void fila.offsetWidth; // reinicia el destello si ya venía encendido
+    fila.classList.add('resaltada');
+    fila.scrollIntoView({ block: 'nearest', behavior: quieto() ? 'auto' : 'smooth' });
+  }
+
+  function seleccionar(par) {
+    const yaEstaba = segSeleccionado === par.fila.dataset.seg;
+    limpiar(par.svg);
+    segSeleccionado = yaEstaba ? null : par.fila.dataset.seg; // segundo click deselecciona
+    if (!yaEstaba) pintar(par, true);
+  }
+
+  // se vuelve a pintar lo que estuviera elegido antes del repintado, sin
+  // destello ni scroll: el usuario no ha vuelto a pulsar nada
+  const previo = pares.find((par) => par.fila.dataset.seg === segSeleccionado);
+  if (previo) pintar(previo, false); else segSeleccionado = null;
+
+  pares.forEach((par) => {
+    const { fila, svg, trozo } = par;
+    // el hover solo pinta si no hay nada fijado: si no, se pelea con la selección
+    fila.onmouseenter = () => {
+      if (svg.querySelector('.donut-seg.sel')) return;
+      svg.classList.add('atenuado');
+      trozo.classList.add('on');
+    };
+    fila.onmouseleave = () => {
+      if (svg.querySelector('.donut-seg.sel')) return;
+      svg.classList.remove('atenuado');
+      trozo.classList.remove('on');
+    };
+    trozo.onclick = () => seleccionar(par);
+    trozo.onkeydown = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      seleccionar(par);
+    };
+    /* La fila ya tenía su propio click para desplegar el detalle; el resalte se
+       cuelga aparte para no quitárselo. */
+    fila.addEventListener('click', () => seleccionar(par));
   });
 }
+
+const quieto = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export function renderAnalisis(root) {
   const p = store.active();

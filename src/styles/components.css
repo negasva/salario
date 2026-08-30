@@ -818,9 +818,36 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 
 /* F7 — el ítem de la lista y su trozo del donut: al pasar el cursor por uno,
    los demás trozos se apagan. */
-.donut-seg{transition:opacity var(--t-fast)}
-.donut.atenuado .donut-seg{opacity:.2}
+/* F9 — el giro va aquí y no en el atributo `transform` del <circle>, porque si
+   está en el atributo la clase de selección no le puede añadir la escala sin
+   pisarlo. `transform-box:view-box` hace que el origen sea el del viewBox y no
+   la caja del trazo. */
+.donut-seg{transform:rotate(-90deg);transform-origin:80px 80px;transform-box:view-box;
+  cursor:pointer;
+  transition:opacity var(--dur-comp) var(--ease-out),
+    transform var(--dur-comp) var(--ease-out),stroke-width var(--dur-comp) var(--ease-out)}
+.donut.atenuado .donut-seg{opacity:.35}
 .donut.atenuado .donut-seg.on{opacity:1}
+/* el seleccionado sale hacia afuera y engorda: la escala lo separa del resto
+   y el grosor lo hace el trozo que se está mirando */
+.donut-seg.sel{stroke-width:26;transform:rotate(-90deg) scale(1.05)}
+/* al pulsar con el ratón, el navegador dibuja el anillo de foco sobre la caja
+   del <circle>, que es todo el cuadrado del donut: un recuadro negro alrededor
+   del dibujo. Se apaga siempre y el foco de teclado se marca engordando el
+   trazo, que es lo que se está mirando. */
+.donut-seg:focus{outline:0}
+.donut-seg:focus-visible{stroke-width:26;filter:brightness(1.1)}
+
+/* el ítem de la lista se enciende y se apaga solo: es un "es este", no un
+   estado que haya que ir a quitar después */
+@keyframes resalta{from{background:var(--pink-lighter)}to{background:transparent}}
+.an-fila.resaltada{animation:resalta .8s var(--ease-out)}
+
+/* El donut se dibuja de un barrido al montar. Va sobre `stroke-dashoffset`,
+   que es como se dibuja un trazo en SVG, y solo la primera vez: repetirlo en
+   cada repintado convertiría un detalle en un peaje. */
+@keyframes donut-barre{from{stroke-dasharray:0 9999}}
+.donut-seg{animation:donut-barre .6s var(--ease-out) backwards}
 .an-detalle-lista .an-fila{gap:var(--space-2)}
 
 /* Tarjeta con franja de título: el ícono y el nombre viven en su propia

@@ -309,3 +309,13 @@ Al aplicar, cada destino genera **el movimiento que generaría hacerlo a mano**:
 `engine/repartoSaldo.js` es todo puro y tiene 16 pruebas: los topes, el recorte por disponible, los ceros y la basura tecleada, y que cada clase de destino genere el movimiento correcto.
 
 **Movimiento.** El botón hace `scale(1.02)` con sombra en hover y `scale(.97)` en active. `Quedan $ X sin repartir` cuenta hacia abajo en cada tecleo y la barra de progreso se escala con `scaleX`, no con `width`. Al aplicar, el botón pasa a "Aplicando…", el modal sale y la tarjeta del saldo hace un pulso corto de `scale`, que no empuja nada de alrededor.
+
+## Fase 9 — Donut interactivo
+
+El donut ya tenía resalte al pasar el cursor, pero eso no basta: en un móvil no hay cursor, y ahí el donut era un dibujo y nada más. Ahora el click funciona en los dos sentidos —del donut a la lista y de la lista al donut—, el segundo click deselecciona, y los segmentos son enfocables con `Enter`/`Espacio`. El elegido sale hacia afuera con `scale(1.05)` y engorda el trazo; los demás bajan a opacidad 0.35. El ítem de la lista recibe un destello que se apaga solo en 800ms y la vista se desplaza hasta él.
+
+**La selección vive en una variable de módulo, no en el DOM.** Tiene que ser así: al pulsar una fila la vista se repinta entera para desplegar su detalle, y una selección guardada solo en el DOM se perdía en ese repintado —era exactamente el caso "de la lista al donut", que fallaba—. Se vuelve a aplicar en cada render, sin destello ni desplazamiento, porque el usuario no ha vuelto a pulsar nada. Si el segmento ya no existe, no se encuentra y no pasa nada.
+
+**Dos detalles del navegador.** El giro de -90° pasó del atributo `transform` del `<circle>` a CSS: como atributo, la clase de selección no le podía añadir la escala sin pisarlo. Y al pulsar con el ratón el navegador dibujaba su anillo de foco sobre la caja del `<circle>`, que es el cuadrado entero del donut: un recuadro negro alrededor del dibujo. Se apaga siempre y el foco de teclado se marca engordando el trazo, que es lo que se está mirando.
+
+El hover solo pinta si no hay nada fijado, para que no se peleen. Y el donut se dibuja de un barrido de 600ms al montar, solo la primera vez: repetirlo en cada repintado convertiría un detalle en un peaje.

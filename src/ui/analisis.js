@@ -4,7 +4,7 @@ import { periodoDe, hoyISO, ingresoReal, porLinea } from '../engine/movimientos.
 import { resumenItem, pagosLibresDeItem, SIN_CONCEPTO } from '../engine/pagos.js';
 import { money, esc, MESES } from '../format.js';
 import { sinMotion } from './animar.js';
-import { colorDe, claseDeItem } from '../engine/semantica.js';
+import { colorCategoria } from '../engine/semantica.js';
 
 /* F6 — análisis por categorías: donut y tabla del gasto real. No hay estado
    guardado: los segmentos se derivan del perfil en cada render, así que
@@ -215,14 +215,14 @@ function detalleCategoria(p, itemId, periodo) {
      se quede sin pagos ese mes. */
   const segmentos = res.filas
     .map((f, i) => ({ id: f.l.id, nombre: f.l.n || 'Sin nombre',
-      color: colorDe(claseDeItem(it), i), monto: f.pagado }))
+      color: colorCategoria(i), monto: f.pagado }))
     .filter((seg) => seg.monto > 0);
   /* F8 — lo pagado sin concepto es la misma plata que ya cuenta en el total de
      la categoría: si no entra aquí, la gráfica dice que no hay pagos mientras
      la fila de arriba muestra el monto. Misma fuente para el total y el donut. */
   if (res.libre > 0) {
     segmentos.push({ id: `${itemId}-libre`, nombre: SIN_CONCEPTO,
-      color: colorDe(claseDeItem(it), res.filas.length), monto: res.libre });
+      color: colorCategoria(res.filas.length), monto: res.libre });
   }
   if (!segmentos.length) return '<div class="an-detalle empty">Sin pagos en esta categoría todavía.</div>';
   const total = segmentos.reduce((t, seg) => t + seg.monto, 0);

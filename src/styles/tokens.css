@@ -42,6 +42,15 @@
   --sem-ingreso-1:#0F7A4F; --sem-ingreso-2:#1FA971; --sem-ingreso-3:#5CC79A; --sem-ingreso-4:#A5E3C7;
   --sem-gasto-1:  #C81E1E; --sem-gasto-2:  #E5484D; --sem-gasto-3:  #F08A8A; --sem-gasto-4:  #F8C4C4;
   --sem-ahorro-1: #B45309; --sem-ahorro-2: #E08A0B; --sem-ahorro-3: #F5B942; --sem-ahorro-4: #FBDFA0;
+  /* El donut es otra cosa: ahí el color no dice qué significa la plata (eso ya
+     lo dice el título "Gasto real"), dice cuál categoría es cuál. Una escala de
+     rojos no se distingue, así que las porciones usan hues distintos. Los tres
+     colores con significado —verde, rojo, amarillo— siguen mandando en barras,
+     montos y puntos de las listas de movimientos. */
+  --cat-1:#E5484D; --cat-2:#F5A524; --cat-3:#1FA971; --cat-4:#0EA5E9;
+  --cat-5:#8B5CF6; --cat-6:#EC4899; --cat-7:#0D9488; --cat-8:#A16207;
+  --cat-9:#6366F1; --cat-10:#B91C1C;
+
   /* para texto encima de fondo claro, que los tonos vivos no llegan a AA */
   --sem-ingreso-texto:var(--sem-ingreso-1);
   --sem-gasto-texto:  var(--sem-gasto-1);

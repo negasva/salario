@@ -41,6 +41,20 @@ export function colorDe(clase, i = 0) {
   return `var(--sem-${c}-${(Math.abs(i) % TONOS) + 1})`;
 }
 
-export function colorDeItem(it, i = 0) {
-  return colorDe(claseDeItem(it), i);
+/* El color guardado de una categoría es el tono que manda de su significado, sin
+   aclarar: la escala de tonos servía para separar porciones del donut y el donut
+   ya no la usa, así que en barras y puntos solo quedan los tres colores. */
+export function colorDeItem(it) {
+  return colorDe(claseDeItem(it));
+}
+
+/* El donut es la excepción a la regla de arriba. Ahí el color no está diciendo
+   qué significa la plata —el título ya dice que todo eso es gasto— sino cuál
+   porción es cuál, y una escala de rojos no se distingue. Estos son hues
+   distintos, pensados para separarse entre sí; el orden es estable, así que una
+   categoría conserva su color mientras conserve su puesto en la lista. */
+export const CATEGORICOS = 10;
+
+export function colorCategoria(i = 0) {
+  return `var(--cat-${(Math.abs(Math.trunc(Number(i) || 0)) % CATEGORICOS) + 1})`;
 }

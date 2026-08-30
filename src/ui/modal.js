@@ -1,4 +1,5 @@
 import { icon } from './icons.js';
+import { sinMotion } from './animar.js';
 
 /* Un solo modal para toda la app. Se cierra con la X, tocando fuera o con Esc,
    y devuelve el cuerpo vacío para que cada pantalla escriba lo suyo dentro. */
@@ -12,8 +13,6 @@ export function abrirModal({ titulo = '', alCerrar } = {}) {
     </div>`;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
-  const quieto = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
   function cerrar() {
     if (!overlay.isConnected || overlay.dataset.cerrando) return;
     /* Se limpia todo de una y la salida solo se queda con el nodo: si el
@@ -22,7 +21,7 @@ export function abrirModal({ titulo = '', alCerrar } = {}) {
     document.body.style.overflow = '';
     document.removeEventListener('keydown', onKey);
     alCerrar?.();
-    if (quieto()) { overlay.remove(); return; }
+    if (sinMotion()) { overlay.remove(); return; }
     overlay.dataset.cerrando = '1';
     overlay.classList.add('sale');
     setTimeout(() => overlay.remove(), 200);

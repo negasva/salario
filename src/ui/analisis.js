@@ -3,6 +3,7 @@ import { segmentosReal, segmentosDeSnapshot, arcos } from '../engine/analisis.js
 import { periodoDe, hoyISO, ingresoReal, porLinea } from '../engine/movimientos.js';
 import { resumenItem, pagosLibresDeItem, SIN_CONCEPTO } from '../engine/pagos.js';
 import { money, esc, MESES } from '../format.js';
+import { sinMotion } from './animar.js';
 
 /* F6 — análisis por categorías: donut y tabla del gasto real. No hay estado
    guardado: los segmentos se derivan del perfil en cada render, así que
@@ -75,7 +76,7 @@ function enlazarResalte(box) {
     fila.classList.remove('resaltada');
     void fila.offsetWidth; // reinicia el destello si ya venía encendido
     fila.classList.add('resaltada');
-    fila.scrollIntoView({ block: 'nearest', behavior: quieto() ? 'auto' : 'smooth' });
+    fila.scrollIntoView({ block: 'nearest', behavior: sinMotion() ? 'auto' : 'smooth' });
   }
 
   function seleccionar(par) {
@@ -115,7 +116,6 @@ function enlazarResalte(box) {
   });
 }
 
-const quieto = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export function renderAnalisis(root) {
   const p = store.active();

@@ -13,7 +13,7 @@ import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
 import { disponibleParaRepartir } from '../engine/saldo.js';
-import { animarNumeros, contarHasta } from './animar.js';
+import { animarNumeros, contarHasta, revelarAlEntrar, sinMotion } from './animar.js';
 import { destinosDeReparto, normalizarReparto, movimientosDeReparto } from '../engine/repartoSaldo.js';
 
 const { PALETTE } = store;
@@ -47,6 +47,10 @@ export function renderCategorias(root) {
   paintList(root);
   paintIngreso(root);
   paintDesfases(root);
+  /* Después de los tres, no dentro de `paintList`: la lista se pinta primero y
+     en ese momento las tarjetas de arriba todavía no existen, así que nada
+     quedaba por debajo del pliegue y el efecto no marcaba a nadie. */
+  revelarAlEntrar(root);
 }
 
 /* F7 — en la vista de planeación se dice en la cara dónde te estás pasando:
@@ -658,7 +662,7 @@ function abrirItemSheet(root, it, l, p, nuevo = false) {
    no mueve el resto del formulario, que es lo que hace un error de validación
    insoportable —el botón se te escapa justo cuando ibas a darle—. */
 function sacudir(el) {
-  if (!el || SIN_MOTION()) return;
+  if (!el || sinMotion()) return;
   el.classList.remove('sacude');
   void el.offsetWidth; // reinicia la animación si ya estaba corriendo
   el.classList.add('sacude');
@@ -672,7 +676,7 @@ function sacudir(el) {
    cerrar, para que lo plegado no quede en el orden de tabulación. */
 function plegar(fold, abre) {
   if (!fold) return;
-  if (SIN_MOTION()) { fold.hidden = !abre; return; }
+  if (sinMotion()) { fold.hidden = !abre; return; }
   if (abre) {
     fold.hidden = false;
     // un cuadro de margen: sin él el navegador pinta el estado final de una
@@ -688,10 +692,8 @@ function plegar(fold, abre) {
 /* Sacar una fila de la lista: se desvanece y colapsa su propio alto, y solo
    entonces se repinta. Con `prefers-reduced-motion` no hay salida que esperar,
    así que el callback corre de una y nadie se queda mirando una fila quieta. */
-const SIN_MOTION = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
 function salir(el, alTerminar) {
-  if (SIN_MOTION() || !el?.isConnected) { alTerminar(); return; }
+  if (sinMotion() || !el?.isConnected) { alTerminar(); return; }
   el.style.height = `${el.offsetHeight}px`;
   el.classList.add('fila-sale');
   let hecho = false;
@@ -1028,7 +1030,7 @@ function abrirRepartoSaldo(p, disponible, periodo, alTerminar) {
 /* Un pulso corto en la tarjeta del saldo después de repartir: el número cambió
    y hay que mirar ahí. Es `transform`, así que no empuja nada de alrededor. */
 function pulso(el) {
-  if (!el || SIN_MOTION()) return;
+  if (!el || sinMotion()) return;
   el.classList.remove('pulsa');
   void el.offsetWidth;
   el.classList.add('pulsa');

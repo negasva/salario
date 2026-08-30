@@ -40,9 +40,30 @@ export function animarNumeros(scope, formato) {
   });
 }
 
-/* Las barras se dibujan al 100% y se encogen con `scaleX`: animar el `width`
-   obliga al navegador a recalcular el layout en cada cuadro y en un móvil de
-   gama baja eso se ve. El valor viaja como número suelto en `--pct`. */
-export function olvidar(prefijo) {
-  [...previos.keys()].filter((k) => k.startsWith(prefijo)).forEach((k) => previos.delete(k));
+/* F10 — revelar al entrar en pantalla: fade y 12px de subida, una sola vez y
+   sin parallax. Dos precauciones deliberadas:
+
+   - El estado oculto lo pone el JS, nunca el CSS. Si este módulo no corre, o el
+     navegador no trae `IntersectionObserver`, todo se ve: una sección en blanco
+     por un fallo de una animación decorativa sería un desastre muy caro para lo
+     poco que aporta el efecto.
+   - Solo se marcan los elementos que arrancan por debajo del pliegue. Lo que ya
+     está en pantalla no tiene "entrada" que hacer: animarlo sería un parpadeo
+     en cada repintado. */
+export function revelarAlEntrar(scope, sel = '.card,.cat-card') {
+  if (sinMotion() || typeof IntersectionObserver === 'undefined') return;
+  const alto = window.innerHeight;
+  const tarde = [...scope.querySelectorAll(sel)]
+    .filter((el) => el.getBoundingClientRect().top > alto * 0.9);
+  if (!tarde.length) return;
+
+  const obs = new IntersectionObserver((entradas) => {
+    entradas.forEach((e) => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('revelado');
+      obs.unobserve(e.target);
+    });
+  }, { rootMargin: '0px 0px -8% 0px' });
+
+  tarde.forEach((el) => { el.classList.add('revelar'); obs.observe(el); });
 }

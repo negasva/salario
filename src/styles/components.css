@@ -206,12 +206,12 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 /* F8 — el único verde de la app, y es a propósito: en una paleta rosa un botón
    verde no se confunde con nada, y "tienes plata a favor" es la única buena
    noticia que da esta pantalla. */
-.btn-saldo{background:var(--success);border-color:var(--success);color:var(--on-success);
+.btn-saldo{background:var(--success-texto);border-color:var(--success-texto);color:var(--white);
   font-weight:var(--fw-bold);padding:14px;gap:6px;
   transition:transform var(--t-micro),background var(--t-micro),box-shadow var(--t-micro)}
 .btn-saldo .num{color:inherit;font-variant-numeric:tabular-nums}
 .btn-saldo:hover:not(:disabled){transform:scale(1.02);box-shadow:var(--shadow-sm);
-  background:var(--success);border-color:var(--success)}
+  background:var(--success);border-color:var(--success);color:var(--ink)}
 .btn-saldo:active:not(:disabled){transform:scale(.97);transition-duration:80ms}
 .btn-saldo:focus-visible{outline:0;box-shadow:0 0 0 3px var(--success-soft)}
 .btn-saldo:disabled{opacity:.5;cursor:not-allowed}
@@ -225,7 +225,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .rep-campo .mini{flex:none;white-space:nowrap}
 .rep-pie{margin:var(--space-5) 0 var(--space-4)}
 /* la barra se escala en vez de cambiar de ancho: mismo motivo que los bloques */
-.rep-barra i{width:100%;background:var(--success);transform-origin:left center;
+.rep-barra i{width:100%;background:var(--success-texto);transform-origin:left center;
   transform:scaleX(0);transition:transform var(--dur-comp) var(--ease-out)}
 .rep-pie .hint{margin-top:var(--space-2);font-variant-numeric:tabular-nums}
 
@@ -240,8 +240,8 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .resumen-flujo{display:flex;gap:var(--space-5);flex-wrap:wrap;margin-bottom:var(--space-5)}
 .resumen-flujo-cifra{display:flex;flex-direction:column;gap:2px;min-width:145px}
 .resumen-flujo-cifra b{font-size:var(--text-base);font-weight:var(--fw-bold)}
-.resumen-flujo-cifra.positivo b{color:var(--success)}
-.resumen-flujo-cifra.negativo b{color:var(--danger)}
+.resumen-flujo-cifra.positivo b{color:var(--success-texto)}
+.resumen-flujo-cifra.negativo b{color:var(--danger-texto)}
 .cat-card.locked{border-color:var(--danger)}
 .cat-top{display:flex;align-items:center;gap:var(--space-2)}
 .dot{width:10px;height:10px;border-radius:3px;flex:none}
@@ -393,6 +393,11 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
    todos entran animados sin tocar una línea de JS. La salida sí necesita la
    clase, y quien no la ponga simplemente desaparece de una, que es lo que
    hacía antes. */
+/* F10 — la clase oculta la pone el JS, así que sin JS no hay nada invisible */
+.revelar{opacity:0;transform:translateY(12px);
+  transition:opacity var(--dur-comp) var(--ease-out),transform var(--dur-comp) var(--ease-out)}
+.revelar.revelado{opacity:1;transform:none}
+
 @keyframes fondo-entra{from{opacity:0}to{opacity:1}}
 @keyframes hoja-entra{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 .overlay.on{animation:fondo-entra .2s var(--ease-out)}
@@ -563,7 +568,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .mov-res .hist-track{flex:1}
 .mov-res-n{flex:0 0 auto;font-size:var(--text-xs)}
 .mov-res-d{flex:0 0 auto;font-size:var(--text-xs);font-weight:var(--fw-bold);color:var(--success)}
-.mov-res-d.over,.num.over{color:var(--danger)}
+.mov-res-d.over,.num.over{color:var(--danger-texto)}
 .mov-dia{margin-bottom:var(--space-3)}
 .mov-line{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;
   border-top:1px solid var(--border-hairline)}
@@ -617,7 +622,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .pagos-head .ph-cifra{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pagos-head .ph-cifra b{font-size:var(--text-base);font-weight:var(--fw-bold);color:var(--ink)}
 .pagos-head .badge{margin-left:auto}
-.num.ok,.sub.ok{color:var(--success)}
+.num.ok,.sub.ok{color:var(--success-texto)}
 .line-pago{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:6px}
 .line-pago .fieldw{max-width:180px}
 /* El campo de monto se lleva la fila entera cuando el número no cabe: con
@@ -702,6 +707,14 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .pago-head{font-size:11px;color:var(--ink-lighter)}
 .pago-head span:first-child{text-align:right}
 .pago-acciones{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+
+/* F10 — el lápiz, el ⋮ y la × son de 22-30px porque en una fila densa un botón
+   de 44 se come la fila. El área que responde al dedo sí llega a 44: se estira
+   con un pseudo-elemento centrado, que no ocupa sitio en el layout ni cambia
+   lo que se dibuja. */
+.bloque-ed,.pago-ed,.pago-x{position:relative}
+.bloque-ed::after,.pago-ed::after,.pago-x::after{content:'';position:absolute;
+  left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 .pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:20px;line-height:18px;padding:0 5px;min-width:24px}
 .pago-ed:hover{color:var(--ink);background:var(--white)}
 .pago-nota{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -775,7 +788,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   border-top:1px solid var(--border-hairline)}
 .an-fila:nth-child(odd){background:var(--pink-wash)}
 .an-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.an-pct{flex:0 0 56px;text-align:right;color:var(--pink-dark);font-weight:var(--fw-bold)}
+.an-pct{flex:0 0 56px;text-align:right;color:var(--pink-texto);font-weight:var(--fw-bold)}
 .an-monto{flex:0 0 auto;font-weight:var(--fw-bold)}
 .an-dif{flex:0 0 auto;font-size:var(--text-xs)}
 
@@ -872,3 +885,26 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .tasa-valor{flex:1 1 130px;min-width:0;color:var(--ink)}
 .tasa-valor .sub{display:block;margin-top:0}
 .tasa-fila input{flex:1 1 90px;min-width:0;text-align:right}
+
+/* F10 — en móvil el modal es una hoja inferior: sube desde abajo, se pega al
+   borde de la pantalla y su contenido se desplaza por dentro. Un modal centrado
+   en una pantalla de 360px deja márgenes que no sirven para nada y se queda
+   lejos del pulgar.
+
+   Este bloque va al final del archivo a propósito: pisa reglas de `.sheet` y
+   `.overlay` que están más arriba y tienen la misma especificidad, así que
+   quien gana es quien va después. Puesto antes, no hacía nada. */
+@media (max-width:560px){
+  .overlay{padding:0}
+  .overlay.on{display:flex;align-items:flex-end}
+  .sheet{width:100%;max-width:none;margin:0;max-height:90vh;overflow-y:auto;
+    border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+    padding-bottom:max(var(--space-6),env(safe-area-inset-bottom))}
+  /* el agarradero: dice "esto sube y baja" sin escribirlo */
+  .sheet::before{content:'';display:block;width:36px;height:4px;margin:0 auto var(--space-4);
+    border-radius:var(--radius-pill);background:var(--border-card)}
+  @keyframes hoja-sube{from{transform:translateY(100%)}to{transform:none}}
+  .overlay.on .sheet{animation:hoja-sube var(--dur-modal) var(--ease-spring)}
+  .overlay.on.sale .sheet{transform:translateY(100%);opacity:1;
+    transition:transform var(--t-salida)}
+}

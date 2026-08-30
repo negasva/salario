@@ -35,6 +35,14 @@
      propósito: el significado (verde bien, rojo mal) no cambia con el tema. */
   --saldo-ok-on-ink:   #7BE0A8;
   --saldo-over-on-ink: #FFA8A8;
+  /* F10 — los acentos están calibrados para llenar una barra o un botón, no
+     para escribirse encima de blanco: `--success` sobre blanco da 3.0:1 y AA
+     pide 4.5:1 para texto normal. Estos tres son los mismos colores oscurecidos
+     hasta pasar, y se usan SOLO para texto. El fondo sigue siendo el de siempre,
+     así que la app no cambia de aspecto. */
+  --success-texto: #0F7A4F;
+  --danger-texto:  #C81E1E;
+  --pink-texto:    #B03060;
   /* F10/F11 — bloques: la categoría es oscura y sus ítems claros, para que la
      jerarquía se lea de un vistazo. El relleno marca lo pagado sobre lo planeado. */
   --bloque-cat-bg:     var(--ink);

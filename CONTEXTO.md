@@ -319,3 +319,25 @@ El donut ya tenía resalte al pasar el cursor, pero eso no basta: en un móvil n
 **Dos detalles del navegador.** El giro de -90° pasó del atributo `transform` del `<circle>` a CSS: como atributo, la clase de selección no le podía añadir la escala sin pisarlo. Y al pulsar con el ratón el navegador dibujaba su anillo de foco sobre la caja del `<circle>`, que es el cuadrado entero del donut: un recuadro negro alrededor del dibujo. Se apaga siempre y el foco de teclado se marca engordando el trazo, que es lo que se está mirando.
 
 El hover solo pinta si no hay nada fijado, para que no se peleen. Y el donut se dibuja de un barrido de 600ms al montar, solo la primera vez: repetirlo en cada repintado convertiría un detalle en un peaje.
+
+## Fases 10 y 11 — Responsive, contraste y pasada de animación
+
+**Contraste.** Una auditoría automática sobre la página ya pintada —midiendo el color calculado de cada nodo de texto contra el fondo real de su primer ancestro con color— encontró cuatro fallos de AA, uno de ellos recién introducido: el botón verde nuevo daba 3.01:1 con texto blanco. La causa de fondo es que `--success`, `--danger` y `--pink-dark` están calibrados para llenar una barra o un botón, no para escribirse encima de blanco. Ahora hay `--success-texto`, `--danger-texto` y `--pink-texto`, que son los mismos colores oscurecidos hasta pasar AA y se usan **solo para texto**; los fondos siguen siendo los de siempre, así que la app no cambia de aspecto. La auditoría vuelve a correr en cero.
+
+**Áreas táctiles.** El lápiz, el `⋮` y la `×` miden 22-30px porque en una fila densa un botón de 44 se come la fila. El área que responde al dedo sí llega a 44: se estira con un pseudo-elemento centrado, que no ocupa sitio en el layout ni cambia lo que se dibuja. Y en `pointer:coarse` todo control sube a 44px de alto; en escritorio se quedan compactos, porque con ratón 28px sobran y estirarlo todo dejaría la mitad de información por pantalla. Medido en modo táctil: cero controles por debajo de 44px.
+
+**Responsive.** 360, 768 y 1280px sin desplazamiento horizontal y sin un solo elemento que se salga por la derecha. En móvil los modales son hoja inferior, pegados al borde, con scroll interno y agarradero. Ese bloque va al final del archivo a propósito: pisa reglas de `.sheet` y `.overlay` de la misma especificidad que están más arriba, y puesto antes no hacía nada —la primera versión dejaba la hoja flotando a 40px del borde—.
+
+**Revelar al bajar.** Fade y 12px de subida, una sola vez, sin parallax. El estado oculto lo pone el JS y nunca el CSS: si el módulo no corre o el navegador no trae `IntersectionObserver`, todo se ve. Una sección en blanco por culpa de una animación decorativa sería un precio absurdo. Solo se marcan los elementos que arrancan por debajo del pliegue, y la llamada va después de pintar las tres zonas de la vista, no dentro de la lista: pintada primero, las tarjetas de arriba todavía no existen y no había nada bajo el pliegue que marcar.
+
+**Una sola definición de "menos movimiento".** Había cuatro copias del mismo `matchMedia('(prefers-reduced-motion: reduce)')` repartidas por los módulos. Queda una, en `ui/animar.js`, y las demás la importan.
+
+### Dónde el documento se contradice
+
+Tres animaciones incumplen la lista de verificación final pero están pedidas explícitamente en su propia fase. Se dejaron como las pide la fase y se anotan aquí en vez de elegir en silencio:
+
+- El barrido del donut al montar dura **600ms** (fase 9) contra el tope de 400ms de la fase 11.
+- El destello del ítem resaltado dura **800ms** (fase 9) contra ese mismo tope.
+- Borrar un pago anima `height` (fase 2 pide "collapse de altura") contra la regla de animar solo `transform` y `opacity`.
+
+Ninguna de las tres bloquea una acción del usuario, que es lo que la regla protege: el barrido y el destello son de solo lectura, y el colapso ocurre después de que el borrado ya se aplicó. El resto de las animaciones son `transform` y `opacity`, salvo los cambios de fondo, borde y sombra en hover, que la fases 7 y 8 piden por escrito y no provocan recálculo de layout.

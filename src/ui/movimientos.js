@@ -6,6 +6,7 @@ import { money, esc, MESES } from '../format.js';
 import { pendientes, movDesde } from '../engine/recurrentes.js';
 import { CATEGORIAS, nombreCategoria } from '../engine/clasificar.js';
 import { abrirRegistro } from './registrar.js';
+import { tablaPagos } from './categorias.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
@@ -35,6 +36,8 @@ export function renderMovimientos(root, args = {}) {
   // F3 — el filtro por renglón llega desde Categorías. Se ve y se quita: si no,
   // registras un movimiento que no encaja y parece que no se guardó.
   let filtroLinea = args.lineId || null;
+  // el detalle de ingresos se abre desde la tarjeta de presupuesto contra real
+  let verIngresos = false;
 
   root.innerHTML = `
     <div class="vista-head vista-head-row">
@@ -165,7 +168,13 @@ export function renderMovimientos(root, args = {}) {
           : 'Sin ingresos registrados todavía este mes.'}</div>
       </div>
       <div class="card" style="margin-bottom:var(--sp-4)">
-        <span class="label">Presupuesto contra real</span>
+        <div class="spark-head">
+          <span class="label">Presupuesto contra real</span>
+          <button class="mov-ing" id="mvIngBtn" aria-expanded="${verIngresos}" aria-controls="mvIngTabla">
+            Ingresó <b class="num">${money(ing.total, p.cur)}</b>
+          </button>
+        </div>
+        <div id="mvIngTabla" ${verIngresos ? '' : 'hidden'}></div>
         <div class="hist-list">
           ${p.items.map((it) => {
             const pres = amount(it);
@@ -183,6 +192,29 @@ export function renderMovimientos(root, args = {}) {
           }).join('')}
         </div>
       </div>`;
+
+    if (verIngresos) {
+      // sin nota el ingreso se llamaría "Pago" en la tabla: se nombra como en el libro
+      const ingresos = visiblesDelMes(p.movs, periodo)
+        .filter((m) => m.tipo === 'ingreso')
+        .map((m) => ({ ...m, nombre: m.nombre || m.nota || (m.extra ? 'Ingreso extra' : 'Nómina') }));
+      const caja = $('#mvIngTabla');
+      caja.innerHTML = ingresos.length
+        ? tablaPagos(ingresos, p)
+        : '<div class="empty">Sin ingresos registrados este mes.</div>';
+      caja.querySelectorAll('.pago-row').forEach((tr) => {
+        const m = p.movs.find((x) => x.id === tr.dataset.mid);
+        if (!m) return;
+        tr.querySelector('.pago-ed').onclick = () => registrar('ingreso', m.id);
+        tr.querySelector('.pago-x').onclick = () => {
+          const idx = p.movs.indexOf(m);
+          const { undo } = store.stageDelete(() => p.movs.splice(idx, 1), () => p.movs.splice(idx, 0, m));
+          pintarCuerpo();
+          toast('Ingreso eliminado', () => { undo(); pintarCuerpo(); });
+        };
+      });
+    }
+    $('#mvIngBtn').onclick = () => { verIngresos = !verIngresos; pintarCuerpo(); };
 
     const delMes = visiblesDelMes(p.movs, periodo, filtroLinea);
 

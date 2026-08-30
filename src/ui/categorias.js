@@ -472,7 +472,7 @@ function listaPagos(l, p, periodo) {
    Va como `<table>` y no como una rejilla de `div`s porque es una tabla: el
    lector de pantalla anuncia la columna de cada celda y los encabezados no se
    pueden desalinear del contenido, que era justo el problema. */
-function tablaPagos(pagos, p, attrs = '') {
+export function tablaPagos(pagos, p, attrs = '') {
   if (!pagos.length) return '';
   return `<table class="pagos-tabla" ${attrs}>
     <thead><tr class="pago-head">

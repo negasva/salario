@@ -1,28 +1,67 @@
 /* F11 — categorías de gasto y clasificador local.
 
-   Diez categorías y ni una más: con veinte, nadie clasifica nada. La regla
-   difícil es la del pan: "pan, lechuga, salsa de tomate" es mercado, pero
-   "comida en Dogger" es comida preparada, y las dos son comida. Por eso el
-   diccionario trae marcas y palabras de Colombia, no solo sustantivos.
+   Dos niveles: 15 subcategorías repartidas en 6 grupos, más 'otros'. El
+   movimiento guarda la subcategoría; el grupo se deriva, nunca se guarda. La
+   regla difícil sigue siendo la del pan: "pan, lechuga, salsa de tomate" es
+   mercado, pero "comida en Dogger" es restaurante, y las dos son comida. Por
+   eso el diccionario trae marcas y palabras de Colombia, no solo sustantivos.
 
    Esto corre en el navegador, sin red y sin costo. La IA de `src/ia.js` solo
    se llama para lo que aquí queda en 'otros' o con poca confianza. */
 
-export const CATEGORIAS = [
-  { id: 'mercado', n: 'Mercado', ic: 'mercado' },
-  { id: 'comida-fuera', n: 'Comida preparada', ic: 'restaurante' },
-  { id: 'vivienda', n: 'Vivienda', ic: 'casa' },
-  { id: 'servicios', n: 'Servicios', ic: 'servicios' },
-  { id: 'transporte', n: 'Transporte', ic: 'transporte' },
-  { id: 'salud', n: 'Salud', ic: 'salud' },
-  { id: 'ocio', n: 'Ocio', ic: 'ocio' },
-  { id: 'suscripciones', n: 'Suscripciones', ic: 'suscripcion' },
-  { id: 'educacion', n: 'Educación', ic: 'educacion' },
-  { id: 'otros', n: 'Otros', ic: 'etiqueta' },
+export const GRUPOS = [
+  { id: 'hogar', n: 'Hogar' },
+  { id: 'alimentacion', n: 'Alimentación' },
+  { id: 'transporte', n: 'Transporte' },
+  { id: 'bienestar', n: 'Bienestar' },
+  { id: 'ocio', n: 'Ocio' },
+  { id: 'obligaciones', n: 'Obligaciones' },
 ];
+
+export const CATEGORIAS = [
+  { id: 'vivienda', n: 'Vivienda', ic: 'casa', grupo: 'hogar' },
+  { id: 'servicios', n: 'Servicios', ic: 'servicios', grupo: 'hogar' },
+  { id: 'mercado', n: 'Mercado', ic: 'mercado', grupo: 'alimentacion' },
+  { id: 'restaurantes', n: 'Restaurantes', ic: 'restaurante', grupo: 'alimentacion' },
+  { id: 'transporte', n: 'Transporte', ic: 'transporte', grupo: 'transporte' },
+  { id: 'vehiculo', n: 'Vehículo', ic: 'etiqueta', grupo: 'transporte' },
+  { id: 'salud', n: 'Salud', ic: 'salud', grupo: 'bienestar' },
+  { id: 'cuidado', n: 'Cuidado', ic: 'etiqueta', grupo: 'bienestar' },
+  { id: 'mascotas', n: 'Mascotas', ic: 'etiqueta', grupo: 'bienestar' },
+  { id: 'suscripciones', n: 'Suscripciones', ic: 'suscripcion', grupo: 'ocio' },
+  { id: 'salidas', n: 'Salidas', ic: 'ocio', grupo: 'ocio' },
+  { id: 'viajes', n: 'Viajes', ic: 'etiqueta', grupo: 'ocio' },
+  { id: 'compras', n: 'Compras', ic: 'ropa', grupo: 'ocio' },
+  { id: 'finanzas', n: 'Finanzas', ic: 'banco', grupo: 'obligaciones' },
+  { id: 'educacion', n: 'Educación', ic: 'educacion', grupo: 'obligaciones' },
+  { id: 'otros', n: 'Otros', ic: 'etiqueta', grupo: '' },
+];
+
+/* Las 10 categorías viejas mapeadas a la taxonomía nueva. Ninguna se pierde:
+   la migración de `normalizeProfile()` la aplica una sola vez. */
+export const MIGRACION_CAT = {
+  mercado: 'mercado',
+  'comida-fuera': 'restaurantes',
+  vivienda: 'vivienda',
+  servicios: 'servicios',
+  transporte: 'transporte',
+  salud: 'salud',
+  ocio: 'salidas',
+  suscripciones: 'suscripciones',
+  educacion: 'educacion',
+  otros: 'otros',
+};
 
 export function nombreCategoria(id) {
   return CATEGORIAS.find((c) => c.id === id)?.n || 'Otros';
+}
+
+export function grupoDe(catId) {
+  return CATEGORIAS.find((c) => c.id === catId)?.grupo || '';
+}
+
+export function nombreGrupo(grupoId) {
+  return GRUPOS.find((g) => g.id === grupoId)?.n || '';
 }
 
 // Marcas y palabras que mandan sobre cualquier otra pista del texto
@@ -66,8 +105,8 @@ const SUSCRIPCIONES = ['netflix', 'spotify', 'disney', 'hbo', 'max', 'prime vide
 const EDUCACION = ['universidad', 'matricula', 'pension colegio', 'colegio', 'curso', 'diplomado',
   'platzi', 'coursera', 'udemy', 'libro', 'libreria', 'utiles', 'semestre', 'icetex'];
 
-const GRUPOS = [
-  ['comida-fuera', RESTAURANTES],
+const DICCIONARIO = [
+  ['restaurantes', RESTAURANTES],
   ['mercado', MERCADO],
   ['vivienda', VIVIENDA],
   ['servicios', SERVICIOS],
@@ -75,7 +114,7 @@ const GRUPOS = [
   ['salud', SALUD],
   ['suscripciones', SUSCRIPCIONES],
   ['educacion', EDUCACION],
-  ['ocio', OCIO],
+  ['salidas', OCIO],
 ];
 
 export function normalizar(texto) {
@@ -91,10 +130,10 @@ export function clasificarLocal(texto) {
   const t = normalizar(texto);
   if (!t.trim()) return { cat: 'otros', confianza: 0 };
 
-  const puntajes = GRUPOS.map(([cat, palabras]) => {
+  const puntajes = DICCIONARIO.map(([cat, palabras]) => {
     const aciertos = palabras.filter((w) => t.includes(w)).length;
     // una marca de restaurante pesa doble: "comida en Dogger" no es mercado
-    const peso = cat === 'comida-fuera' ? 2 : 1;
+    const peso = cat === 'restaurantes' ? 2 : 1;
     return { cat, puntos: aciertos * peso };
   }).filter((x) => x.puntos > 0).sort((a, b) => b.puntos - a.puntos);
 
@@ -118,6 +157,8 @@ export function clasificarLista(texto) {
 
 // El bloque del reparto al que suele ir cada categoría, para proponer itemId
 export const CATEGORIA_A_ROL = {
-  mercado: 'ese', vivienda: 'ese', servicios: 'ese', transporte: 'ese', salud: 'ese',
-  'comida-fuera': 'lib', ocio: 'lib', suscripciones: 'lib', educacion: 'ese', otros: 'lib',
+  vivienda: 'ese', servicios: 'ese', mercado: 'ese', transporte: 'ese', vehiculo: 'ese',
+  salud: 'ese', educacion: 'ese', finanzas: 'deu', mascotas: 'ese',
+  restaurantes: 'lib', cuidado: 'lib', suscripciones: 'lib', salidas: 'lib',
+  viajes: 'lib', compras: 'lib', otros: 'lib',
 };

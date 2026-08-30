@@ -6,7 +6,7 @@ const p = {
   items: [{ id: 'ese', n: 'Esenciales', p: 55, L: [{ id: 'l1', n: 'Mercado' }] }],
   goals: [{ id: 'g1', n: 'Moto' }],
   movs: [
-    { id: 'm1', fecha: '2026-08-02', tipo: 'gasto', monto: 40000, itemId: 'ese', nota: 'Rappi del domingo', cat: 'comida-fuera' },
+    { id: 'm1', fecha: '2026-08-02', tipo: 'gasto', monto: 40000, itemId: 'ese', nota: 'Rappi del domingo', cat: 'restaurantes' },
     { id: 'm2', fecha: '2026-07-11', tipo: 'gasto', monto: 60000, itemId: 'ese', nota: 'rappi otra vez' },
     { id: 'm3', fecha: '2026-07-12', tipo: 'gasto', monto: 90000, itemId: 'ese', nota: 'Peluquería' },
   ],
@@ -25,7 +25,7 @@ describe('buscador', () => {
   });
 
   it('busca también por categoría de gasto', () => {
-    expect(buscar(p, 'comida preparada').map((x) => x.id)).toContain('m1');
+    expect(buscar(p, 'restaurantes').map((x) => x.id)).toContain('m1');
   });
 
   it('con menos de dos letras no busca', () => {

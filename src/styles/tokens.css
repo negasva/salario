@@ -29,6 +29,12 @@
   --text-on-ink-accent: var(--pink-light);
 
   --text-on-ink-muted: rgba(255,255,255,.70);
+  /* F3 — el saldo a favor va verde en positivo y rojo en negativo, pero sobre
+     el fondo oscuro de la categoría los `--success` y `--danger` de la paleta
+     no llegan a AA. Estos dos son los tonos claros que sí, y son fijos a
+     propósito: el significado (verde bien, rojo mal) no cambia con el tema. */
+  --saldo-ok-on-ink:   #7BE0A8;
+  --saldo-over-on-ink: #FFA8A8;
   /* F10/F11 — bloques: la categoría es oscura y sus ítems claros, para que la
      jerarquía se lea de un vistazo. El relleno marca lo pagado sobre lo planeado. */
   --bloque-cat-bg:     var(--ink);

@@ -13,6 +13,7 @@ import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
 import { disponibleParaRepartir } from '../engine/saldo.js';
+import { animarNumeros } from './animar.js';
 
 const { PALETTE } = store;
 
@@ -112,6 +113,8 @@ function paintList(root) {
 
   p.items.forEach((it) => wireCard(root, it, p));
   metas.forEach((g) => wireMeta(root, g, p));
+  // F3 — los totales cuentan del valor viejo al nuevo en vez de saltar
+  animarNumeros(box, (v) => money(v, p.cur));
 }
 
 /* El aporte es un movimiento y nada más: el progreso de la meta se recalcula
@@ -156,32 +159,35 @@ function catCard(it, p, gastadoLinea, periodo) {
   const res = resumenItem(it, gastadoLinea, periodo,
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
-  const estado = estadoLinea(res.pagado, budget, false);
   /* F2 — en gasto libre no se agregan conceptos, se agregan pagos: lo gastado
      ES el monto, así que un "monto planeado" ahí no significa nada. */
   const libre = esGastoLibre(it);
+  /* F3 — lo estimado de una categoría de gasto libre es lo que ya lleva
+     gastado: no hay nada que estimar por delante, así que va siempre al 100%
+     y sin saldo, en vez de fingir un plan de cero contra el que todo se pasa. */
+  const estimado = libre ? res.pagado : budget;
+  const estado = libre ? 'libre' : estadoLinea(res.pagado, estimado, false);
+  const pct = libre ? 100 : pctPagado(res.pagado, estimado);
   return `
   <div class="cat-card${it.locked ? ' locked' : ''}${libre ? ' cat-libre' : ''}" data-id="${it.id}">
-    <div class="bloque bloque-cat est-${estado}" style="--pct:${pctPagado(res.pagado, budget)}%">
+    <div class="bloque bloque-cat est-${estado}" style="--pct:${pct}">
       <span class="dot" style="background:${it.c}"></span>
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
         ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
-      <button class="bloque-ed cat-plus-head" aria-label="Agregar concepto a ${esc(it.n)}">+</button>
-      <b class="bloque-m num">${money(budget, p.cur)}</b>
+      <span class="bloque-pct num" title="Pagado sobre estimado">${pct}%</span>
       <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
-      <span class="bloque-cifras">Pagado <b class="num">${money(res.pagado, p.cur)}</b>
-        ${res.total ? ` · ${res.cerradas} de ${res.total} al día` : ''}
-        ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
+      ${panelTotales(it, res, estimado, p, libre)}
     </div>
+    <button class="cat-plus-head" aria-label="Agregar ${libre ? 'pago' : 'concepto'} a ${esc(it.n)}">
+      <span>Agregar ${libre ? 'pago' : 'concepto'}</span>
+      <span class="cat-plus-signo" aria-hidden="true">+</span></button>
     <div class="cat-items">
       <div class="lines">${lines(it, p, res, pagosLibres, libre)}</div>
-      <div class="cat-acciones">
-        ${libre
-          ? '<button class="mini btn-primary cat-pago-libre">+ Agregar pago</button>'
-          : `<button class="mini cat-plus">+ Concepto</button>
-             <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>`}
-      </div>
+      ${libre ? '' : `<div class="cat-acciones">
+        <button class="mini cat-pago-libre" title="Un pago que no cabe en ningún concepto">
+          Agregar pago suelto</button>
+      </div>`}
     </div>
   </div>`;
 }
@@ -220,7 +226,7 @@ function abrirCatSheet(root, it, p) {
       </div>
       <button class="wide mini cs-libre ${libre ? 'on' : ''}" aria-pressed="${libre}" ${it.locked ? 'disabled' : ''}
         title="Sin monto planeado: cada pago que registres es lo que vale">Gasto libre, sin monto planeado</button>
-      ${cabeceraPagos(res, p, budget)}
+      ${panelTotales(it, res, libre ? res.pagado : budget, p, libre, 'sheet')}
       ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
       ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los tipos de concepto que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
       ${!it.locked && !it.auto && !b.cuadrado
@@ -234,6 +240,8 @@ function abrirCatSheet(root, it, p) {
       <button class="wide mini cs-lock ${it.locked ? 'on' : ''}" aria-pressed="${!!it.locked}">
         ${icon('candado', 'ic-sm')} ${it.locked ? 'Desbloquear categoría' : 'Bloquear categoría'}</button>
       <button class="wide cs-del danger-action">Borrar categoría</button>`;
+
+    animarNumeros(cuerpo, (v) => money(v, p.cur));
 
     cuerpo.querySelector('.cs-n').onchange = (e) => { it.n = e.target.value; guardar(); };
     cuerpo.querySelector('.cs-m').onchange = (e) => setMonto(digits(e.target.value));
@@ -367,17 +375,24 @@ function explicacionAuto(res, p) {
     : `${base}. ${res.cerradas === 1 ? 'El que ya pagaste quedó' : `Los ${res.cerradas} que ya pagaste quedaron`} clavado al plan.`;
 }
 
-/* Encabezado de la categoría: el plan es la asignación mensual que define el
-   usuario; los conceptos sirven para desglosarla, no para reemplazarla. */
-function cabeceraPagos(res, p, planeado) {
-  const diferencia = r2(planeado - res.pagado);
-  const ahorro = diferencia >= 0;
+/* F3 — el panel de totales de una categoría: estimado, pagado y la resta de
+   los dos con nombre propio. El contador "3 de 10 al día" se fue: decía cuántos
+   conceptos estaban cerrados, que no es lo que se viene a mirar aquí, y competía
+   con las tres cifras que sí importan.
+
+   Los montos llevan `data-num` y `data-key` para que al repintar cuenten del
+   valor viejo al nuevo en vez de saltar. La clave incluye el id de la categoría
+   porque hay un panel por tarjeta y otro dentro del pop-up. */
+function panelTotales(it, res, estimado, p, libre, donde = 'card') {
+  const saldo = r2(estimado - res.pagado);
+  const cifra = (etiqueta, valor, clase = '') =>
+    `<div class="ph-cifra"><span class="label">${etiqueta}</span>
+      <b class="num ${clase}" data-num="${valor}" data-key="${donde}:${it.id}:${etiqueta}"
+        >${money(valor, p.cur)}</b></div>`;
   return `<div class="pagos-head">
-    <div class="ph-cifra"><span class="label" title="La asignación mensual que esperas gastar">Total planeado</span><b class="num">${money(planeado, p.cur)}</b></div>
-    <div class="ph-cifra"><span class="label">Pagado</span><b class="num">${money(res.pagado, p.cur)}</b></div>
-    ${planeado > 0 ? `<div class="ph-cifra"><span class="label">${ahorro ? 'Ahorro' : 'Exceso'}</span>
-      <b class="num ${ahorro ? 'ok' : 'over'}">${money(Math.abs(diferencia), p.cur)}</b></div>` : ''}
-    ${res.total ? `<span class="badge ${res.cerradas === res.total ? 'ok' : ''}">${res.cerradas} de ${res.total} al día</span>` : ''}
+    ${cifra('Estimado', estimado)}
+    ${cifra('Pagado', res.pagado)}
+    ${libre ? '' : cifra('Saldo a favor', saldo, saldo >= 0 ? 'ok' : 'over')}
   </div>`;
 }
 
@@ -701,11 +716,16 @@ function wireCard(root, it, p) {
     renderCategorias(root);
     abrirItemSheet(root, it, l, p);
   };
-  card.querySelector('.cat-plus').onclick = nuevoConcepto;
-  // el bloque-cat entero abre el pop-up de categoría: el + no debe dispararlo
-  card.querySelector('.cat-plus-head').onclick = (e) => { e.stopPropagation(); nuevoConcepto(); };
+  const nuevoPago = () => openPagoEditor(it, p, null, () => renderCategorias(root));
+  /* En una categoría de gasto libre no hay conceptos que crear, así que el `+`
+     grande de la cabecera abre directo el formulario de pago. */
+  const accionPrincipal = esGastoLibre(it) ? nuevoPago : nuevoConcepto;
 
-  card.querySelector('.cat-pago-libre').onclick = () => openPagoEditor(it, p, null, () => renderCategorias(root));
+  card.querySelector('.cat-plus')?.addEventListener('click', nuevoConcepto);
+  // en gasto libre esa fila no existe: el `+` de la cabecera ya agrega el pago
+  card.querySelector('.cat-pago-libre')?.addEventListener('click', nuevoPago);
+  // el encabezado entero abre el pop-up de categoría: el + no debe dispararlo
+  card.querySelector('.cat-plus-head').onclick = (e) => { e.stopPropagation(); accionPrincipal(); };
 
   // los pagos sueltos de la categoría: los del concepto viven en su pop-up
   wirePagos(card, it, p, () => renderCategorias(root));

@@ -242,7 +242,7 @@ export async function renderDashboard(root) {
 
     esenciales: diag && diag.nivel !== 'verde' ? `<div class="card" style="border-color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'})">
         <span class="label">Gastos recurrentes</span>
-        <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger' : 'warning'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
+        <div class="sub" style="color:var(--${diag.nivel === 'rojo' ? 'danger-texto' : 'warning-texto'});font-weight:var(--fw-bold);font-size:var(--text-sm)">
           Tus gastos recurrentes suman ${money(diag.sum, p.cur)}, el ${diag.share}% del ingreso.
           ${diag.nivel === 'rojo' ? 'Es demasiado.' : 'Está en el límite.'}
         </div>

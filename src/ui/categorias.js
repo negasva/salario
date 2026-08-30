@@ -16,6 +16,7 @@ import { disponibleParaRepartir } from '../engine/saldo.js';
 import { animarNumeros, contarHasta, revelarAlEntrar, sinMotion } from './animar.js';
 import { destinosDeReparto, normalizarReparto, movimientosDeReparto } from '../engine/repartoSaldo.js';
 import { colorDe, claseDeItem } from '../engine/semantica.js';
+import { badgeMedio, etiquetaMedio } from './medios.js';
 
 /* El color ya no se elige: lo dice el tipo de plata que mueve la categoría.
    Dejar un selector libre aquí significaría que la regla se rompe en cuanto
@@ -223,12 +224,11 @@ function catCard(it, p, gastadoLinea, periodo) {
   /* F2 — en gasto libre no se agregan conceptos, se agregan pagos: lo gastado
      ES el monto, así que un "monto planeado" ahí no significa nada. */
   const libre = esGastoLibre(it);
-  /* F3 — lo estimado de una categoría de gasto libre es lo que ya lleva
-     gastado: no hay nada que estimar por delante, así que va siempre al 100%
-     y sin saldo, en vez de fingir un plan de cero contra el que todo se pasa. */
-  const estimado = libre ? res.pagado : budget;
-  const estado = libre ? 'libre' : estadoLinea(res.pagado, estimado, false);
-  const pct = libre ? 100 : pctPagado(res.pagado, estimado);
+  /* F1 — también en gasto libre la cifra es lo asignado del mes, no lo pagado:
+     así el panel dice el mismo número que el pop-up donde se asigna. */
+  const estimado = budget;
+  const estado = estadoLinea(res.pagado, estimado, false);
+  const pct = pctPagado(res.pagado, estimado);
   const abierta = estaAbierta(it.id);
   return `
   <div class="cat-card${it.locked ? ' locked' : ''}${libre ? ' cat-libre' : ''}" data-id="${it.id}">
@@ -238,10 +238,10 @@ function catCard(it, p, gastadoLinea, periodo) {
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
         ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
-      <span class="bloque-pct num" title="Pagado sobre estimado">${pct}%</span>
+      <span class="bloque-pct num" title="Pagado sobre lo asignado">${pct}%</span>
       <button class="bloque-ed cat-editar" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
       <span class="cat-chevron" aria-hidden="true"></span>
-      ${panelTotales(it, res, estimado, p, libre)}
+      ${panelTotales(it, res, estimado, p)}
     </div>
     <button class="cat-plus-head" aria-label="Agregar ${libre ? 'pago' : 'concepto'} a ${esc(it.n)}">
       <span>Agregar ${libre ? 'pago' : 'concepto'}</span>
@@ -292,7 +292,7 @@ function abrirCatSheet(root, it, p) {
       </div>
       <button class="wide mini cs-libre ${libre ? 'on' : ''}" aria-pressed="${libre}" ${it.locked ? 'disabled' : ''}
         title="Sin monto planeado: cada pago que registres es lo que vale">Gasto libre, sin monto planeado</button>
-      ${panelTotales(it, res, libre ? res.pagado : budget, p, libre, 'sheet')}
+      ${panelTotales(it, res, budget, p, 'sheet')}
       ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
       ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los tipos de concepto que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
       ${!it.locked && !it.auto && !b.cuadrado
@@ -444,16 +444,16 @@ function explicacionAuto(res, p) {
    Los montos llevan `data-num` y `data-key` para que al repintar cuenten del
    valor viejo al nuevo en vez de saltar. La clave incluye el id de la categoría
    porque hay un panel por tarjeta y otro dentro del pop-up. */
-function panelTotales(it, res, estimado, p, libre, donde = 'card') {
+function panelTotales(it, res, estimado, p, donde = 'card') {
   const saldo = r2(estimado - res.pagado);
   const cifra = (etiqueta, valor, clase = '') =>
     `<div class="ph-cifra"><span class="label">${etiqueta}</span>
       <b class="num ${clase}" data-num="${valor}" data-key="${donde}:${it.id}:${etiqueta}"
         >${money(valor, p.cur)}</b></div>`;
   return `<div class="pagos-head">
-    ${cifra('Estimado', estimado)}
+    ${cifra('Asignado para el mes', estimado)}
     ${cifra('Pagado', res.pagado)}
-    ${libre ? '' : cifra('Saldo a favor', saldo, saldo >= 0 ? 'ok' : 'over')}
+    ${cifra('Saldo a favor', saldo, saldo >= 0 ? 'ok' : 'over')}
   </div>`;
 }
 
@@ -476,7 +476,7 @@ function tablaPagos(pagos, p, attrs = '') {
   if (!pagos.length) return '';
   return `<table class="pagos-tabla" ${attrs}>
     <thead><tr class="pago-head">
-      <th scope="col">Nombre</th><th scope="col" class="col-monto">Monto</th>
+      <th scope="col">Nombre</th><th scope="col">Medio</th><th scope="col" class="col-monto">Monto</th>
       <th scope="col">Fecha</th><th scope="col"><span class="visually-hidden">Acciones</span></th>
     </tr></thead>
     <tbody>${pagos.map((m, i) => pagoFila(m, p, i)).join('')}</tbody>
@@ -488,6 +488,7 @@ function pagoFila(m, p, i = 0) {
   // el escalonado se corta a las 6 filas: más allá es esperar, no es ritmo
   return `<tr class="pago-row" data-mid="${m.id}" style="--i:${Math.min(i, 5)}">
     <td class="pago-n" data-col="Nombre">${esc(n)}</td>
+    <td class="pago-medio" data-col="Medio">${m.medio ? `${badgeMedio(m.medio)}<span class="pago-medio-n">${esc(m.medio)}</span>` : ''}</td>
     <td class="col-monto" data-col="Monto"><b class="num">${money(m.monto, p.cur)}</b></td>
     <td class="pago-fecha" data-col="Fecha">${fechaCorta(m.fecha)}</td>
     <td class="pago-acciones">
@@ -506,6 +507,10 @@ function openPagoEditor(it, p, mov = null, repintar) {
         <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(nombrePago(mov) || line?.n || '')}" placeholder="Ej. D1, Éxito, Carulla"></label>
         <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
         <label class="fieldw"><span>Fecha</span><input id="pagoFecha" type="date" value="${mov?.fecha || hoyISO()}"></label>
+        <label class="fieldw"><span>Medio de pago</span>
+          <select id="pagoMedio"><option value="">Sin medio</option>
+            ${(p.medios || []).map((x) => `<option value="${esc(x)}" ${mov?.medio === x ? 'selected' : ''}>${esc(etiquetaMedio(x))}</option>`).join('')}
+          </select></label>
       </div>
       <button class="wide btn-primary" id="pagoSave">${mov ? 'Guardar cambios' : 'Guardar pago'}</button>
       <button class="wide" id="pagoCancel">Cancelar</button>`;
@@ -521,8 +526,9 @@ function openPagoEditor(it, p, mov = null, repintar) {
     // buscador y el libro, que leen de ahí, no dejen de ver el pago.
     const nombre = cuerpo.querySelector('#pagoNombre').value.trim() || line?.n || 'Pago';
     const fecha = cuerpo.querySelector('#pagoFecha').value || hoyISO();
-    if (mov) Object.assign(mov, { fecha, monto, nombre, nota: nombre });
-    else agregarPagoLibre(p.movs, it, monto, fecha, nombre);
+    const medio = cuerpo.querySelector('#pagoMedio').value || null;
+    if (mov) Object.assign(mov, { fecha, monto, nombre, nota: nombre, medio });
+    else agregarPagoLibre(p.movs, it, monto, fecha, nombre, medio);
     store.save();
     cerrar();
     repintar();

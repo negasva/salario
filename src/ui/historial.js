@@ -7,6 +7,7 @@ import { icon } from './icons.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { toast } from './shell.js';
 import { sparkline } from './dashboard.js';
+import { colorDe } from '../engine/semantica.js';
 
 function nombreMes(periodo) {
   const [a, m] = periodo.split('-');
@@ -19,7 +20,9 @@ const esRico = (c) => c.snapshot?.version >= 2;
 function barsEssentials(cierres) {
   return cierres.map((c) => {
     const pct = Math.min(100, c.snapshot.essentialsShare || 0);
-    const color = pct <= 50 ? 'var(--green)' : pct <= 65 ? 'var(--amber)' : 'var(--red)';
+    /* F3 — el semáforo usa los colores con significado: bien es verde de
+       ingreso, ojo es amarillo de ahorro, mal es rojo de gasto. */
+    const color = pct <= 50 ? colorDe('ingreso', 1) : pct <= 65 ? colorDe('ahorro', 1) : colorDe('gasto', 1);
     return `<div class="hist-row"><span class="sub">${c.periodo}</span>
       <div class="hist-track"><i style="width:${pct}%;background:${color}"></i></div>
       <span class="num sub">${Math.round(pct)}%</span></div>`;

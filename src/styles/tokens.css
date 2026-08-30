@@ -15,12 +15,14 @@
   --white:       #FFFFFF;
   --line:        #E7E7E7;
 
-  --success: #1FA971;
-  --warning: #F5A623;
-  --danger:  #E5484D;
-  --success-soft: rgba(31,169,113,.15);
-  --warning-soft: rgba(245,166,35,.15);
-  --danger-soft: rgba(229,72,77,.12);
+  /* F3 — significado antes que ambiente: verde entra, rojo sale, amarillo se
+     guarda. Estos tres son alias de los `--sem-*` y ningún tema los pisa. */
+  --success: var(--sem-ingreso-2);
+  --warning: var(--sem-ahorro-2);
+  --danger:  var(--sem-gasto-2);
+  --success-soft: color-mix(in srgb, var(--sem-ingreso-2) 15%, transparent);
+  --warning-soft: color-mix(in srgb, var(--sem-ahorro-2) 15%, transparent);
+  --danger-soft: color-mix(in srgb, var(--sem-gasto-2) 15%, transparent);
   --on-pink: var(--ink);
   --on-ink: var(--white);
   --on-success: var(--white);
@@ -52,8 +54,9 @@
      pide 4.5:1 para texto normal. Estos tres son los mismos colores oscurecidos
      hasta pasar, y se usan SOLO para texto. El fondo sigue siendo el de siempre,
      así que la app no cambia de aspecto. */
-  --success-texto: #0F7A4F;
-  --danger-texto:  #C81E1E;
+  --success-texto: var(--sem-ingreso-1);
+  --danger-texto:  var(--sem-gasto-1);
+  --warning-texto: var(--sem-ahorro-1);
   --pink-texto:    #B03060;
   /* F10/F11 — bloques: la categoría es oscura y sus ítems claros, para que la
      jerarquía se lea de un vistazo. El relleno marca lo pagado sobre lo planeado. */
@@ -74,10 +77,10 @@
   /* Alias heredados: las categorías ya guardadas apuntan a estos nombres.
      Mapean al color que el diseño le da a cada bloque. */
   --blue:   var(--ink);
-  --mint:   var(--success);
-  --green:  var(--success);
-  --amber:  var(--warning);
-  --red:    var(--danger);
+  --mint:   var(--sem-ingreso-2);
+  --green:  var(--sem-ingreso-2);
+  --amber:  var(--sem-ahorro-2);
+  --red:    var(--sem-gasto-2);
 
   --text:    var(--ink);
 
@@ -128,11 +131,8 @@
   --pink-lighter:#F3D3C3; --pink-wash:#F9F5EB;
   --ink:#002B5B; --ink-light:#2D4059; --ink-lighter:#304B69;
   --white:#FFFFFF; --line:#E6DCCB;
-  --success:#2D4059; --warning:#B45309; --danger:#C63C43;
-  --success-soft:rgba(45,64,89,.15); --warning-soft:rgba(180,83,9,.14); --danger-soft:rgba(198,60,67,.13);
-  --on-pink:#111827; --on-ink:#FFFFFF; --on-success:#FFFFFF; --on-warning:#111827; --on-danger:#FFFFFF;
+  --on-pink:#111827; --on-ink:#FFFFFF;
   --text-on-ink-accent:#F9F5EB;
-  --blue:#002B5B; --mint:#2D4059; --green:#2D4059; --amber:#B45309; --red:#C63C43;
 }
 
 :root[data-paleta="pizarra"]{
@@ -140,11 +140,8 @@
   --pink-lighter:#D1D5DB; --pink-wash:#EDEDED;
   --ink:#111827; --ink-light:#1F2937; --ink-lighter:#4B5563;
   --white:#FFFFFF; --line:#D1D5DB;
-  --success:#374151; --warning:#4B5563; --danger:#1F2937;
-  --success-soft:rgba(55,65,81,.15); --warning-soft:rgba(75,85,99,.15); --danger-soft:rgba(31,41,55,.13);
-  --on-pink:#FFFFFF; --on-ink:#FFFFFF; --on-success:#FFFFFF; --on-warning:#FFFFFF; --on-danger:#FFFFFF;
+  --on-pink:#FFFFFF; --on-ink:#FFFFFF;
   --text-on-ink-accent:#EDEDED;
-  --blue:#374151; --mint:#374151; --green:#374151; --amber:#4B5563; --red:#1F2937;
 }
 
 :root[data-paleta="vivo"]{
@@ -152,9 +149,6 @@
   --pink-lighter:#FFE7A3; --pink-wash:#FFF7E5;
   --ink:#111827; --ink-light:#1F2937; --ink-lighter:#4B5563;
   --white:#FFFFFF; --line:#E5E7EB;
-  --success:#16803C; --warning:#7C5A00; --danger:#C24147;
-  --success-soft:rgba(22,128,60,.14); --warning-soft:rgba(124,90,0,.13); --danger-soft:rgba(194,65,71,.13);
-  --on-pink:#111827; --on-ink:#FFFFFF; --on-success:#FFFFFF; --on-warning:#111827; --on-danger:#FFFFFF;
+  --on-pink:#111827; --on-ink:#FFFFFF;
   --text-on-ink-accent:#FFB400;
-  --blue:#0077A8; --mint:#16803C; --green:#16803C; --amber:#7C5A00; --red:#C24147;
 }

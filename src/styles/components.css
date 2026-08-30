@@ -516,7 +516,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 
 .pbar{height:8px;border-radius:var(--radius-pill);background:var(--pink-wash);overflow:hidden;
   margin:var(--space-3) 0 var(--space-2)}
-.pbar i{display:block;height:100%;background:var(--pink);border-radius:var(--radius-pill)}
+.pbar i{display:block;height:100%;background:var(--sem-ahorro-2);border-radius:var(--radius-pill)}
 .divider{border-top:1px solid var(--border-hairline);margin:var(--space-5) 0 var(--space-3)}
 .opt{border:1px solid var(--pink-lighter);border-radius:var(--radius-md);padding:var(--space-3);
   margin-bottom:9px;cursor:pointer;background:var(--pink-wash);transition:border-color var(--t-fast)}
@@ -542,7 +542,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .line-progreso-head .sub{margin-top:0}
 .line-progreso-head>.num{font-size:var(--text-xs)}
 .line-progreso .hist-track{width:100%;flex:none;height:7px;margin-top:5px}
-.line-progreso .hist-track i{background:var(--pink)}
+.line-progreso .hist-track i{background:var(--sem-gasto-2)}
 .modal-body{display:flex;flex-direction:column;gap:var(--space-3)}
 .modal-body .line-pago{margin-top:0}
 .modal-body .fieldw{width:100%}
@@ -716,6 +716,8 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .pago-row:hover{background:var(--pink-wash)}
 .pago-n{font-weight:var(--fw-semibold);overflow-wrap:break-word}
 .pago-fecha{font-size:var(--text-xs);color:var(--ink-lighter);white-space:nowrap}
+.pago-medio{display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--ink-light)}
+.pago-medio-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px}
 
 /* En móvil la tabla se rompe en tarjetas apiladas: nombre arriba, monto
    destacado, fecha de apoyo. Nada de scroll horizontal, que en una tabla de
@@ -732,6 +734,9 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   .pagos-tabla tr.pago-row td{border:0;padding:0}
   .pagos-tabla .pago-n{grid-area:1/1;font-size:var(--text-base)}
   .pagos-tabla .col-monto{grid-area:1/2;text-align:right}
+  /* en móvil el medio se queda en el badge: el nombre ya no cabe sin desbordar */
+  .pagos-tabla .pago-medio{grid-area:3/1}
+  .pagos-tabla .pago-medio-n{display:none}
   .pagos-tabla .pago-fecha{grid-area:2/1}
   .pagos-tabla .pago-acciones{display:flex;grid-area:2/2;justify-content:flex-end}
 }

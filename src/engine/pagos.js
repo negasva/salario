@@ -108,22 +108,22 @@ function nid() {
    una entra como su propio movimiento y la suma del mes es lo pagado: por eso
    no hay un campo total que sobreescribir, solo pagos que se agregan y se
    borran uno por uno. */
-export function agregarPago(movs, it, l, monto, fecha, nombre) {
+export function agregarPago(movs, it, l, monto, fecha, nombre, medio = null) {
   const m = r2(monto);
   if (!(m > 0)) return null;
   const n = String(nombre || '').trim() || l.n || 'Pago';
   const mov = { id: nid(), fecha, tipo: 'gasto', monto: m, itemId: it.id, lineId: l.id,
-    goalId: null, nombre: n, nota: n, extra: false };
+    goalId: null, nombre: n, nota: n, medio: medio || null, extra: false };
   movs.push(mov);
   return mov;
 }
 
-export function agregarPagoLibre(movs, it, monto, fecha, nombre) {
+export function agregarPagoLibre(movs, it, monto, fecha, nombre, medio = null) {
   const m = r2(monto);
   if (!(m > 0)) return null;
   const n = String(nombre || '').trim() || 'Pago';
   const mov = { id: nid(), fecha, tipo: 'gasto', monto: m, itemId: it.id, lineId: null,
-    goalId: null, nombre: n, nota: n, extra: false };
+    goalId: null, nombre: n, nota: n, medio: medio || null, extra: false };
   movs.push(mov);
   return mov;
 }

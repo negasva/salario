@@ -314,3 +314,12 @@ describe('categoría de gasto libre', () => {
     expect(esGastoLibre({ r: 'lib', libre: false })).toBe(false);
   });
 });
+
+describe('medio de pago', () => {
+  it('guarda el medio y sin medio queda null', () => {
+    const movs = [];
+    const it = { id: 'i1' }, l = { id: 'l1', n: 'Luz' };
+    expect(agregarPago(movs, it, l, 100, '2025-01-05', 'Luz', 'Nequi').medio).toBe('Nequi');
+    expect(agregarPagoLibre(movs, it, 100, '2025-01-05', 'D1').medio).toBe(null);
+  });
+});

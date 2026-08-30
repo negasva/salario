@@ -716,6 +716,8 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .pago-row:hover{background:var(--pink-wash)}
 .pago-n{font-weight:var(--fw-semibold);overflow-wrap:break-word}
 .pago-fecha{font-size:var(--text-xs);color:var(--ink-lighter);white-space:nowrap}
+.pago-medio{display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--ink-light)}
+.pago-medio-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px}
 
 /* En móvil la tabla se rompe en tarjetas apiladas: nombre arriba, monto
    destacado, fecha de apoyo. Nada de scroll horizontal, que en una tabla de
@@ -732,6 +734,9 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   .pagos-tabla tr.pago-row td{border:0;padding:0}
   .pagos-tabla .pago-n{grid-area:1/1;font-size:var(--text-base)}
   .pagos-tabla .col-monto{grid-area:1/2;text-align:right}
+  /* en móvil el medio se queda en el badge: el nombre ya no cabe sin desbordar */
+  .pagos-tabla .pago-medio{grid-area:3/1}
+  .pagos-tabla .pago-medio-n{display:none}
   .pagos-tabla .pago-fecha{grid-area:2/1}
   .pagos-tabla .pago-acciones{display:flex;grid-area:2/2;justify-content:flex-end}
 }

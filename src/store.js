@@ -6,6 +6,7 @@ import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from '.
 import { resumenItem, sinHuerfanos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { colorDeItem } from './engine/semantica.js';
+import { MIGRACION_CAT } from './engine/clasificar.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 
 const KEY = 'reparto:v8';
@@ -210,6 +211,13 @@ function normalizeProfile(p) {
       + podados.reduce((t, m) => t + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
     sincronizarMetas(p);
   }
+  /* F11 — las 10 categorías viejas pasan a la taxonomía de 16. Se aplica una
+     sola vez: después de migrar, un `cat` que no esté en el mapa es una
+     categoría nueva y no se toca. */
+  if (!p.catsV2) {
+    p.movs.forEach((m) => { if (m.cat) m.cat = MIGRACION_CAT[m.cat] || 'otros'; });
+    p.catsV2 = true;
+  }
   p.metodoDeuda ??= 'avalancha';
   p.paleta = normalizarPaleta(p.paleta);
   p.ingresoTipo ??= 'fijo';
@@ -284,7 +292,7 @@ async function flushPush() {
         alertasSilenciadas: p.alertasSilenciadas, dashLayout: p.dashLayout || null,
         recurrentes: p.recurrentes || [],
         medios: p.medios || [], saldos: p.saldos || {},
-        edad: p.edad || null, gastoMaximo: p.gastoMaximo,
+        edad: p.edad || null, gastoMaximo: p.gastoMaximo, catsV2: true,
         movs: p.movs, localId: p.id,
       },
     }, { onConflict: 'id' }).select().single();
@@ -396,6 +404,7 @@ export async function bootAuth(uid) {
       recurrentes: row.data.recurrentes || [], dashLayout: row.data.dashLayout || null,
       medios: row.data.medios, saldos: row.data.saldos,
       edad: row.data.edad || null, gastoMaximo: row.data.gastoMaximo,
+      catsV2: row.data.catsV2,
       updated: new Date(row.updated_at).getTime(),
     }));
     if (!db.profiles.some((x) => x.id === db.active)) db.active = db.profiles[0].id;

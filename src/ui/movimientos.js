@@ -1,4 +1,4 @@
-import { colorDe, claseDeMovimiento } from '../engine/semantica.js';
+import { colorDe, claseDeMovimiento, claseDeItem } from '../engine/semantica.js';
 import * as store from '../store.js';
 import { amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, visiblesDelMes, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
@@ -176,7 +176,7 @@ export function renderMovimientos(root, args = {}) {
             return `<div class="mov-res">
               <span class="dot" style="background:${it.c}"></span>
               <span class="nm" title="${esc(it.n)}">${esc(it.n)}</span>
-              <span class="hist-track"><i style="width:${pct}%;background:${pasado ? 'var(--sem-gasto-1)' : it.c}"></i></span>
+              <span class="hist-track"><i style="width:${pct}%;background:${pasado ? colorDe(claseDeItem(it), 0) : it.c}"></i></span>
               <span class="mov-res-n num">${money(real, p.cur)} <span class="sub">de ${money(pres, p.cur)}</span></span>
               <span class="mov-res-d num ${pasado ? 'over' : ''}">${pasado ? `+${money(dif, p.cur)}` : money(dif, p.cur)}</span>
             </div>`;

@@ -516,7 +516,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 
 .pbar{height:8px;border-radius:var(--radius-pill);background:var(--pink-wash);overflow:hidden;
   margin:var(--space-3) 0 var(--space-2)}
-.pbar i{display:block;height:100%;background:var(--pink);border-radius:var(--radius-pill)}
+.pbar i{display:block;height:100%;background:var(--sem-ahorro-2);border-radius:var(--radius-pill)}
 .divider{border-top:1px solid var(--border-hairline);margin:var(--space-5) 0 var(--space-3)}
 .opt{border:1px solid var(--pink-lighter);border-radius:var(--radius-md);padding:var(--space-3);
   margin-bottom:9px;cursor:pointer;background:var(--pink-wash);transition:border-color var(--t-fast)}
@@ -542,7 +542,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .line-progreso-head .sub{margin-top:0}
 .line-progreso-head>.num{font-size:var(--text-xs)}
 .line-progreso .hist-track{width:100%;flex:none;height:7px;margin-top:5px}
-.line-progreso .hist-track i{background:var(--pink)}
+.line-progreso .hist-track i{background:var(--sem-gasto-2)}
 .modal-body{display:flex;flex-direction:column;gap:var(--space-3)}
 .modal-body .line-pago{margin-top:0}
 .modal-body .fieldw{width:100%}

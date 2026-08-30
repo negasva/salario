@@ -39,7 +39,7 @@ export function renderLogin(root, onDone) {
     else if (mode === 'registro') res = await signUp(email, pass);
     else res = await recoverPassword(email);
     if (res.error) { err.textContent = res.error.message; return; }
-    if (mode === 'recuperar') { err.style.color = 'var(--mint)'; err.textContent = 'Revisa tu correo.'; return; }
+    if (mode === 'recuperar') { err.style.color = 'var(--success-texto)'; err.textContent = 'Revisa tu correo.'; return; }
     // la marca vive en localStorage y no en la sesión: si el correo pide
     // confirmación, la cuenta entra más tarde y el paso a paso la espera
     if (mode === 'registro') marcarCuentaNueva();

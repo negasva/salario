@@ -78,9 +78,21 @@
   --shadow-sm:0 1px 2px rgba(26,26,26,.06);
   --shadow-xl:0 20px 40px rgba(26,26,26,.16);
 
+  /* Escala de movimiento. Una curva por intención: `out` para lo que entra,
+     `in` para lo que sale, `spring` para lo que el dedo arrastra. Y tres
+     duraciones, ninguna por encima de 400ms: micro-interacción, componente,
+     modal. Nada anima fuera de esta escala. */
   --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-in:cubic-bezier(.4,0,1,1);
+  --ease-spring:cubic-bezier(.22,1.2,.36,1);
+  --dur-micro:.12s;
   --dur-fast:.15s;
+  --dur-comp:.25s;
+  --dur-modal:.3s;
   --t-fast:var(--dur-fast) var(--ease-out);
+  --t-micro:var(--dur-micro) var(--ease-out);
+  --t-comp:var(--dur-comp) var(--ease-out);
+  --t-salida:.2s var(--ease-in);
 }
 
 /* Temas alternativos: los acentos conservan los colores entregados, pero los

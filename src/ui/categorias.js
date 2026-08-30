@@ -157,8 +157,11 @@ function catCard(it, p, gastadoLinea, periodo) {
     pagosLibres.reduce((s, m) => s + m.monto, 0));
   const budget = amount(it);
   const estado = estadoLinea(res.pagado, budget, false);
+  /* F2 — en gasto libre no se agregan conceptos, se agregan pagos: lo gastado
+     ES el monto, así que un "monto planeado" ahí no significa nada. */
+  const libre = esGastoLibre(it);
   return `
-  <div class="cat-card${it.locked ? ' locked' : ''}" data-id="${it.id}">
+  <div class="cat-card${it.locked ? ' locked' : ''}${libre ? ' cat-libre' : ''}" data-id="${it.id}">
     <div class="bloque bloque-cat est-${estado}" style="--pct:${pctPagado(res.pagado, budget)}%">
       <span class="dot" style="background:${it.c}"></span>
       <span class="bloque-n">${esc(it.n)}
@@ -172,11 +175,12 @@ function catCard(it, p, gastadoLinea, periodo) {
         ${estado === 'excedido' ? ` · <b class="num over">desfase ${money(r2(res.pagado - budget), p.cur)}</b>` : ''}</span>
     </div>
     <div class="cat-items">
-      <div class="lines">${lines(it, p, res)}</div>
-      ${tablaPagos(pagosLibres, p)}
+      <div class="lines">${lines(it, p, res, pagosLibres, libre)}</div>
       <div class="cat-acciones">
-        <button class="mini cat-plus">+ Concepto</button>
-        <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>
+        ${libre
+          ? '<button class="mini btn-primary cat-pago-libre">+ Agregar pago</button>'
+          : `<button class="mini cat-plus">+ Concepto</button>
+             <button class="mini cat-pago-libre" title="Agregar un pago sin concepto">Agregar pago</button>`}
       </div>
     </div>
   </div>`;
@@ -199,6 +203,7 @@ function abrirCatSheet(root, it, p) {
     const res = resumenItem(it, porLinea(p.movs, periodo), periodo,
       pagosLibresDeItem(p.movs, it.id, periodo).reduce((s, m) => s + m.monto, 0));
     const budget = amount(it);
+    const libre = esGastoLibre(it);
     const b = balance(p.items, store.incomeRepartir(p), p.goals);
     const desajuste = !it.auto && res.costo > 0 && Math.abs(res.costo - budget) >= 1;
 
@@ -213,6 +218,8 @@ function abrirCatSheet(root, it, p) {
         <button class="chip ${it.auto ? 'on' : ''}" data-auto="1" ${it.locked ? 'disabled' : ''}
           title="El monto sale de sus conceptos, corregido con lo que de verdad pagaste">Automático</button>
       </div>
+      <button class="wide mini cs-libre ${libre ? 'on' : ''}" aria-pressed="${libre}" ${it.locked ? 'disabled' : ''}
+        title="Sin monto planeado: cada pago que registres es lo que vale">Gasto libre, sin monto planeado</button>
       ${cabeceraPagos(res, p, budget)}
       ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
       ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los tipos de concepto que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
@@ -246,6 +253,12 @@ function abrirCatSheet(root, it, p) {
       if (!btn) return;
       it.c = btn.dataset.c;
       guardar();
+    };
+
+    cuerpo.querySelector('.cs-libre').onclick = () => {
+      it.libre = !esGastoLibre(it);
+      guardar();
+      toast(it.libre ? 'Aquí ya no se planea: cada pago es lo que vale' : 'Vuelve a llevar monto planeado');
     };
 
     cuerpo.querySelector('.cs-lock').onclick = () => { it.locked = !it.locked; guardar(); };
@@ -379,12 +392,13 @@ function tablaPagos(pagos, p, attrs = '') {
   if (!pagos.length) return '';
   return `<div class="pagos-tabla" ${attrs}>
     <div class="pago-row pago-head"><span>Monto</span><span>Fecha</span><span>Nota</span><span></span></div>
-    ${pagos.map((m) => pagoFila(m, p)).join('')}
+    ${pagos.map((m, i) => pagoFila(m, p, i)).join('')}
   </div>`;
 }
 
-function pagoFila(m, p) {
-  return `<div class="pago-row" data-mid="${m.id}">
+function pagoFila(m, p, i = 0) {
+  // el escalonado se corta a las 6 filas: más allá es esperar, no es ritmo
+  return `<div class="pago-row" data-mid="${m.id}" style="--i:${Math.min(i, 5)}">
     <b class="num">${money(m.monto, p.cur)}</b>
     <span class="sub">${diaCorto(m.fecha)}</span>
     <span class="sub pago-nota">${!m.lineId && m.nota ? esc(m.nota) : ''}</span>
@@ -400,7 +414,7 @@ function openPagoEditor(it, p, mov = null, repintar) {
   const { cuerpo, cerrar } = abrirModal({ titulo: mov ? 'Editar pago' : 'Agregar pago' });
   cuerpo.innerHTML = `
       <div class="pago-form">
-        <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(mov?.nota || line?.n || '')}" placeholder="Ej. almuerzo"></label>
+        <label class="fieldw"><span>Nombre</span><input id="pagoNombre" value="${esc(nombrePago(mov) || line?.n || '')}" placeholder="Ej. D1, Éxito, Carulla"></label>
         <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span><input id="pagoMonto" class="num" inputmode="numeric" value="${mov ? plain(mov.monto, p.cur) : ''}" placeholder="0"></label>
         <label class="fieldw"><span>Fecha</span><input id="pagoFecha" type="date" value="${mov?.fecha || hoyISO()}"></label>
       </div>
@@ -414,13 +428,12 @@ function openPagoEditor(it, p, mov = null, repintar) {
       cuerpo.querySelector('#pagoMonto').focus();
       return;
     }
-    const datos = {
-      fecha: cuerpo.querySelector('#pagoFecha').value || hoyISO(),
-      monto,
-      nota: cuerpo.querySelector('#pagoNombre').value.trim() || (line?.n || 'Pago'),
-    };
-    if (mov) Object.assign(mov, datos);
-    else agregarPagoLibre(p.movs, it, datos.monto, datos.fecha, datos.nota);
+    // `nombre` es el campo bueno; `nota` se sigue escribiendo para que el
+    // buscador y el libro, que leen de ahí, no dejen de ver el pago.
+    const nombre = cuerpo.querySelector('#pagoNombre').value.trim() || line?.n || 'Pago';
+    const fecha = cuerpo.querySelector('#pagoFecha').value || hoyISO();
+    if (mov) Object.assign(mov, { fecha, monto, nombre, nota: nombre });
+    else agregarPagoLibre(p.movs, it, monto, fecha, nombre);
     store.save();
     cerrar();
     repintar();
@@ -431,27 +444,34 @@ function openPagoEditor(it, p, mov = null, repintar) {
 /* F10 — cada concepto es un solo bloque: nombre, monto y editar. El bloque ES
    la barra de progreso —el relleno va detrás del texto— y todo lo demás
    (pagos, toggles, arrastre, borrar) vive en el pop-up. */
-function lines(it, p, res) {
-  const bloques = res.filas.map((f) => bloqueItem(f, p)).join('');
-  /* F6 — un pago sin concepto (el que registras desde Registrar eligiendo solo
-     la categoría) contaba en el total pero no salía en ninguna lista, así que
-     la tarjeta decía "sin nada" teniendo plata. Va agrupado y con su nombre. */
-  const sinConcepto = res.libre > 0 ? `
-    <div class="bloque bloque-item">
+function lines(it, p, res, pagosLibres = [], libre = false) {
+  const bloques = res.filas.map((f) => bloqueItem(f, p, libre)).join('');
+  /* F2 — los pagos sin concepto se agrupan bajo "General": el bloque es el
+     encabezado del grupo y debajo va la tabla con cada pago. Antes el total
+     salía en un bloque y la tabla colgaba suelta más abajo, sin decir de qué
+     grupo era. */
+  const general = res.libre > 0 ? `
+    <div class="bloque bloque-item bloque-general">
       <span class="bloque-n">${SIN_CONCEPTO}</span>
       <b class="bloque-m num">${money(res.libre, p.cur)}</b>
-    </div>` : '';
-  if (!bloques && !sinConcepto) return '<div class="empty">Sin nada en la lista.</div>';
-  return bloques + sinConcepto;
+    </div>
+    ${tablaPagos(pagosLibres, p)}` : '';
+  if (!bloques && !general) {
+    return `<div class="empty">${libre
+      ? 'Todavía no has registrado ningún pago aquí.'
+      : 'Sin nada en la lista.'}</div>`;
+  }
+  return bloques + general;
 }
 
-function bloqueItem({ l, plan, pagado, estado }, p) {
+function bloqueItem({ l, plan, pagado, estado }, p, libre = false) {
   return `
-    <div class="bloque bloque-item est-${estado}" data-lid="${l.id}" style="--pct:${pctPagado(pagado, plan)}%">
-      <span class="bloque-pct num">${pctPagado(pagado, plan)}%</span>
-      <span class="bloque-n">${esc(l.n || 'Sin nombre')}${estado === 'pagado'
+    <div class="bloque bloque-item ${libre ? 'est-libre' : `est-${estado}`}" data-lid="${l.id}"
+      style="--pct:${libre ? 0 : pctPagado(pagado, plan)}%">
+      ${libre ? '' : `<span class="bloque-pct num">${pctPagado(pagado, plan)}%</span>`}
+      <span class="bloque-n">${esc(l.n || 'Sin nombre')}${!libre && estado === 'pagado'
         ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}</span>
-      <b class="bloque-m num">${money(plan, p.cur)}</b>
+      <b class="bloque-m num">${money(libre ? pagado : plan, p.cur)}</b>
       <button class="bloque-ed" aria-label="Editar ${esc(l.n || 'concepto')}">${icon('lapiz', 'ic-sm')}</button>
     </div>`;
 }
@@ -469,14 +489,17 @@ function abrirItemSheet(root, it, l, p) {
     const pagado = r2(porLinea(p.movs, periodo)[l.id] || 0);
     const pendiente = Math.max(0, r2(plan - pagado));
     const estado = estadoLinea(pagado, plan, l.pagadoEn === periodo);
+    /* F2 — en una categoría de gasto libre no hay monto planeado que teclear:
+       lo que gastes es lo que vale. Sin plan tampoco hay barra contra qué
+       medir, ni deuda que arrastrar al mes siguiente. */
+    const libre = esGastoLibre(it);
 
     cuerpo.innerHTML = `
       <div class="fieldw"><span>Nombre</span><input class="is-n" value="${esc(l.n)}" placeholder="Concepto"></div>
-      <div class="fieldw money-field"><span>Monto planeado · ${p.cur}</span>
+      ${libre ? '' : `<div class="fieldw money-field"><span>Monto planeado · ${p.cur}</span>
         <span class="money-symbol" aria-hidden="true">$</span>
-        <input class="is-v num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0"></div>
-      ${filaEstado(estado, r2(plan - pagado), plan, p)}
-      ${barraGasto(pagado, plan, p)}
+        <input class="is-v num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0"></div>`}
+      ${libre ? '' : filaEstado(estado, r2(plan - pagado), plan, p) + barraGasto(pagado, plan, p)}
       <div class="line-pago">
         <label class="fieldw money-field"><span>Agregar pago</span><span class="money-symbol" aria-hidden="true">$</span>
           <input class="is-pago num" inputmode="numeric" placeholder="0"></label>
@@ -484,15 +507,14 @@ function abrirItemSheet(root, it, l, p) {
         <button class="mini is-pago-add" title="Sumar este pago al concepto">+</button>
       </div>
       ${listaPagos(l, p, periodo)}
-      <div class="line-pago">
+      ${libre ? '' : `<div class="line-pago">
         <button class="mini lcerrar is-cerrar ${l.pagadoEn === periodo ? 'on' : ''}"
           aria-pressed="${l.pagadoEn === periodo}">${icon('check', 'ic-sm')} Pagado por completo</button>
-      </div>
-      ${filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
+      </div>` + filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
       <button class="wide is-del danger-action">Borrar concepto</button>`;
 
     cuerpo.querySelector('.is-n').onchange = (e) => { l.n = e.target.value; guardar(); };
-    cuerpo.querySelector('.is-v').onchange = (e) => { l.v = digits(e.target.value); guardar(); };
+    cuerpo.querySelector('.is-v')?.addEventListener('change', (e) => { l.v = digits(e.target.value); guardar(); });
 
     const campo = cuerpo.querySelector('.is-pago');
     function sumar() {
@@ -504,7 +526,7 @@ function abrirItemSheet(root, it, l, p) {
     cuerpo.querySelector('.is-pago-add').onclick = sumar;
     campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
 
-    cuerpo.querySelector('.is-cerrar').onclick = () => {
+    cuerpo.querySelector('.is-cerrar')?.addEventListener('click', () => {
       if (l.pagadoEn === periodo) {
         l.pagadoEn = null;
       } else {
@@ -513,7 +535,7 @@ function abrirItemSheet(root, it, l, p) {
         l.pagadoEn = periodo;
       }
       guardar();
-    };
+    });
 
     wirePagos(cuerpo, it, p, guardar);
     wireArrastre(cuerpo, l, p, periodo, guardar);
@@ -533,6 +555,21 @@ function abrirItemSheet(root, it, l, p) {
   pintar();
 }
 
+/* Sacar una fila de la lista: se desvanece y colapsa su propio alto, y solo
+   entonces se repinta. Con `prefers-reduced-motion` no hay salida que esperar,
+   así que el callback corre de una y nadie se queda mirando una fila quieta. */
+const SIN_MOTION = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+function salir(el, alTerminar) {
+  if (SIN_MOTION() || !el?.isConnected) { alTerminar(); return; }
+  el.style.height = `${el.offsetHeight}px`;
+  el.classList.add('fila-sale');
+  let hecho = false;
+  const fin = () => { if (!hecho) { hecho = true; alTerminar(); } };
+  el.addEventListener('transitionend', fin, { once: true });
+  setTimeout(fin, 260); // por si la transición no llega a disparar
+}
+
 /* Las filas de pago se editan y se borran igual en el pop-up del concepto y en
    los pagos sueltos de la categoría. */
 function wirePagos(scope, it, p, repintar) {
@@ -547,8 +584,12 @@ function wirePagos(scope, it, p, repintar) {
         () => quitarPago(p.movs, chip.dataset.mid),
         () => p.movs.push(mov)
       );
-      repintar();
-      toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); repintar(); });
+      /* La fila se va antes de que la lista se recomponga: si repintas de una,
+         el pago desaparece de golpe y las de abajo saltan. */
+      salir(chip, () => {
+        repintar();
+        toast(`Pago de ${money(mov.monto, p.cur)} eliminado`, () => { undo(); repintar(); });
+      });
     };
   });
 }

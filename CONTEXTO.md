@@ -243,3 +243,11 @@ Vale la pena decirlo en voz alta, porque el código no lo dice.
 **Categorías de gasto libre.** `esGastoLibre(it)` las marca. La plantilla "Gasto libre" pone `libre: true` al crear la categoría, y el flag explícito manda sobre el rol para que una categoría se pueda cambiar de opinión.
 
 **"Sin tipo de concepto" ahora es "General".** Un solo `SIN_CONCEPTO` exportado desde `engine/pagos.js` que usan la lista de categorías, el donut del análisis y el selector de registro.
+
+## Fase 2 — Gasto libre sin monto planeado
+
+**Una categoría de gasto libre no planea, registra.** `esGastoLibre(it)` cambia tres cosas en la vista: el pop-up del concepto ya no pide "Monto planeado" (ni barra de progreso, ni "pagado por completo", ni arrastre al mes siguiente, porque sin plan no hay deuda que arrastrar), el bloque del concepto muestra lo pagado en vez del plan y se queda sin relleno ni porcentaje, y las acciones de la tarjeta lideran con **+ Agregar pago** en lugar de "+ Concepto". Se marca desde el pop-up de la categoría con un botón que se puede apagar.
+
+**Los pagos sueltos se agrupan bajo "General".** El bloque `General` es ahora el encabezado del grupo y su tabla de pagos cuelga justo debajo; antes el total salía en un bloque y la tabla quedaba suelta más abajo sin decir de qué grupo era.
+
+**Movimiento.** Cada fila de pago entra con fade y 8px de subida (`--dur-comp`, `ease-out`), escalonada 30ms por fila y cortada a las seis: más allá deja de ser ritmo y es espera. Al borrar, la fila se desvanece mientras colapsa su alto (`--t-salida`, `ease-in`) y solo entonces se repinta la lista, para que las de abajo suban en lugar de saltar. `salir()` mide el alto antes de animarlo porque a `auto` no se le puede hacer una transición, y con `prefers-reduced-motion` se salta la espera entera.

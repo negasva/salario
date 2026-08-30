@@ -272,6 +272,13 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .bloque-item.est-excedido::before{background:var(--bloque-over);width:100%}
 .bloque-item.est-excedido{border-color:var(--danger)}
 
+/* F2 — un concepto de gasto libre no tiene plan contra el cual medirse, así
+   que no lleva relleno ni porcentaje: el monto que muestra ya es lo gastado. */
+.bloque-item.est-libre::before{background:transparent}
+/* "General" es un encabezado de grupo, no un concepto que se pueda abrir */
+.bloque-general{cursor:default;background:transparent;border-style:dashed}
+.bloque-general+.pagos-tabla{margin-top:0;margin-left:var(--space-4)}
+
 .money-symbol{color:var(--ink-lighter)!important;font-size:var(--text-base)!important;font-weight:var(--fw-bold)!important}
 
 /* ── overlay / sheet ──────────────────────────────────────────────────── */
@@ -508,6 +515,23 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   align-items:center;padding:5px 4px;border-bottom:1px solid var(--pink-wash)}
 .pago-row:last-child{border-bottom:0}
 .pago-row:not(.pago-head):hover{background:var(--pink-wash)}
+
+/* F2 — un pago entra desvaneciéndose y subiendo 8px, con un escalonado corto
+   por fila para que la lista se lea de arriba abajo y no aparezca de bloque.
+   Se anima `transform` y `opacity` y nada más: el alto no se toca al entrar. */
+@keyframes fila-entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pagos-tabla .pago-row:not(.pago-head){
+  animation:fila-entra var(--dur-comp) var(--ease-out) backwards;
+  animation-delay:calc(var(--i,0) * 30ms)}
+
+/* Y sale al revés: se desvanece mientras colapsa su propio alto, para que las
+   filas de abajo suban en lugar de saltar. El alto se fija en JS antes de
+   quitar la clase, que a `auto` no se le puede hacer una transición. */
+.pago-row.fila-sale{
+  overflow:hidden;height:0!important;opacity:0;padding-top:0;padding-bottom:0;
+  transform:translateY(-4px);
+  transition:height var(--t-salida),opacity var(--t-salida),
+    transform var(--t-salida),padding var(--t-salida)}
 .pago-row .num{text-align:right}
 .pago-row .sub{margin-top:0;font-size:11px}
 .pago-head{font-size:11px;color:var(--ink-lighter)}

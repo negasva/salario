@@ -72,7 +72,7 @@ Los **movimientos** (`movs`) son el libro de lo que de verdad entró y salió. U
   lineId,         // renglón concreto, opcional
   goalId,         // si el gasto es un aporte a una meta
   nota, extra,    // `extra`: ingreso que no es la nómina
-  medio,          // F1: medio de pago (Bancolombia, Nequi, Efectivo…)
+  medio,          // F1: medio de pago (Bancolombia, Nequi, Efectivo…), también en los pagos de categoría
   montoOrig, curOrig, // F3: lo que escribiste, si lo escribiste en otra moneda
   abono,          // F9: gasto que baja el saldo de un renglón de deuda
   cat,            // F11: categoría de gasto (mercado, comida-fuera, transporte…)
@@ -200,7 +200,7 @@ Cada renglón lleva sus pagos reales como movimientos sueltos, uno por compra, y
 
 **Ajustes** tiene los perfiles (el activo se renombra en un input, sin `prompt()`; el import pregunta con dos botones que dicen qué hace cada uno, no con un `confirm()` ambiguo), el saldo inicial por moneda, la moneda principal con las tasas del día, los medios de pago —agregar, renombrar, borrar—, el tipo de ingreso, los meses objetivo del fondo, la tasa anual de referencia, la paleta de colores, el botón para rehacer el paso a paso, el que pide permiso para las notificaciones, y exportar/importar en JSON.
 
-La paleta visual se cambia desde Ajustes. Se conserva por perfil en el blob local y en Supabase (`paleta`), por lo que al volver a entrar a la cuenta se recupera el tema elegido. La paleta rosa chicle actual sigue siendo la predeterminada; también están Coral & azul, Pizarra y Vivo. Los colores de acento se combinan con texto oscuro o blanco según el contraste, y no se usan colores claros como texto principal.
+La paleta visual se cambia desde Ajustes. Se conserva por perfil en el blob local y en Supabase (`paleta`), por lo que al volver a entrar a la cuenta se recupera el tema elegido. La paleta rosa chicle actual sigue siendo la predeterminada; también están Coral & azul, Pizarra y Vivo. Los colores de acento se combinan con texto oscuro o blanco según el contraste, y no se usan colores claros como texto principal. Lo que cambia con la paleta es el ambiente —rosas, tintas, líneas, fondos—, nunca el significado: `--success`, `--warning`, `--danger` y los alias viejos (`--green`, `--red`, `--amber`, `--mint`) son alias de los `--sem-*` definidos una sola vez en `:root`, y ningún bloque de tema los toca.
 
 ## El stack y por qué
 
@@ -254,13 +254,13 @@ Vale la pena decirlo en voz alta, porque el código no lo dice.
 
 ## Fases 3 y 4 — Cabecera de categoría y botón `+`
 
-**El panel de totales.** El encabezado de cada categoría dice ahora tres cifras apiladas, etiqueta a la izquierda y monto a la derecha: `Estimado`, `Pagado` y `Saldo a favor`, que es la resta de las dos y va verde en positivo y rojo en negativo. Se fue el contador `3 de 10 al día`: decía cuántos conceptos estaban cerrados, que no es lo que se viene a mirar, y le quitaba sitio a lo que sí. Junto al nombre va un chip con el porcentaje pagado sobre estimado, el mismo `.bloque-pct` que ya usaban los conceptos. `panelTotales()` es una sola función que sirve a la tarjeta y al pop-up, y `cabeceraPagos()` desapareció.
+**El panel de totales.** El encabezado de cada categoría dice ahora tres cifras apiladas, etiqueta a la izquierda y monto a la derecha: `Asignado para el mes`, `Pagado` y `Saldo a favor`, que es la resta de las dos y va verde en positivo y rojo en negativo. Se fue el contador `3 de 10 al día`: decía cuántos conceptos estaban cerrados, que no es lo que se viene a mirar, y le quitaba sitio a lo que sí. Junto al nombre va un chip con el porcentaje pagado sobre lo asignado, el mismo `.bloque-pct` que ya usaban los conceptos. `panelTotales()` es una sola función que sirve a la tarjeta y al pop-up, y `cabeceraPagos()` desapareció.
 
-En una categoría de gasto libre el estimado *es* lo pagado —no hay nada que estimar por delante—, así que va siempre al 100% y sin fila de saldo, en vez de fingir un plan de cero contra el que todo se pasa.
+En gasto libre las tres cifras son las mismas que en cualquier otra categoría: lo asignado es lo que el usuario asignó, no lo que ya lleva pagado, así que el panel dice el mismo número que el pop-up donde se asigna, y el saldo y el porcentaje se calculan igual.
 
 **El `+` es su propio panel.** Salió del encabezado y quedó como un bloque aparte dentro de la misma tarjeta, pegado abajo, alineado a la derecha, con fondo rosa y 48px de alto. Ya no compite con el lápiz, que se queda arriba. En gasto libre abre el formulario de pago y en el resto crea un concepto, así que la fila de botones que había debajo de la lista se quedó solo con "Agregar pago suelto", que es lo único que el `+` no hace.
 
-**Dos correcciones que solo se vieron en pantalla.** El `.pagos-head` de base trae fondo rosa claro, márgenes propios y `align-items:center`, pensado para el pop-up; dentro de la cabecera oscura eso dejaba el texto blanco sobre rosa claro (ilegible) y sin hueco que repartir, así que las cifras se apelotonaban a la derecha. Se devuelve a cero con especificidad suficiente para ganarle al orden del archivo. Y `--saldo-ok-on-ink` / `--saldo-over-on-ink` existen porque los `--success` y `--danger` de las paletas no llegan a AA sobre la tinta.
+**Dos correcciones que solo se vieron en pantalla.** El `.pagos-head` de base trae fondo rosa claro, márgenes propios y `align-items:center`, pensado para el pop-up; dentro de la cabecera oscura eso dejaba el texto blanco sobre rosa claro (ilegible) y sin hueco que repartir, así que las cifras se apelotonaban a la derecha. Se devuelve a cero con especificidad suficiente para ganarle al orden del archivo. Y `--saldo-ok-on-ink` / `--saldo-over-on-ink` existen porque `--success` y `--danger` no llegan a AA sobre la tinta.
 
 **Movimiento.** Las barras de los bloques ya no animan `width` sino `transform:scaleX`, que el navegador resuelve sin recalcular el layout; `--pct` viaja como número suelto de 0 a 100. Los montos del panel cuentan del valor viejo al nuevo en 300ms con un ease-out cúbico (`ui/animar.js`), guardando el valor anterior por clave porque la vista repinta con `innerHTML` y si no, un número no sabe de dónde viene. La primera vez que una clave aparece no se anima nada, que es lo correcto. El `+` hace `scale(1.05)` en hover con el signo girando 90°, `scale(.94)` en active y un anillo en `focus-visible`.
 

@@ -174,9 +174,9 @@ export function renderMovimientos(root, args = {}) {
             const pasado = real > pres;
             const dif = Math.abs(r2(pres - real));
             return `<div class="mov-res">
-              <span class="dot" style="background:${it.c}"></span>
+              <span class="dot" style="background:${colorDe(claseDeItem(it))}"></span>
               <span class="nm" title="${esc(it.n)}">${esc(it.n)}</span>
-              <span class="hist-track"><i style="width:${pct}%;background:${pasado ? colorDe(claseDeItem(it), 0) : it.c}"></i></span>
+              <span class="hist-track"><i style="width:${pct}%;background:${colorDe(claseDeItem(it))}"></i></span>
               <span class="mov-res-n num">${money(real, p.cur)} <span class="sub">de ${money(pres, p.cur)}</span></span>
               <span class="mov-res-d num ${pasado ? 'over' : ''}">${pasado ? `+${money(dif, p.cur)}` : money(dif, p.cur)}</span>
             </div>`;

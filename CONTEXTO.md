@@ -341,3 +341,23 @@ Tres animaciones incumplen la lista de verificación final pero están pedidas e
 - Borrar un pago anima `height` (fase 2 pide "collapse de altura") contra la regla de animar solo `transform` y `opacity`.
 
 Ninguna de las tres bloquea una acción del usuario, que es lo que la regla protege: el barrido y el destello son de solo lectura, y el colapso ocurre después de que el borrado ya se aplicó. El resto de las animaciones son `transform` y `opacity`, salvo los cambios de fondo, borde y sombra en hover, que la fases 7 y 8 piden por escrito y no provocan recálculo de layout.
+
+## El color como significado
+
+**Verde entra, rojo sale, amarillo se guarda.** Antes el color era decorativo: cada categoría sacaba el suyo de una paleta rotatoria (`PALETTE`), así que "Gastos recurrentes" podía salir verde en el dashboard mientras "Ahorros" salía rojo —exactamente al revés de lo que significan—. Ahora `engine/semantica.js` decide: los roles `cor` y `lar` son ahorro, el resto de categorías son gasto, las metas son siempre ahorro, y un movimiento es ingreso, ahorro (si va a una meta) o gasto. Cada significado tiene cuatro tonos para poder distinguir varias categorías en un mismo donut sin dejar de decir lo mismo.
+
+**El selector de color desapareció.** Era la contradicción obvia: si el color significa algo, dejar que se elija a mano significa que la regla se rompe en cuanto alguien toque un color. En su sitio va la explicación de qué quiere decir el color que le tocó. Los perfiles existentes se repintan al cargar, porque conservar sus colores viejos dejaría medio presupuesto pintado al revés.
+
+## El botón de agregar concepto
+
+Tenía `transform:scale(1.05)` en hover siendo un botón de ancho completo, así que al pasar el cursor se salía por los dos lados: de ahí la barra de scroll horizontal y las rayas que quedaban asomando al quitar el cursor. Un elemento a sangre completa no se escala; ahora cambia de color y lo que se mueve es el signo de dentro, que sí cabe.
+
+## El pop-up de nueva categoría
+
+Eran dos filas de chips sueltos donde "Saltar plantilla" pesaba lo mismo que "Gastos recurrentes" y nada decía qué iba a pasar al elegir. Ahora cada opción es una tarjeta con nombre, una línea de qué trae y el punto del color que le va a tocar —que es donde se aprende el código de color, ya que no se elige—. El desplegable de "¿de cuál?" solo aparece cuando hace falta: antes se veía siempre, porque `.fieldw` es `display:flex` y una clase le gana al `display:none` que el navegador da a `[hidden]`. Tercera vez que aparece ese mismo patrón en este código.
+
+## El menú del botón flotante
+
+Las opciones salen del botón en lugar de aparecer de golpe: la caja se abre desde su esquina inferior derecha con un `spring` corto y cada opción entra escalonada desde abajo, de la más cercana al pulgar a la más lejana. El escalonado se numera con `nth-last-child`, así que no hay que tocar el JS para añadir o quitar opciones. Al cerrar se van todas a la vez, que despedirlas de una en una es hacer esperar para nada. El `+` gira 135° hasta ser una `×`, que aquí sí corresponde: en ese momento lo que hace el botón es cerrar.
+
+**Contraste.** El texto de los badges usaba el acento puro sobre su propio tinte —1.9:1, muy por debajo de AA—. La auditoría automática tampoco lo veía: no componía el alfa, así que un tinte del mismo color que el texto le daba un 1.0 sin sentido. Corregidas las dos cosas, la auditoría vuelve a cero.

@@ -15,8 +15,32 @@ import { tarjetaResumenFlujo } from './resumen.js';
 import { disponibleParaRepartir } from '../engine/saldo.js';
 import { animarNumeros, contarHasta, revelarAlEntrar, sinMotion } from './animar.js';
 import { destinosDeReparto, normalizarReparto, movimientosDeReparto } from '../engine/repartoSaldo.js';
+import { colorDe, claseDeItem } from '../engine/semantica.js';
 
-const { PALETTE } = store;
+/* El color ya no se elige: lo dice el tipo de plata que mueve la categoría.
+   Dejar un selector libre aquí significaría que la regla se rompe en cuanto
+   alguien toque un color, así que en su sitio va la explicación. */
+/* Las plantillas, con lo que cada una significa a la vista: como el color ya
+   no se elige, este es el sitio donde se aprende qué quiere decir cada uno. */
+const PLANTILLAS_UI = [
+  { r: '', n: 'Vacía', d: 'La lleno yo', clase: 'gasto' },
+  { r: 'ese', n: 'Gastos recurrentes', d: 'Arriendo, servicios, mercado', clase: 'gasto' },
+  { r: 'deu', n: 'Deudas', d: 'Tarjetas y créditos', clase: 'gasto' },
+  { r: 'lib', n: 'Gasto libre', d: 'Sin monto planeado', clase: 'gasto' },
+  { r: 'cor', n: 'Ahorro corto', d: 'Fondo e imprevistos', clase: 'ahorro' },
+];
+
+const FUENTES_UI = [
+  { s: 'sobra', n: 'Lo que falta por repartir', d: 'Lo que todavía no tiene dueño' },
+  { s: 'prop', n: 'Un 10% de cada categoría', d: 'Solo de las desbloqueadas' },
+  { s: 'bloque', n: 'De una categoría', d: 'Le quita un 10% a la que elijas' },
+];
+
+const SIGNIFICADO = {
+  gasto: 'Rojo, porque es plata que sale.',
+  ahorro: 'Amarillo, porque es plata que se guarda.',
+  ingreso: 'Verde, porque es plata que entra.',
+};
 
 export function renderCategorias(root) {
   const p = store.active();
@@ -277,8 +301,10 @@ function abrirCatSheet(root, it, p) {
             : `Quitar de aquí los ${money(b.exceso, p.cur)} de más`}</button>`
         : ''}
       <div class="label">Color</div>
-      <div class="cs-colores">${PALETTE.map((c) => `<button class="cs-color${c === it.c ? ' on' : ''}"
-        data-c="${c}" style="background:${c}" aria-label="Color ${c}" aria-pressed="${c === it.c}"></button>`).join('')}</div>
+      <div class="cs-significado">
+        <span class="dot" style="background:${it.c}"></span>
+        <span class="sub">${esc(SIGNIFICADO[claseDeItem(it)])}</span>
+      </div>
       <button class="wide mini cs-lock ${it.locked ? 'on' : ''}" aria-pressed="${!!it.locked}">
         ${icon('candado', 'ic-sm')} ${it.locked ? 'Desbloquear categoría' : 'Bloquear categoría'}</button>
       <button class="wide cs-del danger-action">Borrar categoría</button>`;
@@ -296,13 +322,6 @@ function abrirCatSheet(root, it, p) {
       it.auto = btn.dataset.auto === '1';
       guardar();
       toast(it.auto ? 'Esta categoría ya se calcula sola' : 'Ahora le pones el monto tú');
-    };
-
-    cuerpo.querySelector('.cs-colores').onclick = (e) => {
-      const btn = e.target.closest('.cs-color');
-      if (!btn) return;
-      it.c = btn.dataset.c;
-      guardar();
     };
 
     cuerpo.querySelector('.cs-libre').onclick = () => {
@@ -340,7 +359,7 @@ function metaCard(g, p) {
   return `
   <div class="card cat-card cat-meta" data-gid="${g.id}">
     <div class="cat-top">
-      <span class="dot" style="background:var(--warning)"></span>
+      <span class="dot" style="background:${colorDe('ahorro')}"></span>
       <span class="cat-name-fijo">${esc(g.n)}${g.special ? ' <span class="badge warn">fondo</span>' : ''}</span>
       <button class="mini meta-abrir">Editar</button>
     </div>
@@ -349,7 +368,7 @@ function metaCard(g, p) {
         <span class="money-symbol" aria-hidden="true">$</span>
         <input class="meta-mes num" type="text" inputmode="numeric" value="${mes ? plain(mes, p.cur) : ''}" placeholder="0"></label>
     </div>
-    <div class="hist-track"><i style="width:${pct}%;background:var(--warning)"></i></div>
+    <div class="hist-track"><i style="width:${pct}%;background:${colorDe('ahorro')}"></i></div>
     <div class="sub">Llevas <b class="num">${money(g.s || 0, p.cur)}</b> de ${money(g.t, p.cur)}.
       ${n ? `La tienes en ${plazo(n)}, hacia ${whenText(n)}.` : 'Sin aporte mensual todavía.'}</div>
     <div class="prow">
@@ -778,7 +797,7 @@ function filaEstado(estado, diferencia, plan, p) {
 function barraGasto(pagado, plan, p) {
   const porcentaje = plan > 0 ? Math.round((pagado / plan) * 100) : pagado > 0 ? 100 : 0;
   const ancho = Math.min(100, Math.max(0, porcentaje));
-  const color = plan > 0 && pagado > plan ? 'var(--danger)' : 'var(--pink)';
+  const color = plan > 0 && pagado > plan ? 'var(--sem-gasto-1)' : colorDe('gasto', 1);
   return `<div class="line-progreso">
     <div class="line-progreso-head">
       <span class="sub">Gastado <b class="num">${money(pagado, p.cur)}</b>${plan > 0 ? ` de <b class="num">${money(plan, p.cur)}</b>` : ''}</span>
@@ -870,25 +889,35 @@ function openNewCategory(root) {
   overlay.innerHTML = `
     <div class="sheet">
       <div class="sheet-head"><h3>Nueva categoría</h3><button class="btn-del" id="ncClose">${icon('cerrar')}</button></div>
-      <div class="fld"><label>Nombre</label><input id="ncName" placeholder="Ej: Mascotas"></div>
-      <div class="label" style="margin:14px 0 8px">Plantilla de conceptos</div>
-      <div class="chips" id="ncTpl">
-        <button class="chip" data-r="ese">Gastos recurrentes</button>
-        <button class="chip" data-r="deu">Deudas</button>
-        <button class="chip" data-r="lib">Gasto libre</button>
-        <button class="chip" data-r="cor">Ahorro corto</button>
-        <button class="chip on" data-r="">Saltar plantilla</button>
+      <label class="fieldw"><span>Nombre</span>
+        <input id="ncName" placeholder="Ej: Mascotas" autocomplete="off"></label>
+
+      <div class="label nc-label">¿Qué va a llevar?</div>
+      <div class="nc-tpls" id="ncTpl" role="radiogroup" aria-label="Plantilla de conceptos">
+        ${PLANTILLAS_UI.map((t) => `
+          <button class="nc-tpl${t.r === '' ? ' on' : ''}" data-r="${t.r}" role="radio"
+            aria-checked="${t.r === ''}">
+            <span class="dot" style="background:${colorDe(t.clase)}"></span>
+            <span class="nc-tpl-n">${t.n}</span>
+            <span class="nc-tpl-d sub">${t.d}</span>
+          </button>`).join('')}
       </div>
-      <div class="label" style="margin:14px 0 8px">De dónde sale la plata</div>
-      <div class="chips" id="ncSrc">
-        <button class="chip on" data-s="sobra">Lo que falta por repartir</button>
-        <button class="chip" data-s="prop">Un 10% de cada categoría desbloqueada</button>
-        <button class="chip" data-s="bloque">De una categoría específica</button>
+
+      <div class="label nc-label">¿De dónde sale la plata?</div>
+      <div class="nc-fuentes" id="ncSrc" role="radiogroup" aria-label="De dónde sale la plata">
+        ${FUENTES_UI.map((x, i) => `
+          <button class="nc-fuente${i === 0 ? ' on' : ''}" data-s="${x.s}" role="radio"
+            aria-checked="${i === 0}">
+            <span class="nc-fuente-n">${x.n}</span>
+            <span class="nc-fuente-d sub">${x.d}</span>
+          </button>`).join('')}
       </div>
-      <select id="ncBloque" style="margin-top:8px;display:none;width:100%">
-        ${p.items.map((it) => `<option value="${it.id}">${esc(it.n)}</option>`).join('')}
-      </select>
-      <button id="ncCreate" class="wide" style="margin-top:16px">Crear categoría</button>
+      <label class="fieldw" id="ncBloqueWrap" hidden><span>¿De cuál?</span>
+        <select id="ncBloque">
+          ${p.items.map((it) => `<option value="${it.id}">${esc(it.n)}</option>`).join('')}
+        </select></label>
+
+      <button id="ncCreate" class="wide btn-primary nc-crear">Crear categoría</button>
     </div>`;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
@@ -896,15 +925,19 @@ function openNewCategory(root) {
   let tpl = '';
   let src = 'sobra';
   overlay.querySelector('#ncTpl').addEventListener('click', (e) => {
-    const b = e.target.closest('.chip'); if (!b) return;
-    overlay.querySelectorAll('#ncTpl .chip').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on'); tpl = b.dataset.r;
+    const b = e.target.closest('.nc-tpl'); if (!b) return;
+    overlay.querySelectorAll('#ncTpl .nc-tpl').forEach((x) => {
+      x.classList.remove('on'); x.setAttribute('aria-checked', 'false');
+    });
+    b.classList.add('on'); b.setAttribute('aria-checked', 'true'); tpl = b.dataset.r;
   });
   overlay.querySelector('#ncSrc').addEventListener('click', (e) => {
-    const b = e.target.closest('.chip'); if (!b) return;
-    overlay.querySelectorAll('#ncSrc .chip').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on'); src = b.dataset.s;
-    overlay.querySelector('#ncBloque').style.display = src === 'bloque' ? '' : 'none';
+    const b = e.target.closest('.nc-fuente'); if (!b) return;
+    overlay.querySelectorAll('#ncSrc .nc-fuente').forEach((x) => {
+      x.classList.remove('on'); x.setAttribute('aria-checked', 'false');
+    });
+    b.classList.add('on'); b.setAttribute('aria-checked', 'true'); src = b.dataset.s;
+    overlay.querySelector('#ncBloqueWrap').hidden = src !== 'bloque';
   });
 
   function close() { overlay.remove(); document.body.style.overflow = ''; }
@@ -933,7 +966,8 @@ function openNewCategory(root) {
     }
 
     p.items.push({ id: 'i' + Math.random().toString(36).slice(2, 8), n: name, m: Math.round(monto), r: tpl || null,
-      libre: tpl === 'lib', c: PALETTE[p.items.length % PALETTE.length], d: '', locked: false, L: lines2 });
+      libre: tpl === 'lib', c: colorDe(tpl === 'cor' || tpl === 'lar' ? 'ahorro' : 'gasto', p.items.length),
+      d: '', locked: false, L: lines2 });
     store.save();
     close();
     renderCategorias(root);

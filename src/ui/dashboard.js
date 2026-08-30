@@ -1,3 +1,4 @@
+import { colorDe } from '../engine/semantica.js';
 import * as store from '../store.js';
 import { balance, amount, shareOf, r2, diagnosticoEsenciales } from '../engine/reparto.js';
 import { monthsToGoal, whenText, plazo } from '../engine/metas.js';
@@ -40,7 +41,7 @@ export function sparkline(rates, extras = [], w = 900, h = 220, pad = 34) {
   const guias = [0.25, 0.5, 0.75].map((k) => `<line x1="0" x2="${w}" y1="${pad + k * (h - 2 * pad)}"
     y2="${pad + k * (h - 2 * pad)}" stroke="var(--pink-wash)" stroke-width="1"
     vector-effect="non-scaling-stroke"></line>`).join('');
-  const extraMarkers = pts.map((pt, i) => extras[i] ? `<circle cx="${pt.x}" cy="${pt.y}" r="5" fill="var(--success)"></circle>` : '').join('');
+  const extraMarkers = pts.map((pt, i) => extras[i] ? `<circle cx="${pt.x}" cy="${pt.y}" r="5" fill="var(--sem-ingreso-2)"></circle>` : '').join('');
   // punto hueco por dato, sólido el último; encima un blanco grande e invisible
   // que es el que recibe el cursor, porque un radio de 4px no se acierta con el ratón
   const puntos = pts.map((pt, i) => `<circle cx="${pt.x}" cy="${pt.y}" r="${i === pts.length - 1 ? 6 : 4}"
@@ -258,7 +259,7 @@ export async function renderDashboard(root) {
         <span class="label">Gasto máximo recomendado</span>
         <div class="kpi num">${money(techo, p.cur)}</div>
         <div class="sub">Es el ${tope}% de lo que entra. Llevas gastado <b class="num ${pasado ? 'over' : ''}">${money(gastado, p.cur)}</b>${techo > 0 ? ` (${pct}%)` : ''}.</div>
-        <div class="hist-track" style="margin-top:var(--space-2)"><i style="width:${Math.min(100, pct)}%;background:${pasado ? 'var(--danger)' : 'var(--success)'}"></i></div>
+        <div class="hist-track" style="margin-top:var(--space-2)"><i style="width:${Math.min(100, pct)}%;background:${pasado ? 'var(--sem-gasto-1)' : 'var(--sem-gasto-2)'}"></i></div>
         <div class="sub">${pasado
           ? `Te pasaste por ${money(gastado - techo, p.cur)}.`
           : `Te quedan ${money(Math.max(0, techo - gastado), p.cur)} antes de pasarte.`}
@@ -317,7 +318,7 @@ export async function renderDashboard(root) {
             const segunda = n ? `faltan ${plazo(n)} · hacia ${whenText(n)}` : 'sin aporte mensual';
             return `<div class="ring">
               <div class="wrap">
-                ${ringSvg(pct, g.special === 'emergencia' ? 'var(--warning)' : 'var(--pink)')}
+                ${ringSvg(pct, colorDe('ahorro', g.special === 'emergencia' ? 0 : 1))}
                 <div class="pct num">${Math.round(pct * 100)}%</div>
               </div>
               <div class="lbl">${esc(g.n)}</div>

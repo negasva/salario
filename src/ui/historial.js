@@ -35,7 +35,7 @@ function barrasPlanReal(snapshot, cur) {
       <div class="pr-barras">
         <div class="pr-b"><i style="width:${(i.plan / tope) * 100}%;background:var(--pink-lighter)"></i>
           <span class="num">${money(i.plan, cur)}</span></div>
-        <div class="pr-b"><i style="width:${(i.real / tope) * 100}%;background:${i.real > i.plan ? 'var(--danger)' : 'var(--pink)'}"></i>
+        <div class="pr-b"><i style="width:${(i.real / tope) * 100}%;background:${i.real > i.plan ? 'var(--sem-gasto-1)' : 'var(--sem-gasto-2)'}"></i>
           <span class="num">${money(i.real, cur)}</span></div>
       </div>
     </div>`).join('');

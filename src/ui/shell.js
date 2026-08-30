@@ -1,4 +1,5 @@
 import { icon } from './icons.js';
+import { sinMotion } from './animar.js';
 import { abrirBuscador } from './buscador.js';
 import { abrirRegistro } from './registrar.js';
 import { abrirIA } from './preguntar.js';
@@ -108,10 +109,24 @@ export function renderShell(root, currentRoute, onNavigate) {
      tiene su propio editor. */
   const fab = root.querySelector('#fab');
   const fabMenu = root.querySelector('#fabMenu');
-  const cerrarFab = () => { fabMenu.hidden = true; fab.setAttribute('aria-expanded', 'false'); };
+  /* Las opciones salen del botón, no aparecen de golpe: cada una entra
+     escalonada desde abajo, de la más cercana al pulgar a la más lejana, para
+     que se lea como algo que se despliega y no como un cuadro que apareció.
+     Al cerrar se van todas a la vez, que despedirlas de una en una es hacer
+     esperar al usuario para nada. */
+  const cerrarFab = () => {
+    if (fabMenu.hidden) return;
+    fab.setAttribute('aria-expanded', 'false');
+    if (sinMotion()) { fabMenu.hidden = true; fabMenu.classList.remove('on'); return; }
+    fabMenu.classList.remove('on');
+    setTimeout(() => { fabMenu.hidden = true; }, 150);
+  };
   fab.onclick = () => {
-    fabMenu.hidden = !fabMenu.hidden;
-    fab.setAttribute('aria-expanded', String(!fabMenu.hidden));
+    if (!fabMenu.hidden) { cerrarFab(); return; }
+    fabMenu.hidden = false;
+    fab.setAttribute('aria-expanded', 'true');
+    if (sinMotion()) { fabMenu.classList.add('on'); return; }
+    requestAnimationFrame(() => fabMenu.classList.add('on'));
   };
   const repintar = () => onNavigate(currentRoute);
   fabMenu.onclick = (e) => {

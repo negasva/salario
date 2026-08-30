@@ -85,9 +85,11 @@
 .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:var(--fw-bold);
   padding:3px 10px;border-radius:var(--radius-pill);text-transform:uppercase;
   letter-spacing:var(--tracking-wide);margin-top:var(--space-2)}
-.badge.ok{background:var(--success-soft);color:var(--success)}
-.badge.warn{background:var(--warning-soft);color:var(--warning)}
-.badge.bad{background:var(--danger-soft);color:var(--danger)}
+/* El texto del badge iba con el acento puro sobre su propio tinte: ~1.9:1, muy
+   por debajo de AA. Va con las variantes de texto, que es para lo que están. */
+.badge.ok{background:var(--success-soft);color:var(--success-texto)}
+.badge.warn{background:var(--warning-soft);color:var(--sem-ahorro-texto)}
+.badge.bad{background:var(--danger-soft);color:var(--danger-texto)}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-5)}
 /* F9.5 — cuadrícula del dashboard: dos columnas y dense, sin coordenadas */
@@ -320,9 +322,17 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   border-radius:0 0 var(--radius-md) var(--radius-md);background:var(--pink);
   color:var(--on-pink);font-weight:var(--fw-bold);cursor:pointer;
   transition:transform var(--t-micro),background var(--t-micro),box-shadow var(--t-micro)}
-.cat-plus-signo{font-size:24px;line-height:1;font-weight:var(--fw-bold);display:block}
-.cat-plus-head:hover{background:var(--pink-dark);color:var(--white);transform:scale(1.05)}
-.cat-plus-head:active{transform:scale(.94);transition-duration:80ms}
+.cat-plus-signo{font-size:24px;line-height:1;font-weight:var(--fw-bold);display:block;
+  transition:transform var(--t-micro)}
+/* Nada de `scale` aquí: este botón ocupa el ancho completo de la tarjeta, así
+   que agrandarlo un 5% lo saca por los dos lados —de ahí la barra de scroll
+   horizontal y las rayas que quedaban asomando al quitar el cursor—. Un
+   elemento a sangre completa no se escala; se le cambia el color y se le
+   mueve lo que sí cabe, que es el signo de dentro. */
+.cat-plus-head:hover{background:var(--pink-dark);color:var(--white)}
+.cat-plus-head:hover .cat-plus-signo{transform:scale(1.15)}
+.cat-plus-head:active{background:var(--pink-dark)}
+.cat-plus-head:active .cat-plus-signo{transform:scale(.9);transition-duration:80ms}
 .cat-plus-head:focus-visible{outline:0;box-shadow:0 0 0 3px var(--pink-lighter);border-color:var(--pink)}
 
 /* F5 — el acordeón. `grid-template-rows` de 0fr a 1fr es lo único que le hace
@@ -361,6 +371,46 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .cs-color{width:30px;height:30px;padding:0;border-radius:50%;border:2px solid var(--border-hairline)}
 .cs-color.on{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--white)}
 .cs-lock.on{color:var(--pink-dark);border-color:var(--pink)}
+
+/* El pop-up de nueva categoría. Antes eran dos filas de chips sueltos donde
+   "Saltar plantilla" pesaba lo mismo que "Gastos recurrentes" y nada decía qué
+   iba a pasar al elegir. Ahora cada opción es una tarjeta con su nombre, una
+   línea de qué trae, y el punto del color que le va a tocar. */
+.nc-label{margin:var(--space-5) 0 var(--space-2)}
+.nc-tpls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--space-2)}
+.nc-tpl{display:grid;grid-template-columns:auto 1fr;gap:2px var(--space-2);
+  align-items:start;text-align:left;padding:var(--space-3);
+  border:1px solid var(--border-card);border-radius:var(--radius-md);background:var(--white);
+  transition:border-color var(--t-micro),background var(--t-micro),transform var(--t-micro)}
+/* el punto ocupa su columna en las dos filas: sin `grid-column` explícito la
+   colocación automática lo mandaba a la segunda fila, entre el nombre y su
+   descripción */
+.nc-tpl .dot{grid-column:1;grid-row:1/3;margin-top:5px}
+.nc-tpl-n{grid-column:2;font-weight:var(--fw-semibold);line-height:1.25}
+.nc-tpl-d,.nc-fuente-d{grid-column:2;margin:0;font-size:var(--text-xs);line-height:1.35}
+.nc-tpl:hover,.nc-fuente:hover{border-color:var(--pink);background:var(--pink-wash)}
+.nc-tpl:active,.nc-fuente:active{transform:scale(.98)}
+.nc-tpl.on,.nc-fuente.on{border-color:var(--pink);background:var(--pink-wash);
+  box-shadow:inset 0 0 0 1px var(--pink)}
+
+.nc-fuentes{display:flex;flex-direction:column;gap:var(--space-2)}
+.nc-fuente{display:flex;flex-direction:column;gap:2px;text-align:left;padding:var(--space-3);
+  border:1px solid var(--border-card);border-radius:var(--radius-md);background:var(--white);
+  transition:border-color var(--t-micro),background var(--t-micro),transform var(--t-micro)}
+.nc-fuente-n{font-weight:var(--fw-semibold)}
+.nc-crear{margin-top:var(--space-5)}
+
+/* El significado del color, donde antes estaba el selector libre */
+.fieldw[hidden]{display:none}
+.cs-significado{display:flex;align-items:center;gap:var(--space-3);
+  padding:var(--space-3);background:var(--pink-wash);border-radius:var(--radius-sm)}
+.cs-significado .sub{margin:0}
+
+/* Egreso e ingreso se pintan de lo que significan, también cuando se eligen */
+.chips-tipo .chip.on.chip-gasto{color:var(--sem-gasto-texto);border-color:var(--sem-gasto-2);
+  background:var(--danger-soft)}
+.chips-tipo .chip.on.chip-ingreso{color:var(--sem-ingreso-texto);border-color:var(--sem-ingreso-2);
+  background:var(--success-soft)}
 
 .bloque-item{background:var(--bloque-item-bg);color:var(--bloque-item-text)}
 .bloque-item::before{background:var(--bloque-item-fill)}
@@ -736,13 +786,40 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .fab{width:56px;height:56px;border-radius:var(--radius-pill);padding:0;
   background:var(--pink);color:var(--white);border:none;box-shadow:var(--shadow-xl);
   font-size:28px;line-height:1;font-weight:var(--fw-bold);cursor:pointer}
-.fab:hover{filter:brightness(.95)}
+.fab{transition:transform var(--t-micro),filter var(--t-micro)}
+.fab:hover{filter:brightness(.95);transform:scale(1.06)}
+.fab:active{transform:scale(.94);transition-duration:80ms}
+/* el + gira hasta ser una × cuando el menú está abierto: aquí sí, porque lo
+   que hace el botón en ese momento es cerrar */
+.fab{transform-origin:center}
+.fab[aria-expanded="true"]{transform:rotate(135deg)}
+.fab[aria-expanded="true"]:hover{transform:rotate(135deg) scale(1.06)}
+
 .fab-menu{display:flex;flex-direction:column;gap:var(--space-2);background:var(--white);
   border:1px solid var(--border-card);border-radius:var(--radius-lg);padding:var(--space-3);
-  box-shadow:var(--shadow-xl);min-width:230px}
+  box-shadow:var(--shadow-xl);min-width:230px;
+  transform-origin:bottom right}
 .fab-menu[hidden]{display:none}
 .fab-menu button{display:flex;align-items:center;gap:var(--space-2);justify-content:flex-start;
   width:100%;text-align:left}
+
+/* La caja se abre desde la esquina de donde sale, y cada opción entra
+   escalonada desde abajo: de la más cercana al pulgar a la más lejana. El
+   `--i` invertido lo pone el orden inverso de `nth-last-child`, así no hace
+   falta tocar el JS para numerarlas. */
+.fab-menu{opacity:0;transform:scale(.92) translateY(8px);
+  transition:opacity var(--dur-micro) var(--ease-in),transform var(--dur-micro) var(--ease-in)}
+.fab-menu.on{opacity:1;transform:none;
+  transition:opacity var(--dur-comp) var(--ease-out),transform var(--dur-comp) var(--ease-spring)}
+.fab-menu button{opacity:0;transform:translateY(10px);
+  transition:opacity 100ms var(--ease-in),transform 100ms var(--ease-in)}
+.fab-menu.on button{opacity:1;transform:none;
+  transition:opacity 180ms var(--ease-out),transform 180ms var(--ease-out)}
+.fab-menu.on button:nth-last-child(1){transition-delay:40ms}
+.fab-menu.on button:nth-last-child(2){transition-delay:70ms}
+.fab-menu.on button:nth-last-child(3){transition-delay:100ms}
+.fab-menu.on button:nth-last-child(4){transition-delay:130ms}
+.fab-menu.on button:nth-last-child(5){transition-delay:160ms}
 
 /* ── hoja de registro (F3) ────────────────────────────────────────────── */
 /* F2 — un solo token de alto y de espaciado para todos los campos de la hoja:

@@ -353,6 +353,25 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .overlay{position:fixed;inset:0;z-index:80;background:rgba(26,26,26,.45);display:none;
   overflow-y:auto;padding:var(--space-5)}
 .overlay.on{display:block}
+
+/* F6 — el modal entra con el fondo desvaneciéndose y la hoja subiendo un pelo
+   de escala; sale más rápido y con la curva invertida, que es como se lee
+   "esto se va". Solo `opacity` y `transform`.
+
+   La entrada va con `animation` y no con una transición a propósito: hay ocho
+   sitios en la app que arman su propio `.overlay.on` a mano, y con transición
+   habría que ir a los ocho a añadirles una clase — el que se quedara sin ella
+   se vería invisible. Con `animation` el estado en reposo es el visible y
+   todos entran animados sin tocar una línea de JS. La salida sí necesita la
+   clase, y quien no la ponga simplemente desaparece de una, que es lo que
+   hacía antes. */
+@keyframes fondo-entra{from{opacity:0}to{opacity:1}}
+@keyframes hoja-entra{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.overlay.on{animation:fondo-entra .2s var(--ease-out)}
+.overlay.on .sheet{animation:hoja-entra var(--dur-modal) var(--ease-out)}
+.overlay.on.sale{opacity:0;animation:none;transition:opacity var(--t-salida)}
+.overlay.on.sale .sheet{opacity:0;transform:scale(.98);animation:none;
+  transition:opacity var(--t-salida),transform var(--t-salida)}
 .sheet{max-width:480px;margin:40px auto;background:var(--white);border:1px solid var(--border-card);
   border-radius:var(--radius-xl);padding:var(--space-6);box-shadow:var(--shadow-xl)}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-5)}
@@ -578,6 +597,25 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .line-pago .money-field,.modal-body .line-pago .money-field{flex:1 1 220px;min-width:180px;max-width:none}
 .line-pago .mini{font-size:11px;padding:7px 9px;display:flex;align-items:center;gap:4px;flex:none}
 .line-pago .lcerrar.on{color:var(--success);border-color:var(--success);background:var(--success-soft)}
+/* F6 — el mini-formulario de pago se pliega igual que el acordeón: el mismo
+   truco de `grid-template-rows`, la misma curva. */
+.pago-inline[hidden]{display:none}
+.pago-inline{display:grid;grid-template-rows:0fr;margin-top:var(--space-2);
+  transition:grid-template-rows var(--dur-comp) var(--ease-out)}
+.pago-inline>*{overflow:hidden;min-height:0}
+.pago-inline.on{grid-template-rows:1fr}
+.pago-inline:not(.on){transition:grid-template-rows var(--t-salida)}
+.pago-inline-caja{display:flex;flex-direction:column;gap:var(--space-2);
+  padding:var(--space-3);background:var(--pink-wash);border-radius:var(--radius-sm)}
+
+/* sacudida de validación: solo `transform`, así que el resto del formulario no
+   se entera y el botón no se le escapa a nadie */
+@keyframes sacude{0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}40%{transform:translateX(5px)}
+  60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.sacude{animation:sacude .3s var(--ease-out)}
+.sacude input,input.sacude{border-color:var(--danger)}
+
 .pagos-tabla{margin-top:6px}
 .pago-row{display:grid;grid-template-columns:minmax(72px,auto) auto 1fr auto;gap:8px;
   align-items:center;padding:5px 4px;border-bottom:1px solid var(--pink-wash)}

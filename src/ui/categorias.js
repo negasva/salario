@@ -524,10 +524,19 @@ function bloqueItem({ l, plan, pagado, estado }, p, libre = false, i = 0) {
 
 /* El pop-up del concepto: todo lo que antes colgaba de la tarjeta. Se repinta
    solo tras cada cambio y la lista de atrás se refresca al cerrar. */
-function abrirItemSheet(root, it, l, p) {
-  const { cuerpo, cerrar } = abrirModal({ titulo: 'Concepto', alCerrar: () => renderCategorias(root) });
+function abrirItemSheet(root, it, l, p, nuevo = false) {
+  const { cuerpo, cerrar } = abrirModal({ titulo: nuevo ? 'Nuevo concepto' : 'Concepto',
+    alCerrar: () => renderCategorias(root) });
 
-  const guardar = () => { store.save(); pintar(); };
+  /* F6 — un concepto nuevo no está en `it.L` todavía: entra en la lista la
+     primera vez que se guarda con nombre. Cerrar sin nombre no deja nada. */
+  function fijar() {
+    if (!l.n.trim()) return false;
+    if (!it.L.includes(l)) it.L.push(l);
+    return true;
+  }
+
+  const guardar = () => { fijar(); store.save(); pintar(); };
 
   function pintar() {
     const periodo = periodoDe(hoyISO());
@@ -546,11 +555,17 @@ function abrirItemSheet(root, it, l, p) {
         <span class="money-symbol" aria-hidden="true">$</span>
         <input class="is-v num" type="text" inputmode="numeric" value="${l.v ? plain(l.v, p.cur) : ''}" placeholder="0"></div>`}
       ${libre ? '' : filaEstado(estado, r2(plan - pagado), plan, p) + barraGasto(pagado, plan, p)}
-      <div class="line-pago">
-        <label class="fieldw money-field"><span>Agregar pago</span><span class="money-symbol" aria-hidden="true">$</span>
-          <input class="is-pago num" inputmode="numeric" placeholder="0"></label>
-        <label class="fieldw"><span>Fecha</span><input class="is-fecha" type="date" value="${hoyISO()}"></label>
-        <button class="mini is-pago-add" title="Sumar este pago al concepto">+</button>
+      <button class="wide mini is-pago-abrir" aria-expanded="false" aria-controls="pagoForm-${l.id}">
+        + Agregar pago</button>
+      <div class="pago-inline" id="pagoForm-${l.id}" hidden>
+        <div class="pago-inline-caja">
+          <label class="fieldw"><span>Nombre</span>
+            <input class="is-pago-n" placeholder="Ej. D1, Éxito, Carulla"></label>
+          <label class="fieldw money-field"><span>Monto</span><span class="money-symbol" aria-hidden="true">$</span>
+            <input class="is-pago num" inputmode="numeric" placeholder="0"></label>
+          <label class="fieldw"><span>Fecha</span><input class="is-fecha" type="date" value="${hoyISO()}"></label>
+          <button class="wide btn-primary is-pago-add">Guardar</button>
+        </div>
       </div>
       ${listaPagos(l, p, periodo)}
       ${libre ? '' : `<div class="line-pago">
@@ -559,18 +574,35 @@ function abrirItemSheet(root, it, l, p) {
       </div>` + filaArrastre(l, p, periodo, arrastreDe(l, periodo), pendiente, plan)}
       <button class="wide is-del danger-action">Borrar concepto</button>`;
 
-    cuerpo.querySelector('.is-n').onchange = (e) => { l.n = e.target.value; guardar(); };
+    const nombreEl = cuerpo.querySelector('.is-n');
+    if (nuevo && !l.n) nombreEl.focus();
+    nombreEl.onchange = (e) => { l.n = e.target.value; guardar(); };
     cuerpo.querySelector('.is-v')?.addEventListener('change', (e) => { l.v = digits(e.target.value); guardar(); });
 
+    const form = cuerpo.querySelector('.pago-inline');
+    const abrir = cuerpo.querySelector('.is-pago-abrir');
     const campo = cuerpo.querySelector('.is-pago');
+    abrir.onclick = () => {
+      const abre = form.hidden;
+      abrir.setAttribute('aria-expanded', String(abre));
+      plegar(form, abre);
+      if (abre) setTimeout(() => cuerpo.querySelector('.is-pago-n').focus(), 60);
+    };
+
     function sumar() {
+      /* Sin nombre en el concepto no hay dónde colgar el pago: se pide primero
+         ese, que es el que de verdad falta. */
+      if (!fijar()) { sacudir(nombreEl); nombreEl.focus(); return; }
       const monto = digits(campo.value);
-      if (!monto) { campo.focus(); return; }
-      agregarPago(p.movs, it, l, monto, cuerpo.querySelector('.is-fecha').value || hoyISO());
+      if (!monto) { sacudir(campo); campo.focus(); return; }
+      agregarPago(p.movs, it, l, monto, cuerpo.querySelector('.is-fecha').value || hoyISO(),
+        cuerpo.querySelector('.is-pago-n').value);
       guardar();
     }
     cuerpo.querySelector('.is-pago-add').onclick = sumar;
-    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
+    cuerpo.querySelectorAll('.pago-inline input').forEach((el) => {
+      el.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sumar(); } };
+    });
 
     cuerpo.querySelector('.is-cerrar')?.addEventListener('click', () => {
       if (l.pagadoEn === periodo) {
@@ -588,6 +620,7 @@ function abrirItemSheet(root, it, l, p) {
 
     cuerpo.querySelector('.is-del').onclick = () => {
       const idx = it.L.indexOf(l);
+      if (idx < 0) { cerrar(); return; } // nunca llegó a guardarse: no hay nada que borrar
       let pagos = [];
       const { undo } = store.stageDelete(
         () => { it.L.splice(idx, 1); pagos = quitarMovsDe(p.movs, 'lineId', l.id); },
@@ -599,6 +632,17 @@ function abrirItemSheet(root, it, l, p) {
   }
 
   pintar();
+}
+
+/* F6 — un campo que no vale sacude 300ms y se queda donde está: el `transform`
+   no mueve el resto del formulario, que es lo que hace un error de validación
+   insoportable —el botón se te escapa justo cuando ibas a darle—. */
+function sacudir(el) {
+  if (!el || SIN_MOTION()) return;
+  el.classList.remove('sacude');
+  void el.offsetWidth; // reinicia la animación si ya estaba corriendo
+  el.classList.add('sacude');
+  el.addEventListener('animationend', () => el.classList.remove('sacude'), { once: true });
 }
 
 /* El acordeón anima `grid-template-rows` de `0fr` a `1fr`: es la única forma de
@@ -775,13 +819,12 @@ function wireCard(root, it, p) {
     if (l) el.onclick = () => abrirItemSheet(root, it, l, p);
   });
 
-  const nuevoConcepto = () => {
-    const l = { id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true };
-    it.L.push(l);
-    store.save();
-    renderCategorias(root);
-    abrirItemSheet(root, it, l, p);
-  };
+  /* F6 — el concepto se creaba vacío antes de abrir el pop-up, así que abrirlo
+     y cerrarlo dejaba un concepto en blanco en la lista. Ahora vive suelto
+     hasta que tenga nombre: `abrirItemSheet` lo mete en `it.L` al guardar y si
+     cierras sin nombre no queda rastro. */
+  const nuevoConcepto = () => abrirItemSheet(root, it,
+    { id: 'l' + Math.random().toString(36).slice(2, 8), n: '', v: 0, fixed: true }, p, true);
   const nuevoPago = () => openPagoEditor(it, p, null, () => renderCategorias(root));
   /* En una categoría de gasto libre no hay conceptos que crear, así que el `+`
      grande de la cabecera abre directo el formulario de pago. */

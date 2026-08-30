@@ -273,3 +273,13 @@ Qué está abierto vive en `localStorage`, no en el perfil: es una preferencia d
 **Dos cosas que solo se vieron probando en el navegador.** El encabezado no puede ser un `<button>`: lleva el lápiz dentro, y un botón dentro de otro el parser lo saca fuera y desarma la cabecera entera —la primera versión rompió el layout de forma espectacular—. Va como `div` con `role="button"`, `tabindex` y `Enter`/`Espacio` a mano. Y `display:grid` de una clase le gana al `display:none` que el navegador le da a `[hidden]`, así que lo plegado seguía ocupando sitio y saliendo en el tabulador; hay que devolvérselo con `.cat-fold[hidden]{display:none}`.
 
 **Movimiento.** El alto se anima con `grid-template-rows` de `0fr` a `1fr`, que es lo único que le hace una transición al alto real sin medirlo a mano ni inventar un `max-height` que recorte la lista larga y deje hueco en la corta. Abre en 250ms `ease-out` y cierra en 200ms `ease-in`. El contenido entra detrás del hueco, escalonado 20ms por fila y cortado a las seis. El chevron gira 180° sincronizado.
+
+## Fase 6 — Pop-up de concepto
+
+**Ya no se crean conceptos vacíos.** El concepto se creaba y se metía en la lista *antes* de abrir el pop-up, así que abrirlo y cerrarlo dejaba uno en blanco. Ahora vive suelto hasta que tenga nombre: `fijar()` lo mete en `it.L` la primera vez que se guarda con uno, y cerrar sin nombre no deja rastro. El botón de borrar cierra sin más si el concepto nunca llegó a la lista.
+
+**Un solo botón "Agregar pago".** Los campos sueltos (`$ [monto]  Fecha [dd/mm/aaaa]  [+]`) eran tres controles a la intemperie que no decían que fueran una sola cosa. Ahora hay un botón que despliega un mini-formulario con nombre, monto, fecha y **Guardar**, y al guardar se colapsa y el pago aparece en la lista.
+
+**Validación.** Sin nombre no se guarda. Si intentas registrar un pago en un concepto sin nombre, se pide primero ese, que es el que de verdad falta.
+
+**Movimiento.** El modal entra con el fondo desvaneciéndose en 200ms y la hoja de `scale(.96)` a 1 en 300ms `ease-out`; sale en 200ms `ease-in`. La entrada va con `animation` y no con transición a propósito: hay ocho sitios en la app que arman su propio `.overlay.on` a mano, y con transición habría que ir a los ocho a ponerles una clase, con el riesgo de que el que se quedara sin ella se viera invisible. Con `animation` el estado en reposo es el visible y todos entran animados sin tocar JS. El mini-formulario se pliega con el mismo `grid-template-rows` del acordeón. Un campo inválido sacude 300ms con `transform` y nada más: el resto del formulario no se mueve, que es lo que hace insoportable un error de validación —el botón se te escapa justo cuando ibas a darle—.

@@ -19,24 +19,61 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const PROMPT_CLASIFICAR = `Eres un clasificador de gastos personales en Colombia.
-Devuelves SOLO un array JSON, sin explicaciones ni markdown.
+/* Las mismas 16 categorías de `src/engine/clasificar.js`. Si esta lista y la
+   del navegador se separan, la app descarta lo que conteste el modelo y el
+   gasto se queda en 'otros': por eso van juntas y por eso se validan abajo. */
+const CATS = ['vivienda', 'servicios', 'mercado', 'restaurantes', 'transporte', 'vehiculo',
+  'salud', 'cuidado', 'mascotas', 'suscripciones', 'salidas', 'viajes', 'compras',
+  'finanzas', 'educacion', 'otros'];
 
-Categorías válidas: mercado, comida-fuera, vivienda, servicios, transporte, salud,
-ocio, suscripciones, educacion, otros.
+// nombres viejos que un modelo puede contestar de memoria
+const VIEJAS: Record<string, string> = { 'comida-fuera': 'restaurantes', 'comida fuera': 'restaurantes',
+  ocio: 'salidas', restaurante: 'restaurantes', mercados: 'mercado', suscripcion: 'suscripciones',
+  educación: 'educacion', vehículo: 'vehiculo', transportes: 'transporte' };
+
+const PROMPT_CLASIFICAR = `Eres un clasificador de gastos personales en Colombia.
+Devuelves SOLO un array JSON, sin explicaciones ni markdown, con UN elemento por
+cada texto que te dan y EN EL MISMO ORDEN.
+
+Categorías válidas (usa el id exacto, en minúscula y sin tilde):
+- vivienda: arriendo, administración, hipoteca, predial, arreglos y muebles de la casa.
+- servicios: energía, agua, gas, internet, plan de celular, TV. EPM, Enel, Vanti, Afinia,
+  Emcali, Claro, Movistar, Tigo, WOM, ETB.
+- mercado: comida cruda y productos de supermercado o tienda. Éxito, D1, Ara, Olímpica,
+  Jumbo, Carulla, Makro, la plaza, el granero. Pan, lechuga, salsa de tomate, arroz,
+  jabón, papel higiénico y pañales son mercado aunque sean comida o aseo.
+- restaurantes: comida ya preparada, domicilios, cafeterías, panaderías de consumo.
+  Dogger, Frisby, El Corral, Crepes & Waffles, Juan Valdez, Tostao, Presto, Sierra Nevada,
+  Archies, Andrés Carne de Res, Popsy, Mimos, Rappi, DiDi Food, iFood. Un corrientazo, un
+  almuerzo ejecutivo, un menú del día, unos tacos o una pizza son restaurantes.
+- transporte: moverse. Gasolina, ACPM, Uber, DiDi, inDriver, taxi, bus, TransMilenio,
+  metro, peajes, parqueadero, pasajes urbanos.
+- vehiculo: tener el carro o la moto. SOAT, tecnomecánica, seguro del vehículo, impuesto
+  vehicular, llantas, mecánico, taller, repuestos, cambio de aceite, cuota del vehículo.
+- salud: EPS, medicina prepagada, Sura, Sanitas, droguería, farmacia, médico, odontología,
+  exámenes, terapias, lentes, medicamentos.
+- cuidado: cuidado personal. Peluquería, barbería, manicure, spa, depilación, maquillaje,
+  gimnasio, Smart Fit, Bodytech, yoga.
+- mascotas: veterinario, concentrado, guardería o peluquería canina, accesorios del animal.
+- suscripciones: cobros mensuales de plataformas. Netflix, Spotify, Disney+, HBO Max,
+  Prime Video, YouTube Premium, iCloud, Google One, ChatGPT, Canva, Office 365.
+- salidas: cine, conciertos, bares, discotecas, boletas, fiestas, parques, eventos, tragos.
+- viajes: hoteles, Airbnb, vuelos (Avianca, LATAM, Wingo), tiquetes, pasadías, fincas, tours.
+- compras: ropa, zapatos, tecnología, electrodomésticos, regalos, juguetes, Mercado Libre,
+  Amazon, Shein, Temu, Falabella, Alkosto, Ktronix.
+- finanzas: cuotas de tarjeta y créditos, intereses, cuota de manejo, seguros de vida,
+  pólizas, avances, 4x1000.
+- educacion: universidad, matrícula, colegio, cursos, diplomados, Platzi, Coursera, Udemy,
+  útiles, libros de estudio, ICETEX.
+- otros: SOLO cuando el texto de verdad no alcanza para decidir.
 
 Reglas que importan:
-- Ingredientes o productos de supermercado (pan, lechuga, salsa de tomate, arroz,
-  jabón, papel higiénico) son "mercado", aunque sean comida.
-- Comida ya preparada, restaurantes, domicilios y cafeterías son "comida-fuera".
-  Conoce las marcas colombianas: Dogger, Frisby, El Corral, Crepes & Waffles,
-  Juan Valdez, Tostao, Presto, Sierra Nevada, Archies, Andrés Carne de Res, Popsy,
-  Mimos, Rappi, DiDi Food. "Comida en Dogger" es comida-fuera, no mercado.
-- Un corrientazo, un almuerzo ejecutivo o un menú del día son comida-fuera.
-- Recibos de energía, agua, gas, internet y celular (EPM, Enel, Vanti, Claro,
-  Movistar, Tigo, ETB, WOM) son "servicios".
-- Arriendo, administración y predial son "vivienda".
-- Gasolina, peajes, SOAT, tecnomecánica, Uber, DiDi y transporte público son "transporte".
+- Comida cruda es mercado; comida preparada es restaurantes. "Comida en Dogger" es
+  restaurantes, no mercado; "pan, lechuga, salsa de tomate" es mercado, no restaurantes.
+- Gasolina y peajes son transporte; SOAT, seguro y mantenimiento del vehículo son vehiculo.
+- Un pago mensual de plataforma es suscripciones; un aparato o ropa que se compra una vez
+  es compras.
+- Si no estás seguro, contesta la categoría más probable con confianza baja, no "otros".
 
 Formato de cada elemento: {"texto": "...", "cat": "...", "confianza": 0.0-1.0}`;
 
@@ -102,15 +139,29 @@ Deno.serve(async (req) => {
   }
 
   if (cuerpo.accion === 'clasificar') {
-    const textos = (cuerpo.textos || []).slice(0, 25).map((t: string) => String(t).slice(0, 120));
+    const textos = (cuerpo.textos || []).slice(0, 30).map((t: string) => String(t).slice(0, 120));
     if (!textos.length) return json({ resultados: [] });
     const { texto, error } = await nvidia([
       { role: 'system', content: PROMPT_CLASIFICAR },
       { role: 'user', content: JSON.stringify(textos) },
-    ], 1200);
+    ], 2000);
     if (error) return json({ error }, 503);
-    const resultados = soloJSON(texto);
-    return resultados ? json({ resultados }) : json({ error: 'respuesta-ilegible' }, 502);
+    const crudos = soloJSON(texto);
+    if (!Array.isArray(crudos)) return json({ error: 'respuesta-ilegible' }, 502);
+    /* El modelo contesta lo que quiere: aquí se le exige una categoría de la
+       lista y, si no la da, el gasto vuelve a 'otros' en vez de guardar basura
+       que la app tendría que descartar después. */
+    const resultados = crudos.map((r: Record<string, unknown>, i: number) => {
+      const bruto = String(r?.cat ?? '').trim().toLowerCase();
+      const cat = CATS.includes(bruto) ? bruto : (VIEJAS[bruto] || 'otros');
+      const conf = Number(r?.confianza);
+      return {
+        texto: typeof r?.texto === 'string' ? r.texto : textos[i],
+        cat,
+        confianza: Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : 0.5,
+      };
+    });
+    return json({ resultados });
   }
 
   if (cuerpo.accion === 'preguntar') {

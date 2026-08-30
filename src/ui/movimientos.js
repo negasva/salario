@@ -4,8 +4,10 @@ import { amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, visiblesDelMes, porItem, ingresoReal, gastoTotal } from '../engine/movimientos.js';
 import { money, esc, MESES } from '../format.js';
 import { pendientes, movDesde } from '../engine/recurrentes.js';
-import { CATEGORIAS, nombreCategoria } from '../engine/clasificar.js';
+import { sinClasificar, textoDeMovimiento } from '../engine/clasificar.js';
+import { clasificarConIA } from '../ia.js';
 import { abrirRegistro } from './registrar.js';
+import { badgeCategoria, abrirCategoria } from './categoria.js';
 import { tablaPagos } from './categorias.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -57,6 +59,7 @@ export function renderMovimientos(root, args = {}) {
     </div>
 
     <div id="mvFiltro"></div>
+    <div id="mvPendientes"></div>
     <div id="mvRecurrentes"></div>
     <div id="mvResumen"></div>
     <div id="mvLista"></div>`;
@@ -138,6 +141,56 @@ export function renderMovimientos(root, args = {}) {
     });
   }
 
+  /* F11 — lo que ya estaba registrado antes de que existieran las categorías.
+     El diccionario local ya corrió al cargar el perfil y dejó en 'otros' lo que
+     no reconoció; esto es el segundo intento, con la IA, y va por lotes porque
+     el proveedor tiene límite de texto por llamada. Un gasto que ya pasó por
+     aquí no vuelve, acierte o no: para eso está el botón de la etiqueta. */
+  const LOTE_IA = 25;
+  const TOPE_IA = 200;
+
+  async function pasarIA(btn) {
+    const faltan = sinClasificar(p.movs).slice(0, TOPE_IA);
+    if (!faltan.length) return;
+    btn.disabled = true;
+    let listos = 0;
+    let corto = false;
+    for (let i = 0; i < faltan.length; i += LOTE_IA) {
+      const lote = faltan.slice(i, i + LOTE_IA);
+      // eslint-disable-next-line no-await-in-loop -- en serie a propósito: el proveedor tiene cuota
+      const res = await clasificarConIA(lote.map((m) => textoDeMovimiento(m, p.items)));
+      if (!res) { corto = true; break; }
+      lote.forEach((m, j) => {
+        m.catIA = true;
+        if (res[j]?.cat) m.cat = res[j].cat;
+        else m.cat = m.cat || 'otros';
+      });
+      listos += lote.length;
+      store.save();
+      btn.textContent = `Clasificando… ${listos} de ${faltan.length}`;
+    }
+    pintarCuerpo();
+    if (corto && !listos) toast('No pude hablar con la IA. Puedes ponerles categoría a mano desde la etiqueta.');
+    else if (corto) toast(`Alcancé a clasificar ${listos}; la IA dejó de responder.`);
+    else toast(`Listo: ${listos} movimientos quedaron con categoría.`);
+  }
+
+  function pintarPendientes() {
+    const box = $('#mvPendientes');
+    const faltan = sinClasificar(p.movs);
+    if (!faltan.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="card" style="margin-bottom:var(--sp-4)">
+      <div class="spark-head">
+        <span class="label">Sin categoría</span>
+        <button class="mini" id="mvClasIA">${icon('ia', 'ic-sm')} Clasificar con IA</button>
+      </div>
+      <div class="sub">${faltan.length === 1
+        ? 'Queda 1 gasto que el diccionario no reconoció.'
+        : `Quedan ${faltan.length} gastos que el diccionario no reconoció.`} La IA los mira de a ${LOTE_IA}${faltan.length > TOPE_IA ? `, hasta ${TOPE_IA} por vez` : ''}. También puedes tocar la etiqueta de cualquiera y elegirla tú.</div>
+    </div>`;
+    box.querySelector('#mvClasIA').onclick = (e) => pasarIA(e.currentTarget);
+  }
+
   function pintarFiltro() {
     const box = $('#mvFiltro');
     if (!filtroLinea) { box.innerHTML = ''; return; }
@@ -153,6 +206,7 @@ export function renderMovimientos(root, args = {}) {
   function pintarCuerpo() {
     $('#mvPeriodo').textContent = nombrePeriodo(periodo);
     pintarFiltro();
+    pintarPendientes();
     pintarRecurrentes();
     const gastado = porItem(p.movs, periodo);
     const ing = ingresoReal(p.movs, periodo);
@@ -235,7 +289,7 @@ export function renderMovimientos(root, args = {}) {
           return `<div class="mov-line" data-id="${m.id}">
             <span class="dot" style="background:${colorDe(claseDeMovimiento(m), 0)}"></span>
             <span class="mov-line-txt">
-              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}${m.cat && m.cat !== 'otros' ? ` <span class="badge">${icon(CATEGORIAS.find((c) => c.id === m.cat)?.ic || 'etiqueta', 'ic-sm')} ${esc(nombreCategoria(m.cat))}</span>` : ''}
+              <b>${esc(etiqueta)}</b>${g ? ` <span class="badge warn">${esc(g.n)}</span>` : ''}${m.abono ? ' <span class="badge">abono</span>' : ''}${m.recId ? ` <span class="badge">${icon('recurrente', 'ic-sm')} cada mes</span>` : ''}${m.tipo === 'gasto' ? ` ${badgeCategoria(m.cat)}` : ''}
               ${m.nota || m.medio ? `<span class="sub">${esc([m.nota, m.medio].filter(Boolean).join(' · '))}</span>` : ''}
             </span>
             <span class="num mov-line-n ${m.tipo === 'ingreso' ? 'in' : ''}">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto, p.cur)}</span>
@@ -249,6 +303,8 @@ export function renderMovimientos(root, args = {}) {
       const m = p.movs.find((x) => x.id === el.dataset.id);
       if (!m) return;
       el.querySelector('.mov-ed').onclick = () => registrar(m.tipo, m.id);
+      // la etiqueta de categoría se corrige donde se ve, sin abrir el movimiento entero
+      el.querySelector('.badge-cat')?.addEventListener('click', () => abrirCategoria(m, pintarCuerpo));
       el.querySelector('.mov-del').onclick = () => {
         const idx = p.movs.indexOf(m);
         const { undo } = store.stageDelete(() => p.movs.splice(idx, 1), () => p.movs.splice(idx, 0, m));

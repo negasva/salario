@@ -1,4 +1,5 @@
 import { supabase } from './auth.js';
+import { normalizarCat, normalizar } from './engine/clasificar.js';
 
 /* Cliente de la función de IA.
 
@@ -57,10 +58,30 @@ async function llamar(cuerpo) {
   }
 }
 
-// [{ texto, cat, confianza }] o null: clasificar es de fondo y no molesta al usuario
+/* [{ texto, cat, confianza }] alineado con `textos`, o null. Clasificar es de
+   fondo y no molesta al usuario, así que lo que no se entienda se descarta en
+   silencio: una categoría inventada es peor que ninguna.
+
+   El modelo contesta en orden, pero no siempre: si devuelve la misma cantidad
+   de elementos se toma por posición, y si no, se busca cada texto por nombre.
+   La función desplegada puede ser vieja y contestar 'comida-fuera'; por eso
+   todo pasa por `normalizarCat()` antes de tocar un movimiento. */
 export async function clasificarConIA(textos) {
-  const { datos } = await llamar({ accion: 'clasificar', textos });
-  return Array.isArray(datos?.resultados) ? datos.resultados : null;
+  const lote = (textos || []).map((t) => String(t || ''));
+  if (!lote.length) return [];
+  const { datos } = await llamar({ accion: 'clasificar', textos: lote });
+  const crudos = Array.isArray(datos?.resultados) ? datos.resultados : null;
+  if (!crudos) return null;
+
+  const porPosicion = crudos.length === lote.length;
+  const porTexto = new Map(crudos.map((r) => [normalizar(r?.texto).trim(), r]));
+  return lote.map((texto, i) => {
+    const r = porPosicion ? crudos[i] : porTexto.get(normalizar(texto).trim());
+    const cat = normalizarCat(r?.cat);
+    if (!cat) return null;
+    const conf = Number(r?.confianza);
+    return { texto, cat, confianza: Number.isFinite(conf) ? conf : 0.5 };
+  });
 }
 
 // { respuesta } o { error }: aquí el usuario está esperando y merece saber qué pasó

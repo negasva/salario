@@ -6,7 +6,7 @@ import { podar, hoyISO, periodoDe, ingresoReal, aportesAMeta, porLinea } from '.
 import { resumenItem, sinHuerfanos } from './engine/pagos.js';
 import { fueVisto } from './engine/avisos.js';
 import { colorDeItem } from './engine/semantica.js';
-import { MIGRACION_CAT } from './engine/clasificar.js';
+import { MIGRACION_CAT, clasificarViejos } from './engine/clasificar.js';
 import { aplicarPaleta, DEFAULT_PALETA, normalizarPaleta } from './theme.js';
 
 const KEY = 'reparto:v8';
@@ -218,6 +218,12 @@ function normalizeProfile(p) {
     p.movs.forEach((m) => { if (m.cat) m.cat = MIGRACION_CAT[m.cat] || 'otros'; });
     p.catsV2 = true;
   }
+  /* F11 — todo lo registrado antes de que existieran las categorías entra al
+     diccionario aquí, al abrir el perfil: es local, no cuesta nada y no espera
+     a la red. Lo que quede en 'otros' lo recoge la IA desde Registrar, con un
+     botón, porque eso sí gasta cuota. Un gasto que ya tiene categoría no se
+     vuelve a tocar, y menos si la puso el usuario. */
+  clasificarViejos(p.movs, p.items);
   p.metodoDeuda ??= 'avalancha';
   p.paleta = normalizarPaleta(p.paleta);
   p.ingresoTipo ??= 'fijo';

@@ -19,3 +19,8 @@ alter table perfiles enable row level security;
 alter table cierres  enable row level security;
 create policy p_own on perfiles for all using (auth.uid() = user_id);
 create policy c_own on cierres  for all using (auth.uid() = user_id);
+
+-- El libro de movimientos, los conceptos y las categorías viven dentro de
+-- `perfiles.data`, que es jsonb. Los campos que agregó la fase 1 —`nombre` en
+-- cada pago y `libre` en cada categoría— no necesitan DDL: se escriben en el
+-- blob y se leen con respaldo para los perfiles que todavía no los traen.

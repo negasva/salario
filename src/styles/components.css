@@ -203,6 +203,36 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   font-weight:var(--fw-bold);padding:12px}
 .btn-primary:hover{background:var(--pink-dark);border-color:var(--pink-dark)}
 
+/* F8 — el único verde de la app, y es a propósito: en una paleta rosa un botón
+   verde no se confunde con nada, y "tienes plata a favor" es la única buena
+   noticia que da esta pantalla. */
+.btn-saldo{background:var(--success-texto);border-color:var(--success-texto);color:var(--white);
+  font-weight:var(--fw-bold);padding:14px;gap:6px;
+  transition:transform var(--t-micro),background var(--t-micro),box-shadow var(--t-micro)}
+.btn-saldo .num{color:inherit;font-variant-numeric:tabular-nums}
+.btn-saldo:hover:not(:disabled){transform:scale(1.02);box-shadow:var(--shadow-sm);
+  background:var(--success);border-color:var(--success);color:var(--ink)}
+.btn-saldo:active:not(:disabled){transform:scale(.97);transition-duration:80ms}
+.btn-saldo:focus-visible{outline:0;box-shadow:0 0 0 3px var(--success-soft)}
+.btn-saldo:disabled{opacity:.5;cursor:not-allowed}
+
+/* el modal de reparto */
+.rep-grupo{margin:var(--space-5) 0 var(--space-2)}
+.rep-fila{margin-bottom:var(--space-2)}
+.rep-de{font-weight:var(--fw-regular);color:var(--ink-lighter)}
+.rep-campo{display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-1)}
+.rep-campo .rep-monto{flex:1;min-width:0;text-align:right;font-variant-numeric:tabular-nums}
+.rep-campo .mini{flex:none;white-space:nowrap}
+.rep-pie{margin:var(--space-5) 0 var(--space-4)}
+/* la barra se escala en vez de cambiar de ancho: mismo motivo que los bloques */
+.rep-barra i{width:100%;background:var(--success-texto);transform-origin:left center;
+  transform:scaleX(0);transition:transform var(--dur-comp) var(--ease-out)}
+.rep-pie .hint{margin-top:var(--space-2);font-variant-numeric:tabular-nums}
+
+/* pulso de la tarjeta del saldo al terminar un reparto */
+@keyframes pulsa{0%{transform:scale(1)}45%{transform:scale(1.015)}100%{transform:scale(1)}}
+.pulsa{animation:pulsa .35s var(--ease-out)}
+
 /* ── categorías ───────────────────────────────────────────────────────── */
 .cats-head{display:flex;gap:var(--space-2);flex-wrap:wrap}
 .cats-head #catAdd{flex:1;min-width:200px}
@@ -210,8 +240,8 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .resumen-flujo{display:flex;gap:var(--space-5);flex-wrap:wrap;margin-bottom:var(--space-5)}
 .resumen-flujo-cifra{display:flex;flex-direction:column;gap:2px;min-width:145px}
 .resumen-flujo-cifra b{font-size:var(--text-base);font-weight:var(--fw-bold)}
-.resumen-flujo-cifra.positivo b{color:var(--success)}
-.resumen-flujo-cifra.negativo b{color:var(--danger)}
+.resumen-flujo-cifra.positivo b{color:var(--success-texto)}
+.resumen-flujo-cifra.negativo b{color:var(--danger-texto)}
 .cat-card.locked{border-color:var(--danger)}
 .cat-top{display:flex;align-items:center;gap:var(--space-2)}
 .dot{width:10px;height:10px;border-radius:3px;flex:none}
@@ -231,11 +261,16 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .bloque{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;
   gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);
   border:1px solid var(--border-hairline);cursor:pointer;text-align:left;width:100%}
-.bloque::before{content:'';position:absolute;inset:0 auto 0 0;width:var(--pct,0%);z-index:-1;
-  transition:width var(--dur-fast) var(--ease-out),background var(--t-fast)}
+/* El relleno se dibuja completo y se encoge con `scaleX`. Antes se animaba el
+   `width`, que obliga a recalcular el layout en cada cuadro; con `transform` el
+   navegador lo resuelve en la GPU y en un móvil de gama baja se nota. `--pct`
+   viaja como número suelto de 0 a 100. */
+.bloque::before{content:'';position:absolute;inset:0 auto 0 0;width:100%;z-index:-1;
+  transform:scaleX(calc(var(--pct,0) / 100));transform-origin:left center;
+  transition:transform var(--dur-comp) var(--ease-out),background var(--t-fast)}
 .bloque+.bloque{margin-top:var(--space-2)}
-.bloque .bloque-n{flex:1;min-width:0;display:flex;align-items:center;gap:6px;
-  font-weight:var(--fw-semibold);overflow-wrap:anywhere}
+.bloque .bloque-n{flex:1 1 auto;min-width:88px;display:flex;align-items:center;gap:6px;
+  font-weight:var(--fw-semibold);overflow-wrap:break-word}
 .bloque .bloque-pct{flex:none;min-width:44px;text-align:center;padding:2px 4px;border-radius:var(--radius-sm);
   background:var(--white);border:1px solid var(--line);font-size:var(--text-xs);font-variant-numeric:tabular-nums}
 .bloque .bloque-m{flex:none;font-weight:var(--fw-bold)}
@@ -248,13 +283,74 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .bloque-cat{background:var(--bloque-cat-bg);color:var(--bloque-cat-text);border:0;flex-wrap:wrap;
   padding:var(--space-4)}
 .bloque-cat::before{background:var(--bloque-cat-fill)}
-.bloque-cat.est-pagado::before{background:var(--success);width:100%}
-.bloque-cat.est-excedido::before{background:var(--danger);width:100%}
-.bloque-cat .bloque-cifras{flex:1 0 100%;font-size:var(--text-xs);color:var(--text-on-ink-muted)}
-.bloque-cat .bloque-cifras .num{color:var(--bloque-cat-text)}
-.bloque-cat .bloque-cifras .over{color:var(--pink-light)}
+.bloque-cat.est-pagado::before{background:var(--success);transform:none}
+.bloque-cat.est-excedido::before{background:var(--danger);transform:none}
+/* F3 — el panel de totales ocupa su propia franja debajo del título: tres
+   cifras apiladas, una por línea, con la etiqueta a la izquierda y el monto a
+   la derecha. Antes esto era una frase corrida ("Pagado X · 3 de 10 al día")
+   donde las cifras no se podían comparar de un vistazo. */
+/* el `.pagos-head` de base trae fondo claro y sus propios márgenes, pensado
+   para el pop-up: dentro de la cabecera oscura hay que devolverlo a cero o el
+   texto blanco queda sobre rosa claro y no se lee */
+.bloque-cat .pagos-head{flex:1 0 100%;background:transparent;border-radius:0;
+  margin:var(--space-3) 0 0;padding:var(--space-3) 0 0;
+  border-top:1px solid var(--text-on-ink-muted);display:flex;flex-direction:column;
+  align-items:stretch;gap:var(--space-1)}
+.bloque-cat .pagos-head .ph-cifra{display:flex;flex-direction:row;justify-content:space-between;align-items:baseline;gap:var(--space-3)}
+.bloque-cat .pagos-head .ph-cifra .label{color:var(--text-on-ink-muted);font-size:var(--text-xs)}
+.bloque-cat .pagos-head .ph-cifra b{color:var(--bloque-cat-text);font-size:var(--text-base)}
+.bloque-cat .pagos-head .ph-cifra .num{color:var(--bloque-cat-text);font-weight:var(--fw-bold);
+  font-variant-numeric:tabular-nums}
+/* sobre la tinta, el verde y el rojo de la paleta no llegan a AA: se usan los
+   tonos claros, que sí contrastan contra el fondo oscuro de la categoría */
+.bloque-cat .pagos-head .ph-cifra .num.ok{color:var(--saldo-ok-on-ink)}
+.bloque-cat .pagos-head .ph-cifra .num.over{color:var(--saldo-over-on-ink)}
 .bloque-cat .bloque-check{color:var(--white)}
 .bloque-cat .dot{flex:none;box-shadow:0 0 0 1px var(--text-on-ink-muted)}
+
+.bloque-cat .bloque-pct{background:transparent;border-color:var(--text-on-ink-muted);
+  color:var(--bloque-cat-text)}
+
+/* F4 — el `+` es su propio panel dentro de la tarjeta: bloque aparte, con su
+   divisor, y un área táctil que pasa los 44px por lado. Vive fuera del
+   encabezado para no competir con el lápiz, que se queda arriba a la derecha. */
+.cat-plus-head{display:flex;align-items:center;justify-content:flex-end;gap:var(--space-2);
+  width:100%;min-height:48px;margin-top:2px;padding:var(--space-2) var(--space-4);
+  border:0;border-top:2px solid var(--white);
+  border-radius:0 0 var(--radius-md) var(--radius-md);background:var(--pink);
+  color:var(--on-pink);font-weight:var(--fw-bold);cursor:pointer;
+  transition:transform var(--t-micro),background var(--t-micro),box-shadow var(--t-micro)}
+.cat-plus-signo{font-size:24px;line-height:1;font-weight:var(--fw-bold);display:block}
+.cat-plus-head:hover{background:var(--pink-dark);color:var(--white);transform:scale(1.05)}
+.cat-plus-head:active{transform:scale(.94);transition-duration:80ms}
+.cat-plus-head:focus-visible{outline:0;box-shadow:0 0 0 3px var(--pink-lighter);border-color:var(--pink)}
+
+/* F5 — el acordeón. `grid-template-rows` de 0fr a 1fr es lo único que le hace
+   una transición al alto real del contenido: un `max-height` fijo recorta la
+   lista larga y deja hueco en la corta. El hijo necesita `min-height:0` o el
+   grid se niega a encogerlo por debajo de su contenido. */
+/* `display:grid` de una clase le gana al `display:none` que el navegador le da
+   a `[hidden]`, así que lo plegado seguía ocupando sitio y saliendo en el
+   tabulador. Hay que devolvérselo a mano. */
+.cat-fold[hidden]{display:none}
+.cat-fold{display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows var(--dur-comp) var(--ease-out)}
+.cat-fold>*{overflow:hidden;min-height:0}
+.cat-fold.on{grid-template-rows:1fr}
+/* al cerrar se va un poco más rápido y con la curva de salida */
+.cat-fold:not(.on){transition:grid-template-rows var(--t-salida)}
+
+/* el contenido entra escalonado detrás del alto, no a la vez: primero se abre
+   el hueco y luego aparecen las filas */
+.cat-fold.on .bloque-item,.cat-fold.on .cat-acciones{
+  animation:fila-entra var(--dur-comp) var(--ease-out) backwards;
+  animation-delay:calc(80ms + var(--i,0) * 20ms)}
+
+.cat-chevron{flex:none;width:10px;height:10px;margin-left:2px;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:rotate(45deg) translate(-2px,-2px);
+  transition:transform var(--dur-comp) var(--ease-out)}
+.bloque-cat[aria-expanded="true"] .cat-chevron{transform:rotate(225deg) translate(-2px,-2px)}
 
 .cat-card{margin-bottom:var(--space-5)}
 /* los ítems se ven colgando de su categoría */
@@ -268,9 +364,16 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 
 .bloque-item{background:var(--bloque-item-bg);color:var(--bloque-item-text)}
 .bloque-item::before{background:var(--bloque-item-fill)}
-.bloque-item.est-pagado::before{background:var(--bloque-ok);width:100%}
-.bloque-item.est-excedido::before{background:var(--bloque-over);width:100%}
+.bloque-item.est-pagado::before{background:var(--bloque-ok);transform:none}
+.bloque-item.est-excedido::before{background:var(--bloque-over);transform:none}
 .bloque-item.est-excedido{border-color:var(--danger)}
+
+/* F2 — un concepto de gasto libre no tiene plan contra el cual medirse, así
+   que no lleva relleno ni porcentaje: el monto que muestra ya es lo gastado. */
+.bloque-item.est-libre::before{background:transparent}
+/* "General" es un encabezado de grupo, no un concepto que se pueda abrir */
+.bloque-general{cursor:default;background:transparent;border-style:dashed}
+.bloque-general+.pagos-tabla{margin-top:0;padding:0 var(--space-2) 0 var(--space-4)}
 
 .money-symbol{color:var(--ink-lighter)!important;font-size:var(--text-base)!important;font-weight:var(--fw-bold)!important}
 
@@ -278,6 +381,30 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .overlay{position:fixed;inset:0;z-index:80;background:rgba(26,26,26,.45);display:none;
   overflow-y:auto;padding:var(--space-5)}
 .overlay.on{display:block}
+
+/* F6 — el modal entra con el fondo desvaneciéndose y la hoja subiendo un pelo
+   de escala; sale más rápido y con la curva invertida, que es como se lee
+   "esto se va". Solo `opacity` y `transform`.
+
+   La entrada va con `animation` y no con una transición a propósito: hay ocho
+   sitios en la app que arman su propio `.overlay.on` a mano, y con transición
+   habría que ir a los ocho a añadirles una clase — el que se quedara sin ella
+   se vería invisible. Con `animation` el estado en reposo es el visible y
+   todos entran animados sin tocar una línea de JS. La salida sí necesita la
+   clase, y quien no la ponga simplemente desaparece de una, que es lo que
+   hacía antes. */
+/* F10 — la clase oculta la pone el JS, así que sin JS no hay nada invisible */
+.revelar{opacity:0;transform:translateY(12px);
+  transition:opacity var(--dur-comp) var(--ease-out),transform var(--dur-comp) var(--ease-out)}
+.revelar.revelado{opacity:1;transform:none}
+
+@keyframes fondo-entra{from{opacity:0}to{opacity:1}}
+@keyframes hoja-entra{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.overlay.on{animation:fondo-entra .2s var(--ease-out)}
+.overlay.on .sheet{animation:hoja-entra var(--dur-modal) var(--ease-out)}
+.overlay.on.sale{opacity:0;animation:none;transition:opacity var(--t-salida)}
+.overlay.on.sale .sheet{opacity:0;transform:scale(.98);animation:none;
+  transition:opacity var(--t-salida),transform var(--t-salida)}
 .sheet{max-width:480px;margin:40px auto;background:var(--white);border:1px solid var(--border-card);
   border-radius:var(--radius-xl);padding:var(--space-6);box-shadow:var(--shadow-xl)}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-5)}
@@ -441,7 +568,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .mov-res .hist-track{flex:1}
 .mov-res-n{flex:0 0 auto;font-size:var(--text-xs)}
 .mov-res-d{flex:0 0 auto;font-size:var(--text-xs);font-weight:var(--fw-bold);color:var(--success)}
-.mov-res-d.over,.num.over{color:var(--danger)}
+.mov-res-d.over,.num.over{color:var(--danger-texto)}
 .mov-dia{margin-bottom:var(--space-3)}
 .mov-line{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;
   border-top:1px solid var(--border-hairline)}
@@ -495,7 +622,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .pagos-head .ph-cifra{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pagos-head .ph-cifra b{font-size:var(--text-base);font-weight:var(--fw-bold);color:var(--ink)}
 .pagos-head .badge{margin-left:auto}
-.num.ok,.sub.ok{color:var(--success)}
+.num.ok,.sub.ok{color:var(--success-texto)}
 .line-pago{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:6px}
 .line-pago .fieldw{max-width:180px}
 /* El campo de monto se lleva la fila entera cuando el número no cabe: con
@@ -503,16 +630,91 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .line-pago .money-field,.modal-body .line-pago .money-field{flex:1 1 220px;min-width:180px;max-width:none}
 .line-pago .mini{font-size:11px;padding:7px 9px;display:flex;align-items:center;gap:4px;flex:none}
 .line-pago .lcerrar.on{color:var(--success);border-color:var(--success);background:var(--success-soft)}
-.pagos-tabla{margin-top:6px}
-.pago-row{display:grid;grid-template-columns:minmax(72px,auto) auto 1fr auto;gap:8px;
-  align-items:center;padding:5px 4px;border-bottom:1px solid var(--pink-wash)}
-.pago-row:last-child{border-bottom:0}
-.pago-row:not(.pago-head):hover{background:var(--pink-wash)}
+/* F6 — el mini-formulario de pago se pliega igual que el acordeón: el mismo
+   truco de `grid-template-rows`, la misma curva. */
+.pago-inline[hidden]{display:none}
+.pago-inline{display:grid;grid-template-rows:0fr;margin-top:var(--space-2);
+  transition:grid-template-rows var(--dur-comp) var(--ease-out)}
+.pago-inline>*{overflow:hidden;min-height:0}
+.pago-inline.on{grid-template-rows:1fr}
+.pago-inline:not(.on){transition:grid-template-rows var(--t-salida)}
+.pago-inline-caja{display:flex;flex-direction:column;gap:var(--space-2);
+  padding:var(--space-3);background:var(--pink-wash);border-radius:var(--radius-sm)}
+
+/* sacudida de validación: solo `transform`, así que el resto del formulario no
+   se entera y el botón no se le escapa a nadie */
+@keyframes sacude{0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}40%{transform:translateX(5px)}
+  60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.sacude{animation:sacude .3s var(--ease-out)}
+.sacude input,input.sacude{border-color:var(--danger)}
+
+/* F7 — la tabla de pagos. Va como `<table>` de verdad y no como una rejilla de
+   `div`s: el lector de pantalla anuncia la columna de cada celda, y encabezado
+   y contenido no se pueden desalinear, que era justo lo que pasaba. */
+.pagos-tabla{width:100%;margin-top:6px;border-collapse:collapse}
+.pagos-tabla th,.pagos-tabla td{padding:7px 6px;text-align:left;vertical-align:middle}
+.pago-head th{font-size:11px;font-weight:var(--fw-semibold);color:var(--ink-lighter);
+  border-bottom:1px solid var(--border-card)}
+/* el monto a la derecha y con cifras de ancho fijo: en una columna de números,
+   alinear a la izquierda hace que las unidades no se puedan comparar */
+.pagos-tabla .col-monto{text-align:right}
+.pagos-tabla .col-monto .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pago-row td{border-bottom:1px solid var(--pink-wash)}
+.pago-row:last-child td{border-bottom:0}
+.pago-row{transition:background var(--t-micro)}
+.pago-row:hover{background:var(--pink-wash)}
+.pago-n{font-weight:var(--fw-semibold);overflow-wrap:break-word}
+.pago-fecha{font-size:var(--text-xs);color:var(--ink-lighter);white-space:nowrap}
+
+/* En móvil la tabla se rompe en tarjetas apiladas: nombre arriba, monto
+   destacado, fecha de apoyo. Nada de scroll horizontal, que en una tabla de
+   cuatro columnas dentro de una tarjeta ya estrecha es ilegible. */
+@media (max-width:520px){
+  .pagos-tabla,.pagos-tabla tbody,.pagos-tabla td{display:block}
+  .pagos-tabla thead{display:none}
+  /* la fila lleva el nombre de la etiqueta, así que hay que ganarle a
+     `.pagos-tabla tr` en especificidad o nunca llega a ser una rejilla */
+  .pagos-tabla tr.pago-row{display:grid;grid-template-columns:1fr auto;
+    align-items:baseline;gap:2px var(--space-3);padding:var(--space-3) 0;
+    border-bottom:1px solid var(--pink-wash)}
+  .pagos-tabla tr.pago-row:last-child{border-bottom:0}
+  .pagos-tabla tr.pago-row td{border:0;padding:0}
+  .pagos-tabla .pago-n{grid-area:1/1;font-size:var(--text-base)}
+  .pagos-tabla .col-monto{grid-area:1/2;text-align:right}
+  .pagos-tabla .pago-fecha{grid-area:2/1}
+  .pagos-tabla .pago-acciones{display:flex;grid-area:2/2;justify-content:flex-end}
+}
+
+/* F2 — un pago entra desvaneciéndose y subiendo 8px, con un escalonado corto
+   por fila para que la lista se lea de arriba abajo y no aparezca de bloque.
+   Se anima `transform` y `opacity` y nada más: el alto no se toca al entrar. */
+@keyframes fila-entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pagos-tabla .pago-row{
+  animation:fila-entra var(--dur-comp) var(--ease-out) backwards;
+  animation-delay:calc(var(--i,0) * 30ms)}
+
+/* Y sale al revés: se desvanece mientras colapsa su propio alto, para que las
+   filas de abajo suban en lugar de saltar. El alto se fija en JS antes de
+   quitar la clase, que a `auto` no se le puede hacer una transición. */
+.pago-row.fila-sale{
+  overflow:hidden;height:0!important;opacity:0;padding-top:0;padding-bottom:0;
+  transform:translateY(-4px);
+  transition:height var(--t-salida),opacity var(--t-salida),
+    transform var(--t-salida),padding var(--t-salida)}
 .pago-row .num{text-align:right}
 .pago-row .sub{margin-top:0;font-size:11px}
 .pago-head{font-size:11px;color:var(--ink-lighter)}
 .pago-head span:first-child{text-align:right}
-.pago-acciones{display:flex;align-items:center;justify-content:flex-end}
+.pago-acciones{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+
+/* F10 — el lápiz, el ⋮ y la × son de 22-30px porque en una fila densa un botón
+   de 44 se come la fila. El área que responde al dedo sí llega a 44: se estira
+   con un pseudo-elemento centrado, que no ocupa sitio en el layout ni cambia
+   lo que se dibuja. */
+.bloque-ed,.pago-ed,.pago-x{position:relative}
+.bloque-ed::after,.pago-ed::after,.pago-x::after{content:'';position:absolute;
+  left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 .pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:20px;line-height:18px;padding:0 5px;min-width:24px}
 .pago-ed:hover{color:var(--ink);background:var(--white)}
 .pago-nota{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -586,7 +788,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   border-top:1px solid var(--border-hairline)}
 .an-fila:nth-child(odd){background:var(--pink-wash)}
 .an-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.an-pct{flex:0 0 56px;text-align:right;color:var(--pink-dark);font-weight:var(--fw-bold)}
+.an-pct{flex:0 0 56px;text-align:right;color:var(--pink-texto);font-weight:var(--fw-bold)}
 .an-monto{flex:0 0 auto;font-weight:var(--fw-bold)}
 .an-dif{flex:0 0 auto;font-size:var(--text-xs)}
 
@@ -629,9 +831,36 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 
 /* F7 — el ítem de la lista y su trozo del donut: al pasar el cursor por uno,
    los demás trozos se apagan. */
-.donut-seg{transition:opacity var(--t-fast)}
-.donut.atenuado .donut-seg{opacity:.2}
+/* F9 — el giro va aquí y no en el atributo `transform` del <circle>, porque si
+   está en el atributo la clase de selección no le puede añadir la escala sin
+   pisarlo. `transform-box:view-box` hace que el origen sea el del viewBox y no
+   la caja del trazo. */
+.donut-seg{transform:rotate(-90deg);transform-origin:80px 80px;transform-box:view-box;
+  cursor:pointer;
+  transition:opacity var(--dur-comp) var(--ease-out),
+    transform var(--dur-comp) var(--ease-out),stroke-width var(--dur-comp) var(--ease-out)}
+.donut.atenuado .donut-seg{opacity:.35}
 .donut.atenuado .donut-seg.on{opacity:1}
+/* el seleccionado sale hacia afuera y engorda: la escala lo separa del resto
+   y el grosor lo hace el trozo que se está mirando */
+.donut-seg.sel{stroke-width:26;transform:rotate(-90deg) scale(1.05)}
+/* al pulsar con el ratón, el navegador dibuja el anillo de foco sobre la caja
+   del <circle>, que es todo el cuadrado del donut: un recuadro negro alrededor
+   del dibujo. Se apaga siempre y el foco de teclado se marca engordando el
+   trazo, que es lo que se está mirando. */
+.donut-seg:focus{outline:0}
+.donut-seg:focus-visible{stroke-width:26;filter:brightness(1.1)}
+
+/* el ítem de la lista se enciende y se apaga solo: es un "es este", no un
+   estado que haya que ir a quitar después */
+@keyframes resalta{from{background:var(--pink-lighter)}to{background:transparent}}
+.an-fila.resaltada{animation:resalta .8s var(--ease-out)}
+
+/* El donut se dibuja de un barrido al montar. Va sobre `stroke-dashoffset`,
+   que es como se dibuja un trazo en SVG, y solo la primera vez: repetirlo en
+   cada repintado convertiría un detalle en un peaje. */
+@keyframes donut-barre{from{stroke-dasharray:0 9999}}
+.donut-seg{animation:donut-barre .6s var(--ease-out) backwards}
 .an-detalle-lista .an-fila{gap:var(--space-2)}
 
 /* Tarjeta con franja de título: el ícono y el nombre viven en su propia
@@ -656,3 +885,26 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .tasa-valor{flex:1 1 130px;min-width:0;color:var(--ink)}
 .tasa-valor .sub{display:block;margin-top:0}
 .tasa-fila input{flex:1 1 90px;min-width:0;text-align:right}
+
+/* F10 — en móvil el modal es una hoja inferior: sube desde abajo, se pega al
+   borde de la pantalla y su contenido se desplaza por dentro. Un modal centrado
+   en una pantalla de 360px deja márgenes que no sirven para nada y se queda
+   lejos del pulgar.
+
+   Este bloque va al final del archivo a propósito: pisa reglas de `.sheet` y
+   `.overlay` que están más arriba y tienen la misma especificidad, así que
+   quien gana es quien va después. Puesto antes, no hacía nada. */
+@media (max-width:560px){
+  .overlay{padding:0}
+  .overlay.on{display:flex;align-items:flex-end}
+  .sheet{width:100%;max-width:none;margin:0;max-height:90vh;overflow-y:auto;
+    border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+    padding-bottom:max(var(--space-6),env(safe-area-inset-bottom))}
+  /* el agarradero: dice "esto sube y baja" sin escribirlo */
+  .sheet::before{content:'';display:block;width:36px;height:4px;margin:0 auto var(--space-4);
+    border-radius:var(--radius-pill);background:var(--border-card)}
+  @keyframes hoja-sube{from{transform:translateY(100%)}to{transform:none}}
+  .overlay.on .sheet{animation:hoja-sube var(--dur-modal) var(--ease-spring)}
+  .overlay.on.sale .sheet{transform:translateY(100%);opacity:1;
+    transition:transform var(--t-salida)}
+}

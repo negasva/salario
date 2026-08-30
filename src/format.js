@@ -1,6 +1,18 @@
 export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
+/* F7 — en una tabla de pagos la fecha es una referencia, no el dato: "8 ago"
+   cabe en su columna y se lee igual de rápido que "8 de agosto", que la
+   desbordaba. Sin punto, que en español la abreviatura de mes no lo lleva
+   cuando es de tres letras y se ve más limpio en una columna. */
+export const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+export function fechaCorta(fecha) {
+  const [, m, d] = String(fecha).split('-').map(Number);
+  return MESES_CORTOS[m - 1] ? `${d} ${MESES_CORTOS[m - 1]}` : String(fecha);
+}
+
 export function noDecimals(cur) {
   return cur === 'COP' || cur === 'CLP' || cur === 'ARS';
 }

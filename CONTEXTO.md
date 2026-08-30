@@ -233,3 +233,111 @@ Vale la pena decirlo en voz alta, porque el código no lo dice.
 **WhatsApp no es posible desde una app web.** Mandar un mensaje requiere la Cloud API de Meta: número verificado, servidor propio que guarde el token y plantillas aprobadas una por una. Un backend entero para reemplazar lo que el navegador ya hace gratis. La vía realista, si algún día se quiere, es un servicio externo con un cron en Supabase Edge Functions, y eso es otro proyecto.
 
 **Los avisos no llegan con la app cerrada.** La única vía sin backend es un service worker con Periodic Background Sync, que solo corre en Chrome de escritorio y solo si el usuario instaló la PWA. No está hecho.
+
+## Fase 1 — Datos y modelo
+
+**El saldo a favor tenía dos fórmulas y ahora tiene una.** La tarjeta "A favor este mes" decía `$ 734.000` y el botón de reparto `$ 32.600`, porque cada uno hacía su propia cuenta: la tarjeta restaba gastos reales a ingresos reales, y el botón restaba el *plan* del ingreso y encima le quitaba los aportes a metas ya hechos. `saldoAFavor(movs, periodo)` en `engine/saldo.js` es ahora la única fuente —`ingresos − gastos pagados`, el mismo número que `resumenFlujo().saldo`— y `disponibleParaRepartir()` es esa cifra sin dejarla bajar de cero. La segunda fórmula se borró de `ui/categorias.js` junto con `aportadoEsteMes()`, que se quedó sin usuarios. Hay una prueba que ata los dos valores.
+
+**Cada pago lleva nombre.** `agregarPago()` y `agregarPagoLibre()` reciben `nombre` y lo guardan en `mov.nombre`; si no le pones uno, hereda el del concepto. `nombrePago()` lo lee con respaldo a `nota`, así que los perfiles viejos siguen funcionando sin migración: el libro vive dentro del jsonb del perfil y no hubo DDL que correr.
+
+**Categorías de gasto libre.** `esGastoLibre(it)` las marca. La plantilla "Gasto libre" pone `libre: true` al crear la categoría, y el flag explícito manda sobre el rol para que una categoría se pueda cambiar de opinión.
+
+**"Sin tipo de concepto" ahora es "General".** Un solo `SIN_CONCEPTO` exportado desde `engine/pagos.js` que usan la lista de categorías, el donut del análisis y el selector de registro.
+
+## Fase 2 — Gasto libre sin monto planeado
+
+**Una categoría de gasto libre no planea, registra.** `esGastoLibre(it)` cambia tres cosas en la vista: el pop-up del concepto ya no pide "Monto planeado" (ni barra de progreso, ni "pagado por completo", ni arrastre al mes siguiente, porque sin plan no hay deuda que arrastrar), el bloque del concepto muestra lo pagado en vez del plan y se queda sin relleno ni porcentaje, y las acciones de la tarjeta lideran con **+ Agregar pago** en lugar de "+ Concepto". Se marca desde el pop-up de la categoría con un botón que se puede apagar.
+
+**Los pagos sueltos se agrupan bajo "General".** El bloque `General` es ahora el encabezado del grupo y su tabla de pagos cuelga justo debajo; antes el total salía en un bloque y la tabla quedaba suelta más abajo sin decir de qué grupo era.
+
+**Movimiento.** Cada fila de pago entra con fade y 8px de subida (`--dur-comp`, `ease-out`), escalonada 30ms por fila y cortada a las seis: más allá deja de ser ritmo y es espera. Al borrar, la fila se desvanece mientras colapsa su alto (`--t-salida`, `ease-in`) y solo entonces se repinta la lista, para que las de abajo suban en lugar de saltar. `salir()` mide el alto antes de animarlo porque a `auto` no se le puede hacer una transición, y con `prefers-reduced-motion` se salta la espera entera.
+
+## Fases 3 y 4 — Cabecera de categoría y botón `+`
+
+**El panel de totales.** El encabezado de cada categoría dice ahora tres cifras apiladas, etiqueta a la izquierda y monto a la derecha: `Estimado`, `Pagado` y `Saldo a favor`, que es la resta de las dos y va verde en positivo y rojo en negativo. Se fue el contador `3 de 10 al día`: decía cuántos conceptos estaban cerrados, que no es lo que se viene a mirar, y le quitaba sitio a lo que sí. Junto al nombre va un chip con el porcentaje pagado sobre estimado, el mismo `.bloque-pct` que ya usaban los conceptos. `panelTotales()` es una sola función que sirve a la tarjeta y al pop-up, y `cabeceraPagos()` desapareció.
+
+En una categoría de gasto libre el estimado *es* lo pagado —no hay nada que estimar por delante—, así que va siempre al 100% y sin fila de saldo, en vez de fingir un plan de cero contra el que todo se pasa.
+
+**El `+` es su propio panel.** Salió del encabezado y quedó como un bloque aparte dentro de la misma tarjeta, pegado abajo, alineado a la derecha, con fondo rosa y 48px de alto. Ya no compite con el lápiz, que se queda arriba. En gasto libre abre el formulario de pago y en el resto crea un concepto, así que la fila de botones que había debajo de la lista se quedó solo con "Agregar pago suelto", que es lo único que el `+` no hace.
+
+**Dos correcciones que solo se vieron en pantalla.** El `.pagos-head` de base trae fondo rosa claro, márgenes propios y `align-items:center`, pensado para el pop-up; dentro de la cabecera oscura eso dejaba el texto blanco sobre rosa claro (ilegible) y sin hueco que repartir, así que las cifras se apelotonaban a la derecha. Se devuelve a cero con especificidad suficiente para ganarle al orden del archivo. Y `--saldo-ok-on-ink` / `--saldo-over-on-ink` existen porque los `--success` y `--danger` de las paletas no llegan a AA sobre la tinta.
+
+**Movimiento.** Las barras de los bloques ya no animan `width` sino `transform:scaleX`, que el navegador resuelve sin recalcular el layout; `--pct` viaja como número suelto de 0 a 100. Los montos del panel cuentan del valor viejo al nuevo en 300ms con un ease-out cúbico (`ui/animar.js`), guardando el valor anterior por clave porque la vista repinta con `innerHTML` y si no, un número no sabe de dónde viene. La primera vez que una clave aparece no se anima nada, que es lo correcto. El `+` hace `scale(1.05)` en hover con el signo girando 90°, `scale(.94)` en active y un anillo en `focus-visible`.
+
+## Fase 5 — Categorías minimizables
+
+Cada categoría es un acordeón y arranca cerrada. Con seis abiertas la vista era un scroll sin fondo; cerradas cabe en pantalla, y lo que se pliega es solo la lista de conceptos: el panel de totales y el botón `+` siguen a la vista, que son las dos cosas que se vienen a hacer. El click en cualquier parte del encabezado abre y cierra, el `+` no (`stopPropagation`), y el pop-up de la categoría ahora se abre por el lápiz, que era lo que ya señalaba "esto se edita".
+
+Qué está abierto vive en `localStorage`, no en el perfil: es una preferencia de esta pantalla en este aparato, no un dato del presupuesto que haya que subir a Supabase.
+
+**Dos cosas que solo se vieron probando en el navegador.** El encabezado no puede ser un `<button>`: lleva el lápiz dentro, y un botón dentro de otro el parser lo saca fuera y desarma la cabecera entera —la primera versión rompió el layout de forma espectacular—. Va como `div` con `role="button"`, `tabindex` y `Enter`/`Espacio` a mano. Y `display:grid` de una clase le gana al `display:none` que el navegador le da a `[hidden]`, así que lo plegado seguía ocupando sitio y saliendo en el tabulador; hay que devolvérselo con `.cat-fold[hidden]{display:none}`.
+
+**Movimiento.** El alto se anima con `grid-template-rows` de `0fr` a `1fr`, que es lo único que le hace una transición al alto real sin medirlo a mano ni inventar un `max-height` que recorte la lista larga y deje hueco en la corta. Abre en 250ms `ease-out` y cierra en 200ms `ease-in`. El contenido entra detrás del hueco, escalonado 20ms por fila y cortado a las seis. El chevron gira 180° sincronizado.
+
+## Fase 6 — Pop-up de concepto
+
+**Ya no se crean conceptos vacíos.** El concepto se creaba y se metía en la lista *antes* de abrir el pop-up, así que abrirlo y cerrarlo dejaba uno en blanco. Ahora vive suelto hasta que tenga nombre: `fijar()` lo mete en `it.L` la primera vez que se guarda con uno, y cerrar sin nombre no deja rastro. El botón de borrar cierra sin más si el concepto nunca llegó a la lista.
+
+**Un solo botón "Agregar pago".** Los campos sueltos (`$ [monto]  Fecha [dd/mm/aaaa]  [+]`) eran tres controles a la intemperie que no decían que fueran una sola cosa. Ahora hay un botón que despliega un mini-formulario con nombre, monto, fecha y **Guardar**, y al guardar se colapsa y el pago aparece en la lista.
+
+**Validación.** Sin nombre no se guarda. Si intentas registrar un pago en un concepto sin nombre, se pide primero ese, que es el que de verdad falta.
+
+**Movimiento.** El modal entra con el fondo desvaneciéndose en 200ms y la hoja de `scale(.96)` a 1 en 300ms `ease-out`; sale en 200ms `ease-in`. La entrada va con `animation` y no con transición a propósito: hay ocho sitios en la app que arman su propio `.overlay.on` a mano, y con transición habría que ir a los ocho a ponerles una clase, con el riesgo de que el que se quedara sin ella se viera invisible. Con `animation` el estado en reposo es el visible y todos entran animados sin tocar JS. El mini-formulario se pliega con el mismo `grid-template-rows` del acordeón. Un campo inválido sacude 300ms con `transform` y nada más: el resto del formulario no se mueve, que es lo que hace insoportable un error de validación —el botón se te escapa justo cuando ibas a darle—.
+
+## Fase 7 — Tabla de pagos
+
+La lista `Monto / Fecha / Nota` era una rejilla de cuatro columnas con los títulos encima de contenidos que no les correspondían, y el nombre del pago no salía por ningún lado. Ahora es una `<table>` de verdad con **Nombre | Monto | Fecha | Acciones**. Va como tabla y no como rejilla de `div`s por dos razones: el lector de pantalla anuncia a qué columna pertenece cada celda, y encabezado y contenido no se pueden desalinear, que era justo el problema. El monto va a la derecha con `tabular-nums`, porque en una columna de números alinear a la izquierda impide comparar las unidades. Las fechas usan `fechaCorta()` (`8 ago`, `23 ago`), que es lo que cabe en su columna.
+
+**En móvil la tabla se rompe en tarjetas apiladas** —nombre arriba, monto destacado a la derecha, fecha y acciones abajo— en vez de desplazarse en horizontal, que en cuatro columnas dentro de una tarjeta ya estrecha es ilegible.
+
+**Tres cosas que solo se vieron en pantalla.** `.pagos-tabla tr` le ganaba en especificidad a `.pago-row`, así que la fila nunca llegaba a ser una rejilla y el móvil se veía como una lista rota. `width:100%` más `margin-left` sacaba la tabla por la derecha exactamente lo que medía el margen —ahora es `padding`—. Y `.pagos-tabla td{display:block}` le ganaba a `.pago-acciones{display:flex}`, así que los dos botones de cada fila se apilaban en vertical.
+
+**Movimiento.** Las filas entran escalonadas 30ms al abrir la categoría y el hover cambia el fondo en 120ms. Al borrar no hace falta FLIP: la fila que se va colapsa su propio alto antes de que la lista se repinte, y las de abajo suben durante esa misma transición, que es exactamente el resultado que FLIP daría con bastante más código.
+
+También se quitó el giro de 90° del `+` en hover: ese botón abre un modal, no un formulario en línea, y girado se lee como una × de cerrar.
+
+## Fase 8 — Repartir saldo a favor
+
+**El botón es verde y dice el monto.** `Repartir saldo a favor · $ 2.544.000`, con el número contando cuando cambia. Es el único verde de la app y es a propósito: en una paleta rosa no se confunde con nada, y "tienes plata a favor" es la única buena noticia que da esta pantalla. El monto es el de la fase 1, el mismo que la tarjeta de arriba.
+
+**El modal ya no es solo de metas.** El viejo únicamente ofrecía metas de ahorro: el mes que te sobraba plata teniendo el arriendo a medias, la app te proponía guardarla en vez de pagarlo. Ahora los destinos son los tres que existen y salen agrupados por clase —**Pagar deuda**, **Gasto libre**, **Metas de ahorro**—, no por categoría: lo que se decide aquí es "¿pago, gasto o guardo?", y con un título por categoría esa pregunta quedaba repartida en seis. De qué categoría sale cada concepto va al lado del nombre, que es donde hace falta.
+
+Cada fila lleva su tope a la derecha (`pendiente $ X` / `faltan $ X`), un input, y un botón `Todo lo que falta` que pone el tope y deja que el motor lo recorte si ya no queda tanto: la regla de cuánto cabe vive en un solo sitio (`normalizarReparto`), así que un monto tecleado a mano y el botón pasan por el mismo filtro y ninguno de los dos puede pasarse. `Aplicar reparto` está deshabilitado mientras el total sea 0 y muestra el total cuando no lo es.
+
+Al aplicar, cada destino genera **el movimiento que generaría hacerlo a mano**: un pago al concepto, un pago suelto a la categoría o un aporte a la meta. Nada de una estructura nueva de "reparto" que después el historial, el donut y el cierre no sepan leer.
+
+`engine/repartoSaldo.js` es todo puro y tiene 16 pruebas: los topes, el recorte por disponible, los ceros y la basura tecleada, y que cada clase de destino genere el movimiento correcto.
+
+**Movimiento.** El botón hace `scale(1.02)` con sombra en hover y `scale(.97)` en active. `Quedan $ X sin repartir` cuenta hacia abajo en cada tecleo y la barra de progreso se escala con `scaleX`, no con `width`. Al aplicar, el botón pasa a "Aplicando…", el modal sale y la tarjeta del saldo hace un pulso corto de `scale`, que no empuja nada de alrededor.
+
+## Fase 9 — Donut interactivo
+
+El donut ya tenía resalte al pasar el cursor, pero eso no basta: en un móvil no hay cursor, y ahí el donut era un dibujo y nada más. Ahora el click funciona en los dos sentidos —del donut a la lista y de la lista al donut—, el segundo click deselecciona, y los segmentos son enfocables con `Enter`/`Espacio`. El elegido sale hacia afuera con `scale(1.05)` y engorda el trazo; los demás bajan a opacidad 0.35. El ítem de la lista recibe un destello que se apaga solo en 800ms y la vista se desplaza hasta él.
+
+**La selección vive en una variable de módulo, no en el DOM.** Tiene que ser así: al pulsar una fila la vista se repinta entera para desplegar su detalle, y una selección guardada solo en el DOM se perdía en ese repintado —era exactamente el caso "de la lista al donut", que fallaba—. Se vuelve a aplicar en cada render, sin destello ni desplazamiento, porque el usuario no ha vuelto a pulsar nada. Si el segmento ya no existe, no se encuentra y no pasa nada.
+
+**Dos detalles del navegador.** El giro de -90° pasó del atributo `transform` del `<circle>` a CSS: como atributo, la clase de selección no le podía añadir la escala sin pisarlo. Y al pulsar con el ratón el navegador dibujaba su anillo de foco sobre la caja del `<circle>`, que es el cuadrado entero del donut: un recuadro negro alrededor del dibujo. Se apaga siempre y el foco de teclado se marca engordando el trazo, que es lo que se está mirando.
+
+El hover solo pinta si no hay nada fijado, para que no se peleen. Y el donut se dibuja de un barrido de 600ms al montar, solo la primera vez: repetirlo en cada repintado convertiría un detalle en un peaje.
+
+## Fases 10 y 11 — Responsive, contraste y pasada de animación
+
+**Contraste.** Una auditoría automática sobre la página ya pintada —midiendo el color calculado de cada nodo de texto contra el fondo real de su primer ancestro con color— encontró cuatro fallos de AA, uno de ellos recién introducido: el botón verde nuevo daba 3.01:1 con texto blanco. La causa de fondo es que `--success`, `--danger` y `--pink-dark` están calibrados para llenar una barra o un botón, no para escribirse encima de blanco. Ahora hay `--success-texto`, `--danger-texto` y `--pink-texto`, que son los mismos colores oscurecidos hasta pasar AA y se usan **solo para texto**; los fondos siguen siendo los de siempre, así que la app no cambia de aspecto. La auditoría vuelve a correr en cero.
+
+**Áreas táctiles.** El lápiz, el `⋮` y la `×` miden 22-30px porque en una fila densa un botón de 44 se come la fila. El área que responde al dedo sí llega a 44: se estira con un pseudo-elemento centrado, que no ocupa sitio en el layout ni cambia lo que se dibuja. Y en `pointer:coarse` todo control sube a 44px de alto; en escritorio se quedan compactos, porque con ratón 28px sobran y estirarlo todo dejaría la mitad de información por pantalla. Medido en modo táctil: cero controles por debajo de 44px.
+
+**Responsive.** 360, 768 y 1280px sin desplazamiento horizontal y sin un solo elemento que se salga por la derecha. En móvil los modales son hoja inferior, pegados al borde, con scroll interno y agarradero. Ese bloque va al final del archivo a propósito: pisa reglas de `.sheet` y `.overlay` de la misma especificidad que están más arriba, y puesto antes no hacía nada —la primera versión dejaba la hoja flotando a 40px del borde—.
+
+**Revelar al bajar.** Fade y 12px de subida, una sola vez, sin parallax. El estado oculto lo pone el JS y nunca el CSS: si el módulo no corre o el navegador no trae `IntersectionObserver`, todo se ve. Una sección en blanco por culpa de una animación decorativa sería un precio absurdo. Solo se marcan los elementos que arrancan por debajo del pliegue, y la llamada va después de pintar las tres zonas de la vista, no dentro de la lista: pintada primero, las tarjetas de arriba todavía no existen y no había nada bajo el pliegue que marcar.
+
+**Una sola definición de "menos movimiento".** Había cuatro copias del mismo `matchMedia('(prefers-reduced-motion: reduce)')` repartidas por los módulos. Queda una, en `ui/animar.js`, y las demás la importan.
+
+### Dónde el documento se contradice
+
+Tres animaciones incumplen la lista de verificación final pero están pedidas explícitamente en su propia fase. Se dejaron como las pide la fase y se anotan aquí en vez de elegir en silencio:
+
+- El barrido del donut al montar dura **600ms** (fase 9) contra el tope de 400ms de la fase 11.
+- El destello del ítem resaltado dura **800ms** (fase 9) contra ese mismo tope.
+- Borrar un pago anima `height` (fase 2 pide "collapse de altura") contra la regla de animar solo `transform` y `opacity`.
+
+Ninguna de las tres bloquea una acción del usuario, que es lo que la regla protege: el barrido y el destello son de solo lectura, y el colapso ocurre después de que el borrado ya se aplicó. El resto de las animaciones son `transform` y `opacity`, salvo los cambios de fondo, borde y sombra en hover, que la fases 7 y 8 piden por escrito y no provocan recálculo de layout.

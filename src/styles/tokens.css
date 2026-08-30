@@ -29,6 +29,20 @@
   --text-on-ink-accent: var(--pink-light);
 
   --text-on-ink-muted: rgba(255,255,255,.70);
+  /* F3 — el saldo a favor va verde en positivo y rojo en negativo, pero sobre
+     el fondo oscuro de la categoría los `--success` y `--danger` de la paleta
+     no llegan a AA. Estos dos son los tonos claros que sí, y son fijos a
+     propósito: el significado (verde bien, rojo mal) no cambia con el tema. */
+  --saldo-ok-on-ink:   #7BE0A8;
+  --saldo-over-on-ink: #FFA8A8;
+  /* F10 — los acentos están calibrados para llenar una barra o un botón, no
+     para escribirse encima de blanco: `--success` sobre blanco da 3.0:1 y AA
+     pide 4.5:1 para texto normal. Estos tres son los mismos colores oscurecidos
+     hasta pasar, y se usan SOLO para texto. El fondo sigue siendo el de siempre,
+     así que la app no cambia de aspecto. */
+  --success-texto: #0F7A4F;
+  --danger-texto:  #C81E1E;
+  --pink-texto:    #B03060;
   /* F10/F11 — bloques: la categoría es oscura y sus ítems claros, para que la
      jerarquía se lea de un vistazo. El relleno marca lo pagado sobre lo planeado. */
   --bloque-cat-bg:     var(--ink);
@@ -78,9 +92,21 @@
   --shadow-sm:0 1px 2px rgba(26,26,26,.06);
   --shadow-xl:0 20px 40px rgba(26,26,26,.16);
 
+  /* Escala de movimiento. Una curva por intención: `out` para lo que entra,
+     `in` para lo que sale, `spring` para lo que el dedo arrastra. Y tres
+     duraciones, ninguna por encima de 400ms: micro-interacción, componente,
+     modal. Nada anima fuera de esta escala. */
   --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-in:cubic-bezier(.4,0,1,1);
+  --ease-spring:cubic-bezier(.22,1.2,.36,1);
+  --dur-micro:.12s;
   --dur-fast:.15s;
+  --dur-comp:.25s;
+  --dur-modal:.3s;
   --t-fast:var(--dur-fast) var(--ease-out);
+  --t-micro:var(--dur-micro) var(--ease-out);
+  --t-comp:var(--dur-comp) var(--ease-out);
+  --t-salida:.2s var(--ease-in);
 }
 
 /* Temas alternativos: los acentos conservan los colores entregados, pero los

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { digits, money, redondeoVista } from './format.js';
+import { digits, money, redondeoVista, fechaCorta } from './format.js';
 
 describe('digits', () => {
   it('lee montos con separador de miles', () => {
@@ -38,5 +38,19 @@ describe('redondeo a la centena en pesos', () => {
     expect(redondeoVista(12.34, 'USD')).toBe(12.34);
     expect(money(3108, 'COP', true)).toBe(money(3108, 'COP', true));
     expect(money(3108, 'COP', true)).not.toBe(money(3108, 'COP'));
+  });
+});
+
+describe('fechaCorta', () => {
+  it('escribe el mes en tres letras y sin punto', () => {
+    expect(fechaCorta('2026-08-08')).toBe('8 ago');
+    expect(fechaCorta('2026-08-23')).toBe('23 ago');
+    expect(fechaCorta('2026-01-01')).toBe('1 ene');
+    expect(fechaCorta('2026-12-31')).toBe('31 dic');
+  });
+
+  it('una fecha que no entiende la devuelve tal cual', () => {
+    expect(fechaCorta('')).toBe('');
+    expect(fechaCorta('mañana')).toBe('mañana');
   });
 });

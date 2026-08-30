@@ -619,6 +619,12 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .mov-res-n{flex:0 0 auto;font-size:var(--text-xs)}
 .mov-res-d{flex:0 0 auto;font-size:var(--text-xs);font-weight:var(--fw-bold);color:var(--success)}
 .mov-res-d.over,.num.over{color:var(--danger-texto)}
+/* ingreso del mes en la tarjeta de presupuesto contra real: verde y un punto
+   más grande que las cifras de las barras, que es lo que se viene a mirar */
+.mov-ing{background:none;border:0;padding:4px 0;cursor:pointer;
+  font-size:var(--text-sm);color:var(--ink-light)}
+.mov-ing b{font-size:var(--text-base);font-weight:var(--fw-bold);color:var(--success)}
+.mov-ing[aria-expanded="true"] b{text-decoration:underline}
 .mov-dia{margin-bottom:var(--space-3)}
 .mov-line{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;
   border-top:1px solid var(--border-hairline)}

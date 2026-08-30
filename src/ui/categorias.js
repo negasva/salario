@@ -223,12 +223,11 @@ function catCard(it, p, gastadoLinea, periodo) {
   /* F2 — en gasto libre no se agregan conceptos, se agregan pagos: lo gastado
      ES el monto, así que un "monto planeado" ahí no significa nada. */
   const libre = esGastoLibre(it);
-  /* F3 — lo estimado de una categoría de gasto libre es lo que ya lleva
-     gastado: no hay nada que estimar por delante, así que va siempre al 100%
-     y sin saldo, en vez de fingir un plan de cero contra el que todo se pasa. */
-  const estimado = libre ? res.pagado : budget;
-  const estado = libre ? 'libre' : estadoLinea(res.pagado, estimado, false);
-  const pct = libre ? 100 : pctPagado(res.pagado, estimado);
+  /* F1 — también en gasto libre la cifra es lo asignado del mes, no lo pagado:
+     así el panel dice el mismo número que el pop-up donde se asigna. */
+  const estimado = budget;
+  const estado = estadoLinea(res.pagado, estimado, false);
+  const pct = pctPagado(res.pagado, estimado);
   const abierta = estaAbierta(it.id);
   return `
   <div class="cat-card${it.locked ? ' locked' : ''}${libre ? ' cat-libre' : ''}" data-id="${it.id}">
@@ -238,10 +237,10 @@ function catCard(it, p, gastadoLinea, periodo) {
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
         ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
-      <span class="bloque-pct num" title="Pagado sobre estimado">${pct}%</span>
+      <span class="bloque-pct num" title="Pagado sobre lo asignado">${pct}%</span>
       <button class="bloque-ed cat-editar" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
       <span class="cat-chevron" aria-hidden="true"></span>
-      ${panelTotales(it, res, estimado, p, libre)}
+      ${panelTotales(it, res, estimado, p)}
     </div>
     <button class="cat-plus-head" aria-label="Agregar ${libre ? 'pago' : 'concepto'} a ${esc(it.n)}">
       <span>Agregar ${libre ? 'pago' : 'concepto'}</span>
@@ -292,7 +291,7 @@ function abrirCatSheet(root, it, p) {
       </div>
       <button class="wide mini cs-libre ${libre ? 'on' : ''}" aria-pressed="${libre}" ${it.locked ? 'disabled' : ''}
         title="Sin monto planeado: cada pago que registres es lo que vale">Gasto libre, sin monto planeado</button>
-      ${panelTotales(it, res, libre ? res.pagado : budget, p, libre, 'sheet')}
+      ${panelTotales(it, res, budget, p, 'sheet')}
       ${it.auto ? `<div class="sub">${explicacionAuto(res, p)}</div>` : ''}
       ${desajuste ? `<button class="mini cs-ajustar" title="Suma sus conceptos y le resta lo que ahorraste y le suma lo que se pasó, en los tipos de concepto que ya pagaste">Igualar a lo que cuesta (${money(res.costo, p.cur)})</button>` : ''}
       ${!it.locked && !it.auto && !b.cuadrado
@@ -444,16 +443,16 @@ function explicacionAuto(res, p) {
    Los montos llevan `data-num` y `data-key` para que al repintar cuenten del
    valor viejo al nuevo en vez de saltar. La clave incluye el id de la categoría
    porque hay un panel por tarjeta y otro dentro del pop-up. */
-function panelTotales(it, res, estimado, p, libre, donde = 'card') {
+function panelTotales(it, res, estimado, p, donde = 'card') {
   const saldo = r2(estimado - res.pagado);
   const cifra = (etiqueta, valor, clase = '') =>
     `<div class="ph-cifra"><span class="label">${etiqueta}</span>
       <b class="num ${clase}" data-num="${valor}" data-key="${donde}:${it.id}:${etiqueta}"
         >${money(valor, p.cur)}</b></div>`;
   return `<div class="pagos-head">
-    ${cifra('Estimado', estimado)}
+    ${cifra('Asignado para el mes', estimado)}
     ${cifra('Pagado', res.pagado)}
-    ${libre ? '' : cifra('Saldo a favor', saldo, saldo >= 0 ? 'ok' : 'over')}
+    ${cifra('Saldo a favor', saldo, saldo >= 0 ? 'ok' : 'over')}
   </div>`;
 }
 

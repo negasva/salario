@@ -283,3 +283,15 @@ Qué está abierto vive en `localStorage`, no en el perfil: es una preferencia d
 **Validación.** Sin nombre no se guarda. Si intentas registrar un pago en un concepto sin nombre, se pide primero ese, que es el que de verdad falta.
 
 **Movimiento.** El modal entra con el fondo desvaneciéndose en 200ms y la hoja de `scale(.96)` a 1 en 300ms `ease-out`; sale en 200ms `ease-in`. La entrada va con `animation` y no con transición a propósito: hay ocho sitios en la app que arman su propio `.overlay.on` a mano, y con transición habría que ir a los ocho a ponerles una clase, con el riesgo de que el que se quedara sin ella se viera invisible. Con `animation` el estado en reposo es el visible y todos entran animados sin tocar JS. El mini-formulario se pliega con el mismo `grid-template-rows` del acordeón. Un campo inválido sacude 300ms con `transform` y nada más: el resto del formulario no se mueve, que es lo que hace insoportable un error de validación —el botón se te escapa justo cuando ibas a darle—.
+
+## Fase 7 — Tabla de pagos
+
+La lista `Monto / Fecha / Nota` era una rejilla de cuatro columnas con los títulos encima de contenidos que no les correspondían, y el nombre del pago no salía por ningún lado. Ahora es una `<table>` de verdad con **Nombre | Monto | Fecha | Acciones**. Va como tabla y no como rejilla de `div`s por dos razones: el lector de pantalla anuncia a qué columna pertenece cada celda, y encabezado y contenido no se pueden desalinear, que era justo el problema. El monto va a la derecha con `tabular-nums`, porque en una columna de números alinear a la izquierda impide comparar las unidades. Las fechas usan `fechaCorta()` (`8 ago`, `23 ago`), que es lo que cabe en su columna.
+
+**En móvil la tabla se rompe en tarjetas apiladas** —nombre arriba, monto destacado a la derecha, fecha y acciones abajo— en vez de desplazarse en horizontal, que en cuatro columnas dentro de una tarjeta ya estrecha es ilegible.
+
+**Tres cosas que solo se vieron en pantalla.** `.pagos-tabla tr` le ganaba en especificidad a `.pago-row`, así que la fila nunca llegaba a ser una rejilla y el móvil se veía como una lista rota. `width:100%` más `margin-left` sacaba la tabla por la derecha exactamente lo que medía el margen —ahora es `padding`—. Y `.pagos-tabla td{display:block}` le ganaba a `.pago-acciones{display:flex}`, así que los dos botones de cada fila se apilaban en vertical.
+
+**Movimiento.** Las filas entran escalonadas 30ms al abrir la categoría y el hover cambia el fondo en 120ms. Al borrar no hace falta FLIP: la fila que se va colapsa su propio alto antes de que la lista se repinte, y las de abajo suben durante esa misma transición, que es exactamente el resultado que FLIP daría con bastante más código.
+
+También se quitó el giro de 90° del `+` en hover: ese botón abre un modal, no un formulario en línea, y girado se lee como una × de cerrar.

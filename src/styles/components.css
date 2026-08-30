@@ -290,10 +290,8 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   border-radius:0 0 var(--radius-md) var(--radius-md);background:var(--pink);
   color:var(--on-pink);font-weight:var(--fw-bold);cursor:pointer;
   transition:transform var(--t-micro),background var(--t-micro),box-shadow var(--t-micro)}
-.cat-plus-signo{font-size:24px;line-height:1;font-weight:var(--fw-bold);display:block;
-  transition:transform var(--dur-comp) var(--ease-out)}
+.cat-plus-signo{font-size:24px;line-height:1;font-weight:var(--fw-bold);display:block}
 .cat-plus-head:hover{background:var(--pink-dark);color:var(--white);transform:scale(1.05)}
-.cat-plus-head:hover .cat-plus-signo{transform:rotate(90deg)}
 .cat-plus-head:active{transform:scale(.94);transition-duration:80ms}
 .cat-plus-head:focus-visible{outline:0;box-shadow:0 0 0 3px var(--pink-lighter);border-color:var(--pink)}
 
@@ -345,7 +343,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .bloque-item.est-libre::before{background:transparent}
 /* "General" es un encabezado de grupo, no un concepto que se pueda abrir */
 .bloque-general{cursor:default;background:transparent;border-style:dashed}
-.bloque-general+.pagos-tabla{margin-top:0;margin-left:var(--space-4)}
+.bloque-general+.pagos-tabla{margin-top:0;padding:0 var(--space-2) 0 var(--space-4)}
 
 .money-symbol{color:var(--ink-lighter)!important;font-size:var(--text-base)!important;font-weight:var(--fw-bold)!important}
 
@@ -616,17 +614,48 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .sacude{animation:sacude .3s var(--ease-out)}
 .sacude input,input.sacude{border-color:var(--danger)}
 
-.pagos-tabla{margin-top:6px}
-.pago-row{display:grid;grid-template-columns:minmax(72px,auto) auto 1fr auto;gap:8px;
-  align-items:center;padding:5px 4px;border-bottom:1px solid var(--pink-wash)}
-.pago-row:last-child{border-bottom:0}
-.pago-row:not(.pago-head):hover{background:var(--pink-wash)}
+/* F7 — la tabla de pagos. Va como `<table>` de verdad y no como una rejilla de
+   `div`s: el lector de pantalla anuncia la columna de cada celda, y encabezado
+   y contenido no se pueden desalinear, que era justo lo que pasaba. */
+.pagos-tabla{width:100%;margin-top:6px;border-collapse:collapse}
+.pagos-tabla th,.pagos-tabla td{padding:7px 6px;text-align:left;vertical-align:middle}
+.pago-head th{font-size:11px;font-weight:var(--fw-semibold);color:var(--ink-lighter);
+  border-bottom:1px solid var(--border-card)}
+/* el monto a la derecha y con cifras de ancho fijo: en una columna de números,
+   alinear a la izquierda hace que las unidades no se puedan comparar */
+.pagos-tabla .col-monto{text-align:right}
+.pagos-tabla .col-monto .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pago-row td{border-bottom:1px solid var(--pink-wash)}
+.pago-row:last-child td{border-bottom:0}
+.pago-row{transition:background var(--t-micro)}
+.pago-row:hover{background:var(--pink-wash)}
+.pago-n{font-weight:var(--fw-semibold);overflow-wrap:break-word}
+.pago-fecha{font-size:var(--text-xs);color:var(--ink-lighter);white-space:nowrap}
+
+/* En móvil la tabla se rompe en tarjetas apiladas: nombre arriba, monto
+   destacado, fecha de apoyo. Nada de scroll horizontal, que en una tabla de
+   cuatro columnas dentro de una tarjeta ya estrecha es ilegible. */
+@media (max-width:520px){
+  .pagos-tabla,.pagos-tabla tbody,.pagos-tabla td{display:block}
+  .pagos-tabla thead{display:none}
+  /* la fila lleva el nombre de la etiqueta, así que hay que ganarle a
+     `.pagos-tabla tr` en especificidad o nunca llega a ser una rejilla */
+  .pagos-tabla tr.pago-row{display:grid;grid-template-columns:1fr auto;
+    align-items:baseline;gap:2px var(--space-3);padding:var(--space-3) 0;
+    border-bottom:1px solid var(--pink-wash)}
+  .pagos-tabla tr.pago-row:last-child{border-bottom:0}
+  .pagos-tabla tr.pago-row td{border:0;padding:0}
+  .pagos-tabla .pago-n{grid-area:1/1;font-size:var(--text-base)}
+  .pagos-tabla .col-monto{grid-area:1/2;text-align:right}
+  .pagos-tabla .pago-fecha{grid-area:2/1}
+  .pagos-tabla .pago-acciones{display:flex;grid-area:2/2;justify-content:flex-end}
+}
 
 /* F2 — un pago entra desvaneciéndose y subiendo 8px, con un escalonado corto
    por fila para que la lista se lea de arriba abajo y no aparezca de bloque.
    Se anima `transform` y `opacity` y nada más: el alto no se toca al entrar. */
 @keyframes fila-entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.pagos-tabla .pago-row:not(.pago-head){
+.pagos-tabla .pago-row{
   animation:fila-entra var(--dur-comp) var(--ease-out) backwards;
   animation-delay:calc(var(--i,0) * 30ms)}
 
@@ -642,7 +671,7 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
 .pago-row .sub{margin-top:0;font-size:11px}
 .pago-head{font-size:11px;color:var(--ink-lighter)}
 .pago-head span:first-child{text-align:right}
-.pago-acciones{display:flex;align-items:center;justify-content:flex-end}
+.pago-acciones{display:flex;align-items:center;justify-content:flex-end;gap:2px}
 .pago-ed{border:0;background:transparent;color:var(--ink-lighter);font-size:20px;line-height:18px;padding:0 5px;min-width:24px}
 .pago-ed:hover{color:var(--ink);background:var(--white)}
 .pago-nota{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

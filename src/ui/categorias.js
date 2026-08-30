@@ -3,7 +3,7 @@ import { balance, amount, r2 } from '../engine/reparto.js';
 import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo } from '../engine/movimientos.js';
 import { monthsToGoal, monthlyToward, plazo, whenText } from '../engine/metas.js';
 import { ordenadas, estadoDe } from '../engine/fila.js';
-import { money, plain, esc, digits, MESES } from '../format.js';
+import { money, plain, esc, digits, MESES, fechaCorta } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
   pagosLibresDeItem, quitarMovsDe, estadoLinea, pctPagado, nombrePago, esGastoLibre, SIN_CONCEPTO } from '../engine/pagos.js';
@@ -434,25 +434,38 @@ function listaPagos(l, p, periodo) {
   return tablaPagos(pagosDeLinea(p.movs, l.id, periodo), p, `data-lid="${l.id}"`);
 }
 
+/* F7 — tabla de verdad: encabezados alineados con su columna, el monto a la
+   derecha con cifras de ancho fijo, y la fecha corta. Antes era una rejilla de
+   cuatro columnas con los títulos "Monto / Fecha / Nota" encima de contenidos
+   que no les correspondían, y el nombre del pago no salía por ningún lado.
+
+   Va como `<table>` y no como una rejilla de `div`s porque es una tabla: el
+   lector de pantalla anuncia la columna de cada celda y los encabezados no se
+   pueden desalinear del contenido, que era justo el problema. */
 function tablaPagos(pagos, p, attrs = '') {
   if (!pagos.length) return '';
-  return `<div class="pagos-tabla" ${attrs}>
-    <div class="pago-row pago-head"><span>Monto</span><span>Fecha</span><span>Nota</span><span></span></div>
-    ${pagos.map((m, i) => pagoFila(m, p, i)).join('')}
-  </div>`;
+  return `<table class="pagos-tabla" ${attrs}>
+    <thead><tr class="pago-head">
+      <th scope="col">Nombre</th><th scope="col" class="col-monto">Monto</th>
+      <th scope="col">Fecha</th><th scope="col"><span class="visually-hidden">Acciones</span></th>
+    </tr></thead>
+    <tbody>${pagos.map((m, i) => pagoFila(m, p, i)).join('')}</tbody>
+  </table>`;
 }
 
 function pagoFila(m, p, i = 0) {
+  const n = nombrePago(m) || 'Pago';
   // el escalonado se corta a las 6 filas: más allá es esperar, no es ritmo
-  return `<div class="pago-row" data-mid="${m.id}" style="--i:${Math.min(i, 5)}">
-    <b class="num">${money(m.monto, p.cur)}</b>
-    <span class="sub">${diaCorto(m.fecha)}</span>
-    <span class="sub pago-nota">${!m.lineId && m.nota ? esc(m.nota) : ''}</span>
-    <span class="pago-acciones">
-      <button class="pago-ed" title="Editar pago" aria-label="Editar pago">⋮</button>
-      <button class="pago-x" title="Quitar este pago" aria-label="Quitar pago de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
-    </span>
-  </div>`;
+  return `<tr class="pago-row" data-mid="${m.id}" style="--i:${Math.min(i, 5)}">
+    <td class="pago-n" data-col="Nombre">${esc(n)}</td>
+    <td class="col-monto" data-col="Monto"><b class="num">${money(m.monto, p.cur)}</b></td>
+    <td class="pago-fecha" data-col="Fecha">${fechaCorta(m.fecha)}</td>
+    <td class="pago-acciones">
+      <button class="pago-ed" title="Editar pago" aria-label="Editar el pago ${esc(n)}">⋮</button>
+      <button class="pago-x" title="Quitar este pago"
+        aria-label="Quitar el pago ${esc(n)} de ${money(m.monto, p.cur)}">${icon('cerrar', 'ic-sm')}</button>
+    </td>
+  </tr>`;
 }
 
 function openPagoEditor(it, p, mov = null, repintar) {

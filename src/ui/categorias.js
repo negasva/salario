@@ -152,6 +152,32 @@ function wireMeta(root, g, p) {
   });
 }
 
+/* F5 — cada categoría es un acordeón y arranca cerrada. Con seis categorías
+   abiertas la vista era un scroll sin fondo; cerradas, la pantalla cabe y las
+   cifras que importan (el panel de totales) siguen a la vista, porque lo que se
+   pliega es la lista de conceptos, no el encabezado.
+
+   Qué está abierto vive en localStorage y no en el perfil: es una preferencia
+   de esta pantalla en este aparato, no un dato del presupuesto que haya que
+   subir a Supabase. */
+const ABIERTAS = 'reparto:cats-abiertas';
+
+function abiertas() {
+  try { return new Set(JSON.parse(localStorage.getItem(ABIERTAS)) || []); } catch { return new Set(); }
+}
+
+function estaAbierta(id) {
+  return abiertas().has(id);
+}
+
+function alternarAbierta(id) {
+  const set = abiertas();
+  const abre = !set.has(id);
+  if (abre) set.add(id); else set.delete(id);
+  try { localStorage.setItem(ABIERTAS, JSON.stringify([...set])); } catch { /* sin memoria, se cierra al recargar */ }
+  return abre;
+}
+
 /* F11 — la categoría es un bloque como sus ítems, pero con su propio color:
    colapsada solo dice nombre, cifras y editar. El resto va al pop-up. */
 function catCard(it, p, gastadoLinea, periodo) {
@@ -168,26 +194,31 @@ function catCard(it, p, gastadoLinea, periodo) {
   const estimado = libre ? res.pagado : budget;
   const estado = libre ? 'libre' : estadoLinea(res.pagado, estimado, false);
   const pct = libre ? 100 : pctPagado(res.pagado, estimado);
+  const abierta = estaAbierta(it.id);
   return `
   <div class="cat-card${it.locked ? ' locked' : ''}${libre ? ' cat-libre' : ''}" data-id="${it.id}">
-    <div class="bloque bloque-cat est-${estado}" style="--pct:${pct}">
+    <div class="bloque bloque-cat est-${estado}" style="--pct:${pct}" tabindex="0" role="button"
+      aria-expanded="${abierta}" aria-controls="fold-${it.id}">
       <span class="dot" style="background:${it.c}"></span>
       <span class="bloque-n">${esc(it.n)}
         ${estado === 'pagado' ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}
         ${it.locked ? `<span title="bloqueada">${icon('candado', 'ic-sm')}</span>` : ''}</span>
       <span class="bloque-pct num" title="Pagado sobre estimado">${pct}%</span>
-      <button class="bloque-ed" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
+      <button class="bloque-ed cat-editar" aria-label="Editar ${esc(it.n)}">${icon('lapiz', 'ic-sm')}</button>
+      <span class="cat-chevron" aria-hidden="true"></span>
       ${panelTotales(it, res, estimado, p, libre)}
     </div>
     <button class="cat-plus-head" aria-label="Agregar ${libre ? 'pago' : 'concepto'} a ${esc(it.n)}">
       <span>Agregar ${libre ? 'pago' : 'concepto'}</span>
       <span class="cat-plus-signo" aria-hidden="true">+</span></button>
-    <div class="cat-items">
+    <div class="cat-fold${abierta ? ' on' : ''}" id="fold-${it.id}" ${abierta ? '' : 'hidden'}>
+      <div class="cat-items">
       <div class="lines">${lines(it, p, res, pagosLibres, libre)}</div>
       ${libre ? '' : `<div class="cat-acciones">
         <button class="mini cat-pago-libre" title="Un pago que no cabe en ningún concepto">
           Agregar pago suelto</button>
       </div>`}
+      </div>
     </div>
   </div>`;
 }
@@ -460,7 +491,7 @@ function openPagoEditor(it, p, mov = null, repintar) {
    la barra de progreso —el relleno va detrás del texto— y todo lo demás
    (pagos, toggles, arrastre, borrar) vive en el pop-up. */
 function lines(it, p, res, pagosLibres = [], libre = false) {
-  const bloques = res.filas.map((f) => bloqueItem(f, p, libre)).join('');
+  const bloques = res.filas.map((f, i) => bloqueItem(f, p, libre, i)).join('');
   /* F2 — los pagos sin concepto se agrupan bajo "General": el bloque es el
      encabezado del grupo y debajo va la tabla con cada pago. Antes el total
      salía en un bloque y la tabla colgaba suelta más abajo, sin decir de qué
@@ -479,10 +510,10 @@ function lines(it, p, res, pagosLibres = [], libre = false) {
   return bloques + general;
 }
 
-function bloqueItem({ l, plan, pagado, estado }, p, libre = false) {
+function bloqueItem({ l, plan, pagado, estado }, p, libre = false, i = 0) {
   return `
     <div class="bloque bloque-item ${libre ? 'est-libre' : `est-${estado}`}" data-lid="${l.id}"
-      style="--pct:${libre ? 0 : pctPagado(pagado, plan)}%">
+      style="--pct:${libre ? 0 : pctPagado(pagado, plan)};--i:${Math.min(i, 5)}">
       ${libre ? '' : `<span class="bloque-pct num">${pctPagado(pagado, plan)}%</span>`}
       <span class="bloque-n">${esc(l.n || 'Sin nombre')}${!libre && estado === 'pagado'
         ? `<span class="bloque-check" title="pagado">${icon('check', 'ic-sm')}</span>` : ''}</span>
@@ -568,6 +599,26 @@ function abrirItemSheet(root, it, l, p) {
   }
 
   pintar();
+}
+
+/* El acordeón anima `grid-template-rows` de `0fr` a `1fr`: es la única forma de
+   hacerle una transición al alto real del contenido sin medirlo a mano ni fijar
+   un `max-height` inventado que recorte la lista larga o deje un hueco en la
+   corta. `hidden` se quita antes de abrir y se vuelve a poner al terminar de
+   cerrar, para que lo plegado no quede en el orden de tabulación. */
+function plegar(fold, abre) {
+  if (!fold) return;
+  if (SIN_MOTION()) { fold.hidden = !abre; return; }
+  if (abre) {
+    fold.hidden = false;
+    // un cuadro de margen: sin él el navegador pinta el estado final de una
+    requestAnimationFrame(() => fold.classList.add('on'));
+    return;
+  }
+  fold.classList.remove('on');
+  const fin = () => { fold.hidden = true; };
+  fold.addEventListener('transitionend', fin, { once: true });
+  setTimeout(fin, 240);
 }
 
 /* Sacar una fila de la lista: se desvanece y colapsa su propio alto, y solo
@@ -701,8 +752,23 @@ function wireCard(root, it, p) {
   const card = root.querySelector(`.cat-card[data-id="${it.id}"]`);
   if (!card) return;
 
-  // el bloque entero abre su pop-up; el lápiz es solo la señal de que se puede
-  card.querySelector('.bloque-cat').onclick = () => abrirCatSheet(root, it, p);
+  /* El encabezado entero pliega y despliega. El pop-up de la categoría ahora
+     se abre por el lápiz, que era lo que ya señalaba "esto se edita". */
+  const cabecera = card.querySelector('.bloque-cat');
+  const fold = card.querySelector('.cat-fold');
+  const alternar = () => {
+    const abre = alternarAbierta(it.id);
+    cabecera.setAttribute('aria-expanded', String(abre));
+    plegar(fold, abre);
+  };
+  cabecera.onclick = alternar;
+  cabecera.onkeydown = (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault(); // la barra espaciadora desplaza la página si no
+    alternar();
+  };
+
+  card.querySelector('.cat-editar').onclick = (e) => { e.stopPropagation(); abrirCatSheet(root, it, p); };
 
   card.querySelectorAll('.bloque-item').forEach((el) => {
     const l = it.L.find((x) => x.id === el.dataset.lid);

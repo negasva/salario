@@ -233,3 +233,13 @@ Vale la pena decirlo en voz alta, porque el código no lo dice.
 **WhatsApp no es posible desde una app web.** Mandar un mensaje requiere la Cloud API de Meta: número verificado, servidor propio que guarde el token y plantillas aprobadas una por una. Un backend entero para reemplazar lo que el navegador ya hace gratis. La vía realista, si algún día se quiere, es un servicio externo con un cron en Supabase Edge Functions, y eso es otro proyecto.
 
 **Los avisos no llegan con la app cerrada.** La única vía sin backend es un service worker con Periodic Background Sync, que solo corre en Chrome de escritorio y solo si el usuario instaló la PWA. No está hecho.
+
+## Fase 1 — Datos y modelo
+
+**El saldo a favor tenía dos fórmulas y ahora tiene una.** La tarjeta "A favor este mes" decía `$ 734.000` y el botón de reparto `$ 32.600`, porque cada uno hacía su propia cuenta: la tarjeta restaba gastos reales a ingresos reales, y el botón restaba el *plan* del ingreso y encima le quitaba los aportes a metas ya hechos. `saldoAFavor(movs, periodo)` en `engine/saldo.js` es ahora la única fuente —`ingresos − gastos pagados`, el mismo número que `resumenFlujo().saldo`— y `disponibleParaRepartir()` es esa cifra sin dejarla bajar de cero. La segunda fórmula se borró de `ui/categorias.js` junto con `aportadoEsteMes()`, que se quedó sin usuarios. Hay una prueba que ata los dos valores.
+
+**Cada pago lleva nombre.** `agregarPago()` y `agregarPagoLibre()` reciben `nombre` y lo guardan en `mov.nombre`; si no le pones uno, hereda el del concepto. `nombrePago()` lo lee con respaldo a `nota`, así que los perfiles viejos siguen funcionando sin migración: el libro vive dentro del jsonb del perfil y no hubo DDL que correr.
+
+**Categorías de gasto libre.** `esGastoLibre(it)` las marca. La plantilla "Gasto libre" pone `libre: true` al crear la categoría, y el flag explícito manda sobre el rol para que una categoría se pueda cambiar de opinión.
+
+**"Sin tipo de concepto" ahora es "General".** Un solo `SIN_CONCEPTO` exportado desde `engine/pagos.js` que usan la lista de categorías, el donut del análisis y el selector de registro.

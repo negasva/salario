@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { saldoActual, saldoBase } from './saldo.js';
+import { saldoActual, saldoBase, saldoAFavor, disponibleParaRepartir } from './saldo.js';
+import { resumenFlujo } from './movimientos.js';
 
 describe('saldoActual', () => {
   it('suma ingresos y resta gastos sobre el saldo base', () => {
@@ -28,5 +29,31 @@ describe('saldoBase', () => {
     expect(saldoBase(p, 'USD')).toBe(50);
     expect(saldoBase(p, 'EUR')).toBe(0);
     expect(saldoBase(null)).toBe(0);
+  });
+});
+
+describe('saldoAFavor — una sola fórmula', () => {
+  const movs = [
+    { tipo: 'ingreso', monto: 4000000, fecha: '2026-08-01' },
+    { tipo: 'ingreso', monto: 500000, fecha: '2026-08-15', extra: true },
+    { tipo: 'gasto', monto: 3766000, fecha: '2026-08-10' },
+    { tipo: 'gasto', monto: 900000, fecha: '2026-07-10' }, // otro mes, no cuenta
+  ];
+
+  it('es ingresos totales menos gastos pagados de verdad', () => {
+    expect(saldoAFavor(movs, '2026-08')).toBe(734000);
+  });
+
+  /* El bug: la tarjeta decía 734.000 y el modal de reparto 32.600 porque cada
+     uno tenía su propia cuenta. Ahora los dos leen de aquí. */
+  it('coincide con la tarjeta "A favor este mes"', () => {
+    expect(saldoAFavor(movs, '2026-08')).toBe(resumenFlujo(movs, '2026-08').saldo);
+  });
+
+  it('lo repartible nunca es negativo', () => {
+    const rojo = [{ tipo: 'ingreso', monto: 100, fecha: '2026-08-01' },
+      { tipo: 'gasto', monto: 500, fecha: '2026-08-02' }];
+    expect(saldoAFavor(rojo, '2026-08')).toBe(-400);
+    expect(disponibleParaRepartir(rojo, '2026-08')).toBe(0);
   });
 });

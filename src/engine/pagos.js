@@ -108,23 +108,42 @@ function nid() {
    una entra como su propio movimiento y la suma del mes es lo pagado: por eso
    no hay un campo total que sobreescribir, solo pagos que se agregan y se
    borran uno por uno. */
-export function agregarPago(movs, it, l, monto, fecha, nota) {
+export function agregarPago(movs, it, l, monto, fecha, nombre) {
   const m = r2(monto);
   if (!(m > 0)) return null;
+  const n = String(nombre || '').trim() || l.n || 'Pago';
   const mov = { id: nid(), fecha, tipo: 'gasto', monto: m, itemId: it.id, lineId: l.id,
-    goalId: null, nota: nota || `Pago ${l.n || 'sin nombre'}`, extra: false };
+    goalId: null, nombre: n, nota: n, extra: false };
   movs.push(mov);
   return mov;
 }
 
-export function agregarPagoLibre(movs, it, monto, fecha, nota) {
+export function agregarPagoLibre(movs, it, monto, fecha, nombre) {
   const m = r2(monto);
   if (!(m > 0)) return null;
+  const n = String(nombre || '').trim() || 'Pago';
   const mov = { id: nid(), fecha, tipo: 'gasto', monto: m, itemId: it.id, lineId: null,
-    goalId: null, nota: nota || 'Pago', extra: false };
+    goalId: null, nombre: n, nota: n, extra: false };
   movs.push(mov);
   return mov;
 }
+
+/* F1 — el pago lleva nombre propio ("D1", "Éxito", "Carulla"). Los perfiles
+   viejos solo tienen `nota`, así que se lee con respaldo y no hay que migrar
+   nada: el libro vive dentro del jsonb del perfil. */
+export function nombrePago(m) {
+  return String(m?.nombre || m?.nota || '').trim();
+}
+
+/* Categoría de gasto libre: sus conceptos no llevan monto planeado, cada pago
+   entra directo como gastado. La plantilla `lib` la marca al crearla; el flag
+   explícito manda sobre el rol para las que ya existen. */
+export function esGastoLibre(it) {
+  return it?.libre === true || (it?.libre !== false && it?.r === 'lib');
+}
+
+// Los pagos sin concepto se agrupan bajo este nombre en toda la app.
+export const SIN_CONCEPTO = 'General';
 
 export function pagosLibresDeItem(movs, itemId, periodo) {
   return movs

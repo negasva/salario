@@ -3,8 +3,7 @@ import {
   estadoLinea, resumenItem, resumenMes, agregarPago, agregarPagoLibre, pagosDeLinea,
   pagosLibresDeItem, quitarPago,
   movimientosDeAhorro, ahorroRepartido, promedioVariables,
-  arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, pctPagado,
-} from './pagos.js';
+  arrastreDe, planDeLinea, pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, pctPagado, nombrePago, esGastoLibre } from './pagos.js';
 
 const linea = (id, n, v, extra = {}) => ({ id, n, v, fixed: true, ...extra });
 const gasto = (id, lineId, monto, fecha = '2026-08-10') => ({ id, fecha, tipo: 'gasto', monto, itemId: 'i1', lineId });
@@ -80,7 +79,11 @@ describe('pagos por transacción', () => {
     agregarPago(movs, item, l, 90000, '2026-08-03', 'D1');
     expect(movs[0].nota).toBe('D1');
     agregarPago(movs, item, l, 90000, '2026-08-04');
-    expect(movs[1].nota).toBe('Pago Mercado');
+    // sin nombre propio, el pago hereda el del concepto
+    expect(movs[1].nota).toBe('Mercado');
+    expect(nombrePago(movs[1])).toBe('Mercado');
+    // los perfiles viejos solo traen `nota` y se siguen leyendo
+    expect(nombrePago({ nota: 'Éxito' })).toBe('Éxito');
   });
 
   it('cero o negativo no ensucia el libro', () => {
@@ -298,5 +301,16 @@ describe('F6 — pagos sin concepto', () => {
     expect(res.total).toBe(0);
     expect(res.pagado).toBe(262000);
     expect(res.libre).toBe(262000);
+  });
+});
+
+describe('categoría de gasto libre', () => {
+  it('la marca la plantilla lib o el flag explícito', () => {
+    expect(esGastoLibre({ libre: true })).toBe(true);
+    expect(esGastoLibre({ r: 'lib' })).toBe(true);
+    expect(esGastoLibre({ r: 'ese' })).toBe(false);
+    expect(esGastoLibre({})).toBe(false);
+    // el flag manda: una categoría lib se puede volver normal
+    expect(esGastoLibre({ r: 'lib', libre: false })).toBe(false);
   });
 });

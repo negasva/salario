@@ -1,17 +1,18 @@
 import * as store from '../store.js';
 import { balance, amount, r2 } from '../engine/reparto.js';
-import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo, enPeriodo } from '../engine/movimientos.js';
+import { periodoDe, hoyISO, porLinea, ingresoReal, resumenFlujo } from '../engine/movimientos.js';
 import { monthsToGoal, monthlyToward, plazo, whenText } from '../engine/metas.js';
 import { ordenadas, estadoDe } from '../engine/fila.js';
 import { money, plain, esc, digits, MESES } from '../format.js';
 import { resumenItem, agregarPago, pagosDeLinea, quitarPago, arrastreDe, planDeLinea,
   pasarAlSiguiente, quitarArrastre, siguientePeriodo, mesAnterior, agregarPagoLibre,
-  pagosLibresDeItem, quitarMovsDe, estadoLinea, pctPagado } from '../engine/pagos.js';
+  pagosLibresDeItem, quitarMovsDe, estadoLinea, pctPagado, nombrePago, esGastoLibre, SIN_CONCEPTO } from '../engine/pagos.js';
 import { icon } from './icons.js';
 import { abrirModal } from './modal.js';
 import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
+import { disponibleParaRepartir } from '../engine/saldo.js';
 
 const { PALETTE } = store;
 
@@ -76,12 +77,11 @@ function paintIngreso(root) {
   const flujo = resumenFlujo(p.movs, periodo);
   const box = root.querySelector('#catIngreso');
   const base = store.incomeRepartir(p);
-  /* Lo repartible aparte no es solo el ingreso marcado como extra: cualquier
-     peso que entre por encima del plan también está sin dueño hasta que lo
-     mandes a una meta. Un ingreso sin marcar contaba como nada y esa era la
-     puerta por la que se perdía. */
-  const sobrante = Math.max(0, ing.total - p.inc);
-  const sinRepartir = Math.max(0, sobrante - aportadoEsteMes(p, periodo));
+  /* F1 — lo que hay para repartir es el saldo a favor del mes y nada más:
+     lo que entró menos lo que de verdad salió. Aquí vivía la segunda fórmula
+     (ingreso − plan − aportes a metas) que hacía que este botón dijera
+     $ 32.600 mientras la tarjeta de arriba decía $ 734.000. */
+  const sinRepartir = disponibleParaRepartir(p.movs, periodo);
 
   box.innerHTML = `${tarjetaResumenFlujo(flujo, p.cur)}<div class="card" style="margin-bottom:var(--space-5)">
     <span class="label">Lo que repartes este mes</span>
@@ -99,13 +99,6 @@ function paintIngreso(root) {
   });
   const bPlan = box.querySelector('#catPlan');
   if (bPlan) bPlan.onclick = () => { p.inc = ing.total; store.save(); renderCategorias(root); };
-}
-
-// lo del extra que ya salió hacia metas este mes
-function aportadoEsteMes(p, periodo) {
-  return enPeriodo(p.movs, periodo)
-    .filter((m) => m.tipo === 'gasto' && m.goalId)
-    .reduce((s, m) => s + m.monto, 0);
 }
 
 function paintList(root) {
@@ -445,7 +438,7 @@ function lines(it, p, res) {
      la tarjeta decía "sin nada" teniendo plata. Va agrupado y con su nombre. */
   const sinConcepto = res.libre > 0 ? `
     <div class="bloque bloque-item">
-      <span class="bloque-n">Sin tipo de concepto</span>
+      <span class="bloque-n">${SIN_CONCEPTO}</span>
       <b class="bloque-m num">${money(res.libre, p.cur)}</b>
     </div>` : '';
   if (!bloques && !sinConcepto) return '<div class="empty">Sin nada en la lista.</div>';
@@ -748,7 +741,7 @@ function openNewCategory(root) {
     }
 
     p.items.push({ id: 'i' + Math.random().toString(36).slice(2, 8), n: name, m: Math.round(monto), r: tpl || null,
-      c: PALETTE[p.items.length % PALETTE.length], d: '', locked: false, L: lines2 });
+      libre: tpl === 'lib', c: PALETTE[p.items.length % PALETTE.length], d: '', locked: false, L: lines2 });
     store.save();
     close();
     renderCategorias(root);

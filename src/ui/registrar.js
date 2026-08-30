@@ -1,6 +1,7 @@
 import * as store from '../store.js';
 import { money, plain, esc, digits } from '../format.js';
 import { hoyISO } from '../engine/movimientos.js';
+import { SIN_CONCEPTO } from '../engine/pagos.js';
 import { CATEGORIAS, CATEGORIA_A_ROL, clasificarLista, nombreCategoria } from '../engine/clasificar.js';
 import { MONEDAS, tasa } from '../engine/moneda.js';
 import { ordenadas } from '../engine/fila.js';
@@ -200,7 +201,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
 
   function pintarRenglones() {
     const it = p.items.find((x) => x.id === itemEl.value);
-    lineEl.innerHTML = `<option value="">Sin tipo de concepto</option>${(it?.L || [])
+    lineEl.innerHTML = `<option value="">${SIN_CONCEPTO}</option>${(it?.L || [])
       .map((l) => `<option value="${l.id}" ${previo?.lineId === l.id ? 'selected' : ''}>${esc(l.n || 'sin nombre')}</option>`).join('')}`;
     pintarPuntoItem();
     pintarAbono();

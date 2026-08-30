@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { segmentosReal, segmentosDeSnapshot, arcos } from '../engine/analisis.js';
 import { periodoDe, hoyISO, ingresoReal, porLinea } from '../engine/movimientos.js';
-import { resumenItem, pagosLibresDeItem } from '../engine/pagos.js';
+import { resumenItem, pagosLibresDeItem, SIN_CONCEPTO } from '../engine/pagos.js';
 import { money, esc, MESES } from '../format.js';
 
 /* F6 — análisis por categorías: donut y tabla del gasto real. No hay estado
@@ -156,7 +156,7 @@ function detalleCategoria(p, itemId, periodo) {
      la categoría: si no entra aquí, la gráfica dice que no hay pagos mientras
      la fila de arriba muestra el monto. Misma fuente para el total y el donut. */
   if (res.libre > 0) {
-    segmentos.push({ id: `${itemId}-libre`, nombre: 'Sin tipo de concepto',
+    segmentos.push({ id: `${itemId}-libre`, nombre: SIN_CONCEPTO,
       color: 'var(--ink-lighter)', monto: res.libre });
   }
   if (!segmentos.length) return '<div class="an-detalle empty">Sin pagos en esta categoría todavía.</div>';

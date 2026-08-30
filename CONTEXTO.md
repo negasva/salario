@@ -295,3 +295,17 @@ La lista `Monto / Fecha / Nota` era una rejilla de cuatro columnas con los títu
 **Movimiento.** Las filas entran escalonadas 30ms al abrir la categoría y el hover cambia el fondo en 120ms. Al borrar no hace falta FLIP: la fila que se va colapsa su propio alto antes de que la lista se repinte, y las de abajo suben durante esa misma transición, que es exactamente el resultado que FLIP daría con bastante más código.
 
 También se quitó el giro de 90° del `+` en hover: ese botón abre un modal, no un formulario en línea, y girado se lee como una × de cerrar.
+
+## Fase 8 — Repartir saldo a favor
+
+**El botón es verde y dice el monto.** `Repartir saldo a favor · $ 2.544.000`, con el número contando cuando cambia. Es el único verde de la app y es a propósito: en una paleta rosa no se confunde con nada, y "tienes plata a favor" es la única buena noticia que da esta pantalla. El monto es el de la fase 1, el mismo que la tarjeta de arriba.
+
+**El modal ya no es solo de metas.** El viejo únicamente ofrecía metas de ahorro: el mes que te sobraba plata teniendo el arriendo a medias, la app te proponía guardarla en vez de pagarlo. Ahora los destinos son los tres que existen y salen agrupados por clase —**Pagar deuda**, **Gasto libre**, **Metas de ahorro**—, no por categoría: lo que se decide aquí es "¿pago, gasto o guardo?", y con un título por categoría esa pregunta quedaba repartida en seis. De qué categoría sale cada concepto va al lado del nombre, que es donde hace falta.
+
+Cada fila lleva su tope a la derecha (`pendiente $ X` / `faltan $ X`), un input, y un botón `Todo lo que falta` que pone el tope y deja que el motor lo recorte si ya no queda tanto: la regla de cuánto cabe vive en un solo sitio (`normalizarReparto`), así que un monto tecleado a mano y el botón pasan por el mismo filtro y ninguno de los dos puede pasarse. `Aplicar reparto` está deshabilitado mientras el total sea 0 y muestra el total cuando no lo es.
+
+Al aplicar, cada destino genera **el movimiento que generaría hacerlo a mano**: un pago al concepto, un pago suelto a la categoría o un aporte a la meta. Nada de una estructura nueva de "reparto" que después el historial, el donut y el cierre no sepan leer.
+
+`engine/repartoSaldo.js` es todo puro y tiene 16 pruebas: los topes, el recorte por disponible, los ceros y la basura tecleada, y que cada clase de destino genere el movimiento correcto.
+
+**Movimiento.** El botón hace `scale(1.02)` con sombra en hover y `scale(.97)` en active. `Quedan $ X sin repartir` cuenta hacia abajo en cada tecleo y la barra de progreso se escala con `scaleX`, no con `width`. Al aplicar, el botón pasa a "Aplicando…", el modal sale y la tarjeta del saldo hace un pulso corto de `scale`, que no empuja nada de alrededor.

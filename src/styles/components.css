@@ -203,6 +203,36 @@ button.wide,label.btn-file.wide{display:inline-flex;align-items:center;justify-c
   font-weight:var(--fw-bold);padding:12px}
 .btn-primary:hover{background:var(--pink-dark);border-color:var(--pink-dark)}
 
+/* F8 — el único verde de la app, y es a propósito: en una paleta rosa un botón
+   verde no se confunde con nada, y "tienes plata a favor" es la única buena
+   noticia que da esta pantalla. */
+.btn-saldo{background:var(--success);border-color:var(--success);color:var(--on-success);
+  font-weight:var(--fw-bold);padding:14px;gap:6px;
+  transition:transform var(--t-micro),background var(--t-micro),box-shadow var(--t-micro)}
+.btn-saldo .num{color:inherit;font-variant-numeric:tabular-nums}
+.btn-saldo:hover:not(:disabled){transform:scale(1.02);box-shadow:var(--shadow-sm);
+  background:var(--success);border-color:var(--success)}
+.btn-saldo:active:not(:disabled){transform:scale(.97);transition-duration:80ms}
+.btn-saldo:focus-visible{outline:0;box-shadow:0 0 0 3px var(--success-soft)}
+.btn-saldo:disabled{opacity:.5;cursor:not-allowed}
+
+/* el modal de reparto */
+.rep-grupo{margin:var(--space-5) 0 var(--space-2)}
+.rep-fila{margin-bottom:var(--space-2)}
+.rep-de{font-weight:var(--fw-regular);color:var(--ink-lighter)}
+.rep-campo{display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-1)}
+.rep-campo .rep-monto{flex:1;min-width:0;text-align:right;font-variant-numeric:tabular-nums}
+.rep-campo .mini{flex:none;white-space:nowrap}
+.rep-pie{margin:var(--space-5) 0 var(--space-4)}
+/* la barra se escala en vez de cambiar de ancho: mismo motivo que los bloques */
+.rep-barra i{width:100%;background:var(--success);transform-origin:left center;
+  transform:scaleX(0);transition:transform var(--dur-comp) var(--ease-out)}
+.rep-pie .hint{margin-top:var(--space-2);font-variant-numeric:tabular-nums}
+
+/* pulso de la tarjeta del saldo al terminar un reparto */
+@keyframes pulsa{0%{transform:scale(1)}45%{transform:scale(1.015)}100%{transform:scale(1)}}
+.pulsa{animation:pulsa .35s var(--ease-out)}
+
 /* ── categorías ───────────────────────────────────────────────────────── */
 .cats-head{display:flex;gap:var(--space-2);flex-wrap:wrap}
 .cats-head #catAdd{flex:1;min-width:200px}

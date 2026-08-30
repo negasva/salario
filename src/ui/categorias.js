@@ -13,7 +13,8 @@ import { toast } from './shell.js';
 import { abrirSelectorExtra } from './registrar.js';
 import { tarjetaResumenFlujo } from './resumen.js';
 import { disponibleParaRepartir } from '../engine/saldo.js';
-import { animarNumeros } from './animar.js';
+import { animarNumeros, contarHasta } from './animar.js';
+import { destinosDeReparto, normalizarReparto, movimientosDeReparto } from '../engine/repartoSaldo.js';
 
 const { PALETTE } = store;
 
@@ -88,15 +89,21 @@ function paintIngreso(root) {
     <span class="label">Lo que repartes este mes</span>
     <div class="kpi num">${money(base, p.cur)}</div>
     <div class="prow">
-      ${sinRepartir > 0 ? '<button id="catExtra" class="btn-primary">Repartir entre mis metas</button>' : ''}
+      ${sinRepartir > 0
+        ? `<button id="catExtra" class="wide btn-saldo">Repartir saldo a favor ·
+            <b class="num" data-num="${sinRepartir}" data-key="saldo:boton">${money(sinRepartir, p.cur)}</b></button>`
+        : ''}
       ${ing.total > 0 && ing.total !== p.inc ? '<button id="catPlan">Dejar este ingreso como plan</button>' : ''}
     </div>
   </div>`;
 
+  animarNumeros(box, (v) => money(v, p.cur));
+
   const bExtra = box.querySelector('#catExtra');
-  if (bExtra) bExtra.onclick = () => abrirSelectorExtra(p, sinRepartir, hoyISO(), (t) => {
+  if (bExtra) bExtra.onclick = () => abrirRepartoSaldo(p, sinRepartir, periodo, (t) => {
     renderCategorias(root);
-    toast(t > 0 ? `Repartiste ${money(t, p.cur)} entre tus metas.` : 'El ingreso extra quedó sin asignar.');
+    pulso(root.querySelector('.resumen-flujo'));
+    toast(t > 0 ? `Repartiste ${money(t, p.cur)}.` : 'El saldo quedó sin repartir.');
   });
   const bPlan = box.querySelector('#catPlan');
   if (bPlan) bPlan.onclick = () => { p.inc = ing.total; store.save(); renderCategorias(root); };
@@ -929,4 +936,101 @@ function openNewCategory(root) {
     close();
     renderCategorias(root);
   };
+}
+
+/* F8 — repartir el saldo a favor. El modal viejo solo ofrecía metas: el mes que
+   te sobraba plata teniendo el arriendo a medias, la app te proponía guardarla
+   en vez de pagarlo. Ahora los destinos son los tres que existen —deuda, gasto
+   libre y metas— y salen agrupados, con lo que falta en cada uno. */
+function abrirRepartoSaldo(p, disponible, periodo, alTerminar) {
+  const destinos = destinosDeReparto(p, periodo);
+  const { cuerpo, cerrar } = abrirModal({ titulo: 'Repartir saldo a favor' });
+
+  if (!destinos.length) {
+    cuerpo.innerHTML = '<div class="empty">No hay dónde repartirlo: no debes nada, no tienes gasto libre y tus metas están completas.</div>';
+    return;
+  }
+
+  const montos = {};
+  const grupos = [...new Set(destinos.map((d) => d.grupo))];
+
+  cuerpo.innerHTML = `
+    <p class="sub">Tienes <b class="num">${money(disponible, p.cur)}</b> a favor este mes.
+      Repártelo entre lo que debes, lo que gastas y lo que guardas.</p>
+    ${grupos.map((g) => `
+      <div class="label rep-grupo">${esc(g)}</div>
+      ${destinos.filter((d) => d.grupo === g).map((d) => `
+        <div class="alloc rep-fila" data-id="${esc(d.id)}">
+          <span class="alloc-head"><span>${esc(d.nombre)}${d.de ? ` <span class="sub rep-de">en ${esc(d.de)}</span>` : ''}</span>
+            <span class="sub">${d.tope === null ? 'sin tope' : `${d.tipo === 'deuda' ? 'pendiente' : 'faltan'} ${money(d.tope, p.cur)}`}</span></span>
+          <div class="rep-campo">
+            <input class="rep-monto num" type="text" inputmode="numeric" placeholder="0"
+              aria-label="Monto para ${esc(d.nombre)}">
+            ${d.tope === null ? '' : '<button class="mini rep-todo">Todo lo que falta</button>'}
+          </div>
+        </div>`).join('')}`).join('')}
+    <div class="rep-pie">
+      <div class="hist-track rep-barra"><i></i></div>
+      <div class="hint" id="repRestante"></div>
+    </div>
+    <button class="wide btn-saldo" id="repAplicar" disabled>Aplicar reparto</button>
+    <button class="wide" id="repCancelar">Cancelar</button>`;
+
+  const filas = [...cuerpo.querySelectorAll('.rep-fila')];
+  const restanteEl = cuerpo.querySelector('#repRestante');
+  const barra = cuerpo.querySelector('.rep-barra i');
+  const aplicar = cuerpo.querySelector('#repAplicar');
+  let restantePrevio = disponible;
+
+  function leer() {
+    filas.forEach((f) => { montos[f.dataset.id] = digits(f.querySelector('.rep-monto').value); });
+    return normalizarReparto(destinos, montos, disponible);
+  }
+
+  function refrescar() {
+    const { total, restante } = leer();
+    contarHasta(restanteEl, restantePrevio, restante,
+      (v) => `Quedan ${money(v, p.cur)} sin repartir.`, 250);
+    restantePrevio = restante;
+    // la barra se escala, no se le mueve el ancho
+    barra.style.transform = `scaleX(${disponible > 0 ? total / disponible : 0})`;
+    aplicar.disabled = !(total > 0);
+    aplicar.textContent = total > 0 ? `Aplicar reparto · ${money(total, p.cur)}` : 'Aplicar reparto';
+  }
+
+  filas.forEach((f) => {
+    const input = f.querySelector('.rep-monto');
+    input.oninput = refrescar;
+    /* "Todo lo que falta" pone el tope del destino y deja que
+       `normalizarReparto` lo recorte si ya no queda tanto: la regla de cuánto
+       cabe vive en un solo sitio. */
+    f.querySelector('.rep-todo')?.addEventListener('click', () => {
+      const d = destinos.find((x) => x.id === f.dataset.id);
+      input.value = plain(d.tope, p.cur);
+      refrescar();
+    });
+  });
+  refrescar();
+
+  cuerpo.querySelector('#repCancelar').onclick = cerrar;
+  aplicar.onclick = () => {
+    const { filas: reparto, total } = leer();
+    if (!(total > 0)) return;
+    aplicar.disabled = true;
+    aplicar.textContent = 'Aplicando…';
+    p.movs.push(...movimientosDeReparto(reparto, hoyISO()));
+    store.save();
+    cerrar();
+    alTerminar(total);
+  };
+}
+
+/* Un pulso corto en la tarjeta del saldo después de repartir: el número cambió
+   y hay que mirar ahí. Es `transform`, así que no empuja nada de alrededor. */
+function pulso(el) {
+  if (!el || SIN_MOTION()) return;
+  el.classList.remove('pulsa');
+  void el.offsetWidth;
+  el.classList.add('pulsa');
+  el.addEventListener('animationend', () => el.classList.remove('pulsa'), { once: true });
 }

@@ -87,6 +87,22 @@
   letter-spacing:var(--tracking-wide);margin-top:var(--space-2)}
 /* El texto del badge iba con el acento puro sobre su propio tinte: ~1.9:1, muy
    por debajo de AA. Va con las variantes de texto, que es para lo que están. */
+/* F11 — la etiqueta de categoría del libro es un botón: la clasificación
+   automática se corrige donde se ve el error, sin abrir el movimiento. */
+button.badge-cat{background:var(--pink-wash);border:1px solid var(--pink-lighter);
+  color:var(--ink-lighter);padding:2px 10px;line-height:1.6;margin-top:4px;
+  /* en la columna del movimiento un hijo flex se estira: la píldora se queda
+     del ancho de su texto y no cruza la tarjeta de lado a lado */
+  align-self:flex-start;max-width:100%;
+  transition:background var(--t-fast),border-color var(--t-fast)}
+button.badge-cat:hover{background:var(--white);border-color:var(--pink)}
+button.badge-cat:active{transform:none}
+button.badge-cat-vacio{background:transparent;border-style:dashed}
+
+.cat-grupo{margin-top:var(--space-4)}
+.cat-grupo .chips{margin-top:var(--space-2)}
+.cat-grupo .chip{display:inline-flex;align-items:center;gap:6px}
+
 .badge.ok{background:var(--success-soft);color:var(--success-texto)}
 .badge.warn{background:var(--warning-soft);color:var(--sem-ahorro-texto)}
 .badge.bad{background:var(--danger-soft);color:var(--danger-texto)}

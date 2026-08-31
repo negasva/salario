@@ -100,10 +100,15 @@ export function abrirSelectorExtra(p, monto, fecha, alTerminar) {
   };
 }
 
+/* El diccionario no reconoció nada y el movimiento quedó en 'otros': se le
+   pregunta a la IA por detrás. Queda marcado `catIA` para que la pasada masiva
+   no lo vuelva a mandar, y nunca pisa una categoría elegida a mano. */
 async function afinarConIA(mov, texto, alTerminar) {
   const [r] = (await clasificarConIA([texto])) || [];
-  const valida = r && CATEGORIAS.some((c) => c.id === r.cat);
-  if (!valida || r.cat === mov.cat) return;
+  if (mov.catManual) return;
+  mov.catIA = true;
+  store.save();
+  if (!r || !r.cat || r.cat === mov.cat) return;
   mov.cat = r.cat;
   store.save();
   alTerminar();
@@ -164,18 +169,20 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
           <select id="regLine"></select></div>
       </div>
 
+      <div class="reg-row" id="regGastoWrap">
+        <div class="fld"><label for="regCat">Tipo de gasto</label>
+          <select id="regCat"><option value="">Automática</option>
+            ${CATEGORIAS.map((c) => `<option value="${c.id}" ${previo?.cat === c.id ? 'selected' : ''}>${c.n}</option>`).join('')}
+          </select>
+          <div class="hint" id="regCatAuto"></div></div>
+        <div class="fld"><label for="regGoal">Meta</label>
+          <select id="regGoal"><option value="">Sin meta</option>
+            ${p.goals.map((g) => `<option value="${g.id}" ${previo?.goalId === g.id ? 'selected' : ''}>${esc(g.n)}</option>`).join('')}
+          </select></div>
+      </div>
+
       <button id="regMas" class="mini">Más detalle</button>
       <div id="regDetalle" hidden>
-        <div class="reg-row">
-          <div class="fld"><label for="regGoal">Meta</label>
-            <select id="regGoal"><option value="">Sin meta</option>
-              ${p.goals.map((g) => `<option value="${g.id}" ${previo?.goalId === g.id ? 'selected' : ''}>${esc(g.n)}</option>`).join('')}
-            </select></div>
-          <div class="fld"><label for="regCat">Tipo de gasto</label>
-            <select id="regCat"><option value="">Automática</option>
-              ${CATEGORIAS.map((c) => `<option value="${c.id}" ${previo?.cat === c.id ? 'selected' : ''}>${c.n}</option>`).join('')}
-            </select></div>
-        </div>
         <label class="mov-check" id="regExtraWrap"><input type="checkbox" id="regExtra" ${previo?.extra ? 'checked' : ''}> Es un ingreso extra (prima, bono, trabajo suelto)</label>
         <label class="mov-check" id="regAbonoWrap" hidden><input type="checkbox" id="regAbono" ${previo?.abono ? 'checked' : ''}> Es un abono a la deuda</label>
         <label class="mov-check" id="regRecWrap"><input type="checkbox" id="regRec"> Se repite todos los meses</label>
@@ -191,6 +198,8 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   const notaEl = $('#regNota');
   const err = $('#regErr');
   let itemTocado = !!previo;
+  // F11 — una categoría elegida a mano no la vuelve a pisar ni el diccionario ni la IA
+  let catTocada = false;
 
   /* F3 — el <option> nativo solo deja pintar el texto, así que el color va en el
      bullet de cada opción y, para el estado cerrado, en este punto de al lado. */
@@ -207,6 +216,19 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
     pintarAbono();
   }
 
+  /* Con "Automática" puesto, el usuario no sabe en qué va a caer el gasto hasta
+     después de guardar. Aquí se le dice mientras escribe, y por eso el select
+     está a la vista y no escondido en "Más detalle": corregirlo es un clic. */
+  function pintarCatAuto(cat, confianza) {
+    const caja = $('#regCatAuto');
+    if (!caja) return;
+    if ($('#regCat').value) { caja.textContent = 'La elegiste tú; la app no la cambia.'; return; }
+    const propuesta = arguments.length ? { cat, confianza } : clasificarLista(notaEl.value);
+    caja.textContent = propuesta.confianza
+      ? `Automática: ${nombreCategoria(propuesta.cat)}`
+      : 'Automática: se decide con lo que escribas.';
+  }
+
   function pintarAbono() {
     const it = p.items.find((x) => x.id === itemEl.value);
     const vale = tipo === 'gasto' && it?.r === 'deu' && !!lineEl.value;
@@ -218,7 +240,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
     tipo = t;
     overlay.querySelectorAll('#regTipo .chip').forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
     $('#regCatWrap').hidden = t === 'ingreso';
-    $('#regGoal').closest('.fld').hidden = t === 'ingreso';
+    $('#regGastoWrap').hidden = t === 'ingreso';
     $('#regExtraWrap').hidden = t === 'gasto';
     pintarAbono();
   }
@@ -251,7 +273,8 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
 
     const esRecurrente = $('#regRec').checked;
     const textoOriginal = notaEl.value;
-    const catManual = !!$('#regCat').value;
+    const catElegida = $('#regCat').value;
+    const catManual = tipo === 'gasto' && (catTocada || (!!catElegida && !!previo?.catManual));
     const datos = {
       fecha: $('#regFecha').value || hoyISO(),
       tipo,
@@ -265,14 +288,15 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
       medio: $('#regMedio').value || null,
       extra: tipo === 'ingreso' && $('#regExtra').checked,
       abono: tipo === 'gasto' && !$('#regAbonoWrap').hidden && $('#regAbono').checked,
-      cat: tipo === 'gasto' ? ($('#regCat').value || clasificarLista(notaEl.value).cat) : null,
+      cat: tipo === 'gasto' ? (catElegida || clasificarLista(notaEl.value).cat) : null,
+      catManual,
     };
 
     const mov = previo || { id: nuevoId(), ...datos };
     if (previo) Object.assign(previo, datos);
     else p.movs.push(mov);
     if (esRecurrente) mov.recId = guardarRecurrente(datos);
-    if (!catManual && datos.tipo === 'gasto' && datos.cat === 'otros' && textoOriginal.trim()) {
+    if (!catManual && !mov.catIA && datos.tipo === 'gasto' && datos.cat === 'otros' && textoOriginal.trim()) {
       afinarConIA(mov, textoOriginal, alGuardar);
     }
     store.save();
@@ -344,11 +368,16 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   lineEl.onchange = pintarAbono;
   // mientras escribes se propone el bloque que suele pagar eso, salvo que ya elegiste
   notaEl.oninput = () => {
-    if (itemTocado || tipo !== 'gasto') return;
+    if (tipo !== 'gasto') return;
     const { cat, confianza } = clasificarLista(notaEl.value);
-    if (!confianza) return;
+    pintarCatAuto(cat, confianza);
+    if (itemTocado || !confianza) return;
     const destino = p.items.find((it) => it.r === CATEGORIA_A_ROL[cat]);
     if (destino && itemEl.value !== destino.id) { itemEl.value = destino.id; pintarRenglones(); }
+  };
+  $('#regCat').onchange = () => {
+    catTocada = true;
+    pintarCatAuto();
   };
   $('#regMas').onclick = () => { const d = $('#regDetalle'); d.hidden = !d.hidden; };
   $('#regSave').onclick = guardar;
@@ -360,5 +389,6 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   pintarRenglones();
   if (previo?.lineId) { lineEl.value = previo.lineId; pintarAbono(); }
   setTipo(tipo);
+  pintarCatAuto();
   $('#regMonto').focus();
 }

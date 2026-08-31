@@ -75,7 +75,9 @@ Los **movimientos** (`movs`) son el libro de lo que de verdad entró y salió. U
   medio,          // F1: medio de pago (Bancolombia, Nequi, Efectivo…), también en los pagos de categoría
   montoOrig, curOrig, // F3: lo que escribiste, si lo escribiste en otra moneda
   abono,          // F9: gasto que baja el saldo de un renglón de deuda
-  cat,            // F11: categoría de gasto (mercado, comida-fuera, transporte…)
+  cat,            // F11: categoría de gasto (mercado, restaurantes, vehiculo…)
+  catManual,      // F11: la elegiste tú; ni el diccionario ni la IA la pisan
+  catIA,          // F11: la IA ya lo miró, no vuelve a la fila de pendientes
   recId,          // F10: el recurrente del que salió, si salió de uno
 }
 ```
@@ -86,15 +88,27 @@ Al arrancar se podan los movimientos de más de 24 meses. El perfil entero viaja
 
 ### Las categorías de gasto y la IA
 
-Un gasto se clasifica en diez categorías —mercado, comida preparada, vivienda, servicios, transporte, salud, ocio, suscripciones, educación, otros— y nada más: con veinte, nadie clasifica nada.
+Un gasto se clasifica en quince subcategorías repartidas en seis grupos, más *otros*: **Hogar** (vivienda, servicios), **Alimentación** (mercado, restaurantes), **Transporte** (transporte, vehículo), **Bienestar** (salud, cuidado, mascotas), **Ocio** (suscripciones, salidas, viajes, compras) y **Obligaciones** (finanzas, educación). El movimiento guarda la subcategoría; el grupo se deriva con `grupoDe()` y nunca se guarda.
 
-`engine/clasificar.js` lo hace en el navegador, sin red y sin costo, con un diccionario de palabras y marcas colombianas. La regla difícil es la del pan: *pan, lechuga, salsa de tomate* es mercado, pero *comida en Dogger* es comida preparada, y las dos son comida. Por eso el diccionario trae Frisby, El Corral, Crepes & Waffles, Juan Valdez, Tostao, Rappi y compañía, y una marca de restaurante pesa el doble que un sustantivo suelto. Una lista de compras vota en conjunto en vez de renglón por renglón.
+`engine/clasificar.js` lo hace en el navegador, sin red y sin costo, con un diccionario de palabras y marcas colombianas. La regla difícil es la del pan: *pan, lechuga, salsa de tomate* es mercado, pero *comida en Dogger* es restaurantes, y las dos son comida. Por eso el diccionario trae Frisby, El Corral, Crepes & Waffles, Juan Valdez, Tostao, Rappi y compañía. Una lista de compras vota en conjunto en vez de renglón por renglón.
 
-Mientras escribes la nota, la app propone el bloque que suele pagar esa categoría; si ya elegiste uno a mano, no te lo mueve.
+Tres reglas hacen la precisión, y las tres se aprendieron perdiendo:
+
+1. **Una pista calza por palabra completa, no por pedazo de palabra.** Con `includes` a secas, *Salida Cadavid* caía en mercado por la "sal" que lleva adentro, y *Parqueadero* arrastraba media docena de pistas falsas. El texto se parte en palabras y una pista solo cuenta si calza entera; las que terminan en `*` calzan por prefijo, que es como se cubre `droguer*`.
+2. **Una frase pesa más que la palabra suelta que lleva dentro.** *Seguro moto* gana a *seguro*, *mercado libre* gana a *mercado* y *papa john* gana a *papa*. Sin eso, la mitad de la taxonomía se pisa a sí misma.
+3. **Una marca pesa triple que un sustantivo.** *Gasolina de la moto* es transporte y no vehículo porque "gasolina" es marca de categoría y "moto" no.
+
+Mientras escribes la nota, la app propone el bloque que suele pagar esa categoría —si ya elegiste uno a mano, no te lo mueve— y te dice, debajo del selector, en qué categoría va a caer el gasto. El selector está a la vista en la hoja de registro y no escondido en "Más detalle": corregir la categoría tiene que costar un clic.
+
+**Toda categoría es editable después.** En el libro, la etiqueta de cada gasto es un botón: la toca y sale el selector de las dieciséis, agrupadas. Lo que se elige ahí queda con `catManual: true` y ni el diccionario ni la IA lo vuelven a tocar. Un gasto sin categoría se ve igual, con la píldora punteada que dice *sin categoría*, porque una etiqueta que no está no se puede corregir.
+
+**Lo que ya estaba registrado también recibe categoría.** Al abrir el perfil, `clasificarViejos()` pasa el diccionario por todo gasto que no tenga `cat` —usando la nota y, si no hay nota, el renglón; el nombre del bloque solo entra de último, porque "Gastos recurrentes" no dice qué se compró—. Es local y gratis, así que corre solo. Lo que queda en *otros* se acumula en una tarjeta de Registrar con un botón para mandárselo a la IA de a 25, hasta 200 por vez: eso sí gasta cuota, así que lo pide el usuario. Un gasto que ya pasó por la IA queda marcado `catIA` y no vuelve a la fila, acierte o no; para eso está el botón de la etiqueta.
 
 Lo que el diccionario no reconoce se le pregunta a la **IA**, y solo eso. Vive en una Supabase Edge Function (`supabase/functions/ia`) por una razón que no es negociable: la llave del proveedor no puede estar en el navegador, donde cualquiera la saca del bundle. La función tiene dos acciones: `clasificar`, que devuelve JSON, y `preguntar`, que responde en una frase sobre cifras **que la app ya calculó** — la IA no calcula nada por su cuenta ni ve más datos de los que se le mandan. Sin la función desplegada, `src/ia.js` devuelve `null`, la app se queda con el clasificador local y la tarjeta de preguntas lo dice en voz alta en vez de fingir.
 
-Para desplegarla: `supabase secrets set NVIDIA_API_KEY=...` y `supabase functions deploy ia`.
+El prompt de `clasificar` lleva las mismas dieciséis categorías que `engine/clasificar.js`, con sus marcas y sus reglas, y la función valida lo que conteste el modelo contra esa lista antes de devolverlo: una categoría inventada se vuelve *otros* en el servidor, y en el navegador `normalizarCat()` la vuelve a filtrar y traduce los nombres viejos, por si la función desplegada es de antes. Si las dos listas se separan, los gastos se quedan en *otros* sin decir por qué: por eso se cambian juntas.
+
+Para desplegarla: `supabase secrets set NVIDIA_API_KEY=...` y `supabase functions deploy ia`. **Después de cambiar el prompt hay que volver a desplegarla**, o la clasificación con IA sigue contestando con la taxonomía vieja.
 
 ### El botón flotante
 
@@ -106,7 +120,7 @@ Una acción del botón flotante y una tarjeta en el dashboard, las dos sobre `en
 
 ### El motor de cálculo
 
-Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 210 pruebas en dieciocho archivos.
+Está aislado en `src/engine/` y es lo único con pruebas, porque es lo único con lógica de negocio real. Todo es puro: recibe datos, devuelve datos, nunca toca el store ni el DOM. Son 259 pruebas en dieciocho archivos.
 
 `reparto.js` hace la aritmética base. Suma lo asignado, deriva el porcentaje sobre el ingreso, cuadra el reparto contra lo que entra (`balance()`: cuánto falta por repartir o por cuánto te pasaste), separa fijos de variables, y suma lo que las metas se llevan al mes (`totalMetas()`), que entra en el mismo balance.
 

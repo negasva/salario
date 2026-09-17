@@ -5,6 +5,7 @@ import { signOut } from '../auth.js';
 const NAV = [
   { id: 'inicio', label: 'Inicio', ic: 'inicio' },
   { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
+  { id: 'recurrentes', label: 'Recurrentes', ic: 'recurrente' },
   { id: 'categorias', label: 'Categorías', ic: 'categorias' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
 ];

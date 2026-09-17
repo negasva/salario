@@ -1,13 +1,14 @@
 import { supabase } from './auth.js';
-import { categoriasBase, conOtros } from './engine/categorias.js';
-import { VERSION, esViejo, migrarPerfil } from './engine/migrar.js';
+import { categoriasBase, normalizarCats } from './engine/categorias.js';
+import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/migrar.js';
 
 /* Un perfil, un blob. localStorage es la caché y Supabase la fuente de verdad:
    la UI nunca espera al servidor. El perfil es
-   { v, name, saldoInicial, cats, movs } y nada más. */
+   { v, name, saldoInicial, cats, movs, recurrentes }. */
 
-const KEY = 'reparto:v9';
-const OLD_KEYS = ['reparto:v8', 'reparto:v7', 'reparto:v6', 'reparto:v5'];
+const KEY = 'reparto:v10';
+const KEY_V9 = 'reparto:v9';
+const KEYS_V8 = ['reparto:v8', 'reparto:v7', 'reparto:v6', 'reparto:v5'];
 
 let perfil = null;
 let remoteId = null;
@@ -23,17 +24,45 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [] };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [] };
+}
+
+/* El perfil de antes de la auditoría, si sigue en este navegador. Es de donde
+   se recuperan los gastos recurrentes de un perfil que ya pasó por la primera
+   migración y los perdió. */
+function blobViejo() {
+  for (const k of KEYS_V8) {
+    try {
+      const v = JSON.parse(localStorage.getItem(k) || 'null');
+      if (v?.profiles?.length) return v.profiles.find((p) => p.id === v.active) || v.profiles[0];
+    } catch { /* caché corrupta: se ignora */ }
+  }
+  return null;
+}
+
+/* Rescate: un perfil que ya venía migrado no trae conceptos, así que sus
+   recurrentes salen del blob viejo. Se hace una sola vez y solo añade los que
+   no estén ya. */
+function recuperarRecurrentes(p) {
+  if (p.recRecuperados || p.recurrentes?.length) return p;
+  const viejo = blobViejo();
+  if (!viejo) return p;
+  const ids = new Set(p.cats.map((c) => c.id));
+  p.recurrentes = recurrentesDesdeViejo(viejo)
+    .map((r) => ({ ...r, catId: r.tipo === 'ingreso' ? null : (ids.has(r.catId) ? r.catId : 'otros') }));
+  p.recRecuperados = true;
+  return p;
 }
 
 function normalizar(p) {
   const n = esViejo(p) ? migrarPerfil(p) : p;
-  n.cats = conOtros(Array.isArray(n.cats) ? n.cats : []);
+  n.cats = normalizarCats(n.cats);
   n.movs = Array.isArray(n.movs) ? n.movs : [];
+  n.recurrentes = Array.isArray(n.recurrentes) ? n.recurrentes : [];
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');
   n.v = VERSION;
-  return n;
+  return recuperarRecurrentes(n);
 }
 
 export function active() { return perfil; }
@@ -41,18 +70,13 @@ export function active() { return perfil; }
 /* ---------- local ---------- */
 
 function leerLocal() {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (v) return v;
-  } catch { /* caché corrupta: se ignora */ }
-  for (const k of OLD_KEYS) {
+  for (const k of [KEY, KEY_V9]) {
     try {
       const v = JSON.parse(localStorage.getItem(k) || 'null');
-      // el blob viejo traía varios perfiles: se queda el activo
-      if (v?.profiles?.length) return v.profiles.find((p) => p.id === v.active) || v.profiles[0];
-    } catch { /* noop */ }
+      if (v) return v;
+    } catch { /* caché corrupta: se ignora */ }
   }
-  return null;
+  return blobViejo();
 }
 
 function escribirLocal() {
@@ -109,12 +133,13 @@ export async function bootAuth(uid) {
        última vez. Las otras filas no se tocan. */
     const fila = data.find((r) => r.id === remoteId) || data[0];
     remoteId = fila.id;
-    const migrado = esViejo(fila.data);
+    const antes = fila.data?.recurrentes?.length || 0;
     perfil = normalizar({ ...fila.data, name: fila.nombre || fila.data?.name });
     escribirLocal();
-    if (migrado) programarPush();
+    // se sube si la migración o el rescate cambiaron algo
+    if (esViejo(fila.data) || perfil.recurrentes.length !== antes) programarPush();
     notify();
-    return { migrated: false };
+    return { migrated: false, recuperados: perfil.recurrentes.length - antes };
   }
   // sin perfil remoto: lo local se sube como perfil inicial
   const habiaLocal = perfil.movs.length > 0 || perfil.saldoInicial !== 0;

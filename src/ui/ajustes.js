@@ -25,7 +25,7 @@ export function renderAjustes(root) {
     </div>
     <div class="card">
       <span class="label">Tus datos</span>
-      <p class="sub">${p.movs.length} movimientos y ${p.cats.length} categorías. El archivo trae todo lo que la app sabe de ti.</p>
+      <p class="sub">${p.movs.length} movimientos, ${p.cats.length} categorías y ${p.recurrentes.length} recurrentes. El archivo trae todo lo que la app sabe de ti.</p>
       <button id="ajExportar">Exportar JSON</button>
     </div>
     <div class="card">

@@ -1,19 +1,21 @@
 import * as store from '../store.js';
 import { delMes } from '../engine/movimientos.js';
+import { nombreDe, colorDe, deTipo } from '../engine/categorias.js';
+import { pendientes, agregarAlMes } from '../engine/recurrentes.js';
 import { money, esc, fechaCorta } from '../format.js';
 import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
 import { abrirRegistro } from './registrar.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
 
-let filtro = ''; // '' = todas | 'ingreso' | catId
+let filtro = ''; // '' = todo | catId
 
 export function renderMovimientos(root) {
   const p = store.active();
   const per = mesElegido();
-  if (filtro && filtro !== 'ingreso' && !p.cats.some((c) => c.id === filtro)) filtro = '';
-  const lista = delMes(p.movs, per)
-    .filter((m) => !filtro || (filtro === 'ingreso' ? m.tipo === 'ingreso' : m.catId === filtro));
+  if (filtro && !p.cats.some((c) => c.id === filtro)) filtro = '';
+  const lista = delMes(p.movs, per).filter((m) => !filtro || m.catId === filtro);
+  const faltan = pendientes(p.recurrentes, p.movs, per).filter((r) => r.monto > 0);
 
   // agrupados por día, del más reciente al más viejo
   const dias = [];
@@ -21,25 +23,30 @@ export function renderMovimientos(root) {
     const ultimo = dias[dias.length - 1];
     if (ultimo && ultimo.fecha === m.fecha) ultimo.movs.push(m); else dias.push({ fecha: m.fecha, movs: [m] });
   });
-  const cat = (m) => p.cats.find((c) => c.id === m.catId);
+  const grupo = (tipo) => deTipo(p.cats, tipo)
+    .map((c) => `<option value="${c.id}" ${filtro === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
 
   root.innerHTML = `
     ${selectorMes()}
     ${cabeceraMes(p, per)}
+    ${faltan.length ? `<div class="card aviso">
+      <div><b>Te faltan ${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} de este mes</b>
+        <div class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</div></div>
+      <button class="btn-primary" id="mvRec">Agregarlos</button></div>` : ''}
     <div class="prow">
       <select id="mvFiltro" aria-label="Filtrar por categoría">
         <option value="">Todo</option>
-        <option value="ingreso" ${filtro === 'ingreso' ? 'selected' : ''}>Solo ingresos</option>
-        ${p.cats.map((c) => `<option value="${c.id}" ${filtro === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}
+        <optgroup label="Gastos">${grupo('gasto')}</optgroup>
+        <optgroup label="Ingresos">${grupo('ingreso')}</optgroup>
       </select>
       <button class="btn-primary" id="mvNuevo">+ Registrar</button>
     </div>
     ${dias.length ? dias.map((d) => `<div class="dia">
       <div class="dia-fecha">${fechaCorta(d.fecha)}</div>
       ${d.movs.map((m) => `<div class="mov ${m.tipo}" data-id="${m.id}">
-        <span class="dot" style="background:${m.tipo === 'ingreso' ? 'var(--sem-ingreso-2)' : (cat(m)?.c || '#64748B')}"></span>
+        <span class="dot" style="background:${colorDe(p.cats, m.catId)}"></span>
         <div class="mov-txt">
-          <div class="mov-cat">${m.tipo === 'ingreso' ? 'Ingreso' : esc(cat(m)?.n || 'Otros')}</div>
+          <div class="mov-cat">${esc(nombreDe(p.cats, m.catId))}</div>
           ${m.nota ? `<div class="mov-nota">${esc(m.nota)}</div>` : ''}
         </div>
         <b class="num mov-monto">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto)}</b>
@@ -52,6 +59,16 @@ export function renderMovimientos(root) {
   enlazarMes(root, repintar);
   root.querySelector('#mvFiltro').onchange = (e) => { filtro = e.target.value; repintar(); };
   root.querySelector('#mvNuevo').onclick = () => abrirRegistro({ alGuardar: repintar });
+  root.querySelector('#mvRec')?.addEventListener('click', () => {
+    const nuevos = agregarAlMes(p.recurrentes, p.movs, per);
+    store.save();
+    repintar();
+    toast(`${nuevos.length} recurrente${nuevos.length === 1 ? '' : 's'} agregado${nuevos.length === 1 ? '' : 's'}.`, () => {
+      nuevos.forEach((m) => { const i = p.movs.indexOf(m); if (i >= 0) p.movs.splice(i, 1); });
+      store.save();
+      repintar();
+    });
+  });
   root.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => abrirRegistro({ movId: b.dataset.edit, alGuardar: repintar });
   });
@@ -62,7 +79,7 @@ export function renderMovimientos(root) {
       const mov = p.movs[i];
       const deshacer = store.borrarConDeshacer(() => p.movs.splice(i, 1), () => p.movs.splice(i, 0, mov));
       repintar();
-      toast(`Borrado: ${money(mov.monto)} ${mov.tipo === 'ingreso' ? 'de ingreso' : `en ${cat(mov)?.n || 'Otros'}`}.`, () => { deshacer(); repintar(); });
+      toast(`Borrado: ${money(mov.monto)} en ${nombreDe(p.cats, mov.catId)}.`, () => { deshacer(); repintar(); });
     };
   });
 }

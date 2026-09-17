@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { money, plain, esc, digits } from '../format.js';
 import { hoyISO } from '../engine/movimientos.js';
-import { OTROS, nuevoId } from '../engine/categorias.js';
+import { deTipo, fallbackDe, nuevoId } from '../engine/categorias.js';
 import { abrirModal } from './modal.js';
 import { toast } from './shell.js';
 
@@ -14,6 +14,9 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   if (previo) tipo = previo.tipo;
 
   const { cuerpo, cerrar } = abrirModal({ titulo: previo ? 'Editar movimiento' : 'Registrar' });
+  const opciones = (t) => deTipo(p.cats, t)
+    .map((c) => `<option value="${c.id}" ${previo?.catId === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
+
   cuerpo.innerHTML = `
     <div class="chips chips-tipo" id="regTipo">
       <button class="chip chip-gasto ${tipo === 'gasto' ? 'on' : ''}" data-tipo="gasto">Gasto</button>
@@ -21,8 +24,8 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
     </div>
     <div class="fld"><label for="regMonto">Monto</label>
       <input id="regMonto" class="num monto" inputmode="numeric" placeholder="0" value="${previo ? plain(previo.monto) : ''}"></div>
-    <div class="fld" id="regCatWrap"><label for="regCat">Categoría</label>
-      <select id="regCat">${p.cats.map((c) => `<option value="${c.id}" ${(previo?.catId || OTROS) === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>
+    <div class="fld"><label for="regCat">Categoría</label>
+      <select id="regCat"></select></div>
     <div class="fld"><label for="regFecha">Fecha</label>
       <input type="date" id="regFecha" value="${previo?.fecha || hoyISO()}"></div>
     <div class="fld"><label for="regNota">Nota <span class="opcional">(opcional)</span></label>
@@ -34,7 +37,9 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   function setTipo(t) {
     tipo = t;
     cuerpo.querySelectorAll('#regTipo .chip').forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
-    $('#regCatWrap').hidden = t === 'ingreso';
+    // cada tipo tiene sus propias categorías: mercado no es un ingreso
+    $('#regCat').innerHTML = opciones(t);
+    if (previo?.catId && deTipo(p.cats, t).some((c) => c.id === previo.catId)) $('#regCat').value = previo.catId;
   }
   function guardar() {
     const monto = Math.round(digits($('#regMonto').value));
@@ -43,7 +48,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
       fecha: $('#regFecha').value || hoyISO(),
       tipo,
       monto,
-      catId: tipo === 'gasto' ? ($('#regCat').value || OTROS) : null,
+      catId: $('#regCat').value || fallbackDe(tipo),
       nota: $('#regNota').value.trim(),
     };
     let mov = previo;

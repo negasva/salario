@@ -3,6 +3,7 @@ import { renderLogin } from './ui/login.js';
 import { renderShell, toast } from './ui/shell.js';
 import { renderInicio } from './ui/inicio.js';
 import { renderMovimientos } from './ui/movimientos.js';
+import { renderRecurrentes } from './ui/recurrentes.js';
 import { renderCategorias } from './ui/categorias.js';
 import { renderAjustes } from './ui/ajustes.js';
 import { getSession, onAuthChange } from './auth.js';
@@ -17,6 +18,7 @@ let route = 'inicio';
 const ROUTES = {
   inicio: renderInicio,
   movimientos: renderMovimientos,
+  recurrentes: renderRecurrentes,
   categorias: renderCategorias,
   ajustes: renderAjustes,
 };

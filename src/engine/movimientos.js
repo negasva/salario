@@ -1,5 +1,6 @@
-/* Libro de movimientos. Una sola estructura alimenta metas, cierre de mes,
-   alertas de renglón e ingreso extra. Todo puro: recibe el array, devuelve datos. */
+/* El libro de movimientos. Todo puro: recibe el array, devuelve datos.
+   Un movimiento es { id, fecha 'AAAA-MM-DD', tipo 'ingreso'|'gasto', monto,
+   catId, nota }. Los ingresos no llevan categoría. */
 
 export function periodoDe(fecha) {
   return String(fecha).slice(0, 7);
@@ -11,118 +12,76 @@ export function hoyISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+export function periodoActual(d = new Date()) {
+  return periodoDe(hoyISO(d));
+}
+
+// 'AAAA-MM' desplazado n meses (negativo hacia atrás)
+export function sumarMeses(periodo, n) {
+  const [a, m] = periodo.split('-').map(Number);
+  const d = new Date(a, m - 1 + n, 1);
+  return periodoDe(hoyISO(d));
+}
+
 export function enPeriodo(movs, periodo) {
   return movs.filter((m) => periodoDe(m.fecha) === periodo);
 }
 
-/* F3 — lo que se ve en el libro del mes, del más reciente al más viejo. El
-   filtro por renglón es opcional y ahí estaba el bug: se entraba a Movimientos
-   desde un renglón, se registraba un ingreso —que no tiene renglón— y la lista
-   filtrada no lo mostraba nunca. La vista ahora suelta el filtro cuando lo que
-   guardas no cabe en él. */
-export function visiblesDelMes(movs, periodo, lineId = null) {
-  const delMes = enPeriodo(movs, periodo)
-    .slice()
+export function delMes(movs, periodo) {
+  return enPeriodo(movs, periodo).slice()
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
-  return lineId ? delMes.filter((m) => m.lineId === lineId) : delMes;
 }
 
-function acumular(movs, campo) {
-  return movs.reduce((acc, m) => {
-    const k = m[campo];
-    if (k) acc[k] = (acc[k] || 0) + m.monto;
+function signo(m) {
+  return m.tipo === 'ingreso' ? m.monto : -m.monto;
+}
+
+// Flujo del mes: lo que entró y lo que salió, cada movimiento contado una vez.
+export function resumenFlujo(movs, periodo) {
+  let ingresos = 0;
+  let gastos = 0;
+  enPeriodo(movs, periodo).forEach((m) => {
+    if (m.tipo === 'ingreso') ingresos += m.monto; else gastos += m.monto;
+  });
+  return { ingresos, gastos, saldo: ingresos - gastos };
+}
+
+/* El arrastre. Con qué empieza un mes: el saldo inicial declarado más todo
+   lo que entró menos todo lo que salió ANTES de ese mes. Agosto que cierra en
+   −100.000 hace que septiembre empiece en −100.000. */
+export function saldoInicial(base, movs, periodo) {
+  return movs.filter((m) => periodoDe(m.fecha) < periodo)
+    .reduce((t, m) => t + signo(m), Number(base) || 0);
+}
+
+// Saldo acumulado hasta hoy, sin filtro: un saldo es acumulado o no es un saldo.
+export function saldoActual(base, movs) {
+  return movs.reduce((t, m) => t + signo(m), Number(base) || 0);
+}
+
+/* Lo que cada pantalla muestra en su cabecera:
+   empezaste con → entró → salió → terminas con. */
+export function resumenMes(base, movs, periodo) {
+  const inicial = saldoInicial(base, movs, periodo);
+  const { ingresos, gastos } = resumenFlujo(movs, periodo);
+  return { inicial, ingresos, gastos, final: inicial + ingresos - gastos };
+}
+
+// Gasto del mes agrupado por categoría: { catId: monto }
+export function gastoPorCategoria(movs, periodo) {
+  return enPeriodo(movs, periodo).reduce((acc, m) => {
+    if (m.tipo !== 'gasto') return acc;
+    const k = m.catId || 'otros';
+    acc[k] = (acc[k] || 0) + m.monto;
     return acc;
   }, {});
 }
 
-export function porItem(movs, periodo) {
-  return acumular(enPeriodo(movs, periodo).filter((m) => m.tipo === 'gasto'), 'itemId');
-}
-
-export function porLinea(movs, periodo) {
-  return acumular(enPeriodo(movs, periodo).filter((m) => m.tipo === 'gasto'), 'lineId');
-}
-
-export function ingresoReal(movs, periodo) {
-  const ing = enPeriodo(movs, periodo).filter((m) => m.tipo === 'ingreso');
-  const extra = ing.filter((m) => m.extra).reduce((s, m) => s + m.monto, 0);
-  const total = ing.reduce((s, m) => s + m.monto, 0);
-  return { nomina: total - extra, extra, total };
-}
-
-export function gastoTotal(movs, periodo) {
-  return enPeriodo(movs, periodo)
-    .filter((m) => m.tipo === 'gasto')
-    .reduce((s, m) => s + m.monto, 0);
-}
-
-// Flujo real del mes: cada movimiento se cuenta una sola vez.
-export function resumenFlujo(movs, periodo) {
-  const ingresos = ingresoReal(movs, periodo).total;
-  const gastos = gastoTotal(movs, periodo);
-  return { ingresos, gastos, saldo: ingresos - gastos };
-}
-
-export function aportesAMeta(movs, goalId) {
-  const propios = movs.filter((m) => m.goalId === goalId);
-  return {
-    total: propios.reduce((s, m) => s + m.monto, 0),
-    porPeriodo: acumular(propios.map((m) => ({ ...m, per: periodoDe(m.fecha) })), 'per'),
-  };
-}
-
-// El blob de perfiles crece con cada movimiento, así que dos años es el techo:
-// alcanza para la comparación año contra año y mantiene el jsonb en un tamaño sano.
-export function podar(movs, meses = 24, hoy = new Date()) {
-  const limite = periodoDe(hoyISO(new Date(hoy.getFullYear(), hoy.getMonth() - meses, 1)));
-  return movs.filter((m) => periodoDe(m.fecha) >= limite);
-}
-
-/* Serie mensual de ahorro para la gráfica del dashboard.
-   destino: null (todo) | 'meta:<goalId>' | 'item:<itemId>' | 'deuda'.
-   Con destino null hay que decirle qué bloques cuentan como ahorro
-   (los de rol cor y lar): el movimiento no guarda el rol, solo el itemId.
-   Cada movimiento se cuenta una sola vez aunque caiga en dos categorías. */
-export function serieAhorro(movs, destino = null, meses = 12, itemsAhorro = [], hoy = new Date()) {
-  const periodos = Array.from({ length: meses }, (_, i) => periodoDe(
-    hoyISO(new Date(hoy.getFullYear(), hoy.getMonth() - (meses - 1 - i), 1))));
-  const cuenta = (m) => {
-    if (m.tipo !== 'gasto') return false;
-    if (destino === 'deuda') return !!m.abono;
-    if (destino?.startsWith('meta:')) return m.goalId === destino.slice(5);
-    if (destino?.startsWith('item:')) return m.itemId === destino.slice(5);
-    return !!m.goalId || !!m.abono || itemsAhorro.includes(m.itemId);
-  };
-  const porPeriodo = {};
-  movs.filter(cuenta).forEach((m) => {
-    const per = periodoDe(m.fecha);
-    porPeriodo[per] = (porPeriodo[per] || 0) + m.monto;
+/* Serie de los últimos n meses terminando en `periodo`, para las barras de
+   ingreso contra gasto y la línea de saldo. */
+export function serieMensual(base, movs, periodo, meses = 6) {
+  return Array.from({ length: meses }, (_, i) => {
+    const per = sumarMeses(periodo, -(meses - 1 - i));
+    return { periodo: per, ...resumenMes(base, movs, per) };
   });
-  let acumulado = 0;
-  return periodos.map((periodo) => {
-    const monto = porPeriodo[periodo] || 0;
-    acumulado += monto;
-    return { periodo, monto, acumulado };
-  });
-}
-
-/* Tasa de ahorro mes a mes desde el libro, no desde los cierres: así hay
-   tendencia desde el primer mes y no desde el tercero. */
-export function serieTasaAhorro(movs, itemsAhorro = [], meses = 6, hoy = new Date()) {
-  return serieAhorro(movs, null, meses, itemsAhorro, hoy).map(({ periodo, monto }) => {
-    const ing = ingresoReal(movs, periodo).total;
-    return { periodo, tasa: ing > 0 ? Math.round((monto / ing) * 1000) / 10 : 0 };
-  });
-}
-
-/* Ritmo del mes: a día 25 gastarse el 95% del bloque no es lo mismo que a día 5.
-   Compara lo real contra lo que tocaría llevar a estas alturas. */
-export function ritmoDelMes(real, presupuesto, hoy = new Date()) {
-  const dias = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-  const esperado = (presupuesto || 0) * (hoy.getDate() / dias);
-  return {
-    esperado,
-    delta: (real || 0) - esperado,
-    pct: esperado > 0 ? Math.round((((real || 0) - esperado) / esperado) * 100) : 0,
-  };
 }

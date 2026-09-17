@@ -2,25 +2,14 @@ create table perfiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
   nombre text not null,
-  data jsonb not null,          -- ingreso, moneda, items, metas, bloqueos
+  data jsonb not null,          -- { v, name, saldoInicial, cats, movs }
   updated_at timestamptz default now()
 );
 
-create table cierres (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users not null,
-  perfil_id uuid references perfiles on delete cascade,
-  periodo text not null,        -- 'AAAA-MM'
-  snapshot jsonb not null,
-  unique (perfil_id, periodo)
-);
-
 alter table perfiles enable row level security;
-alter table cierres  enable row level security;
 create policy p_own on perfiles for all using (auth.uid() = user_id);
-create policy c_own on cierres  for all using (auth.uid() = user_id);
 
--- El libro de movimientos, los conceptos y las categorías viven dentro de
--- `perfiles.data`, que es jsonb. Los campos que agregó la fase 1 —`nombre` en
--- cada pago y `libre` en cada categoría— no necesitan DDL: se escriben en el
--- blob y se leen con respaldo para los perfiles que todavía no los traen.
+-- Si vienes de una versión anterior, la tabla `cierres` ya no se usa:
+--   drop table if exists cierres;
+-- El arrastre de saldo se calcula desde el libro de movimientos, así que no
+-- hace falta cerrar meses ni guardar snapshots.

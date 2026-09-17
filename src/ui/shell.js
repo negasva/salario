@@ -1,149 +1,33 @@
 import { icon } from './icons.js';
-import { sinMotion } from './animar.js';
-import { abrirBuscador } from './buscador.js';
 import { abrirRegistro } from './registrar.js';
-import { abrirIA } from './preguntar.js';
-import { abrirModal } from './modal.js';
-import { MONEDAS } from '../engine/moneda.js';
 import { signOut } from '../auth.js';
-import * as store from '../store.js';
-import { esc } from '../format.js';
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
-  { id: 'movimientos', label: 'Registrar', ic: 'movimientos' },
-  { id: 'categorias', label: 'Planear', ic: 'categorias' },
-  { id: 'metas', label: 'Metas', ic: 'metas' },
-  { id: 'analisis', label: 'Análisis', ic: 'analisis' },
-  { id: 'historial', label: 'Historial', ic: 'historial' },
+  { id: 'inicio', label: 'Inicio', ic: 'inicio' },
+  { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
+  { id: 'categorias', label: 'Categorías', ic: 'categorias' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
 ];
 
-// iniciales del perfil activo, no un logo inventado
-function initials(name) {
-  return (name || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('') || '·';
-}
-
-/* El menú del botón flotante se cierra al tocar fuera. El shell se repinta en
-   cada navegación, así que el listener se registra una sola vez y siempre
-   apunta al menú vivo. */
-let cerrarFabActual = () => {};
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.fab-wrap')) cerrarFabActual();
-});
-
-/* F11 — el círculo del avatar es un botón: abre los datos del perfil que ya
-   están guardados. Al cerrar se repinta el shell, así que las iniciales y el
-   saludo cambian con el nombre. */
-function abrirPerfil(alGuardar) {
-  const p = store.active();
-  if (!p) return;
-  const { cuerpo, cerrar } = abrirModal({ titulo: 'Tu perfil', alCerrar: alGuardar });
-  cuerpo.innerHTML = `
-    <div class="fld"><label for="pfNombre">Nombre</label>
-      <input id="pfNombre" value="${esc(p.name)}" autocomplete="name"></div>
-    <div class="fld"><label for="pfMoneda">Moneda principal</label>
-      <select id="pfMoneda">${MONEDAS.map((m) => `<option ${m === p.cur ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
-    <button class="wide btn-primary" id="pfSave">Guardar</button>`;
-
-  const guardar = () => {
-    store.renameProfile(store.activeId(), cuerpo.querySelector('#pfNombre').value);
-    p.cur = cuerpo.querySelector('#pfMoneda').value;
-    store.save();
-    cerrar();
-    toast('Perfil actualizado');
-  };
-  cuerpo.querySelector('#pfSave').onclick = guardar;
-  cuerpo.querySelector('#pfNombre').onkeydown = (e) => { if (e.key === 'Enter') guardar(); };
-  cuerpo.querySelector('#pfNombre').focus();
-}
-
 export function renderShell(root, currentRoute, onNavigate) {
-  const p = store.active();
   root.innerHTML = `
     <div class="shell">
       <div class="shell-panel">
         <aside class="sidebar">
-          <button class="brand" id="btnPerfil" title="Editar perfil"
-            aria-label="Editar el perfil de ${esc(p ? p.name : '')}">${initials(p && p.name)}</button>
           <nav>
-            ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" title="${n.label}" aria-label="${n.label}">${icon(n.ic)}</button>`).join('')}
+            ${NAV.map((n) => `<button class="navlink ${n.id === currentRoute ? 'on' : ''}" data-r="${n.id}" aria-label="${n.label}" title="${n.label}">${icon(n.ic)}<span>${n.label}</span></button>`).join('')}
           </nav>
           <button class="navlink logout" id="btnLogout" title="Salir" aria-label="Salir">${icon('salir')}</button>
         </aside>
-        <div class="main">
-          <div class="topbar">
-            <div class="user" id="userLabel"></div>
-          </div>
-          <div class="content" id="content"></div>
-        </div>
+        <div class="content" id="content"></div>
       </div>
     </div>
-    <div class="fab-wrap">
-      <div class="fab-menu" id="fabMenu" hidden>
-        <button data-a="ingreso">${icon('movimientos', 'ic-sm')} Agregar ingreso</button>
-        <button data-a="egreso">${icon('movimientos', 'ic-sm')} Agregar egreso</button>
-        <button data-a="meta">${icon('metas', 'ic-sm')} Agregar meta</button>
-        <button data-a="buscar">${icon('buscar', 'ic-sm')} Buscar transacciones</button>
-        <button data-a="ia">${icon('ia', 'ic-sm')} Pregúntale a tus números</button>
-      </div>
-      <button class="fab" id="fab" aria-label="Agregar" aria-expanded="false">+</button>
-    </div>
+    <button class="fab" id="fab" aria-label="Registrar movimiento">+</button>
     <div class="toast" id="toast" aria-live="polite" aria-atomic="true"><span id="toastMsg"></span></div>`;
 
-  root.querySelectorAll('.navlink[data-r]').forEach((b) => {
-    b.onclick = () => onNavigate(b.dataset.r);
-  });
+  root.querySelectorAll('.navlink[data-r]').forEach((b) => { b.onclick = () => onNavigate(b.dataset.r); });
   root.querySelector('#btnLogout').onclick = async () => { await signOut(); location.reload(); };
-  root.querySelector('#btnPerfil').onclick = () => abrirPerfil(() => onNavigate(currentRoute));
-
-  root.querySelector('#userLabel').textContent = p ? `Hola, ${p.name}` : '';
-
-  /* F3 — el botón flotante: lo que antes era navegar a una vista ahora es una
-     hoja. La única acción que sigue siendo una vista es crear una meta, que
-     tiene su propio editor. */
-  const fab = root.querySelector('#fab');
-  const fabMenu = root.querySelector('#fabMenu');
-  /* Las opciones salen del botón, no aparecen de golpe: cada una entra
-     escalonada desde abajo, de la más cercana al pulgar a la más lejana, para
-     que se lea como algo que se despliega y no como un cuadro que apareció.
-     Al cerrar se van todas a la vez, que despedirlas de una en una es hacer
-     esperar al usuario para nada. */
-  const cerrarFab = () => {
-    if (fabMenu.hidden) return;
-    fab.setAttribute('aria-expanded', 'false');
-    if (sinMotion()) { fabMenu.hidden = true; fabMenu.classList.remove('on'); return; }
-    fabMenu.classList.remove('on');
-    setTimeout(() => { fabMenu.hidden = true; }, 150);
-  };
-  fab.onclick = () => {
-    if (!fabMenu.hidden) { cerrarFab(); return; }
-    fabMenu.hidden = false;
-    fab.setAttribute('aria-expanded', 'true');
-    if (sinMotion()) { fabMenu.classList.add('on'); return; }
-    requestAnimationFrame(() => fabMenu.classList.add('on'));
-  };
-  const repintar = () => onNavigate(currentRoute);
-  fabMenu.onclick = (e) => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    cerrarFab();
-    const acciones = {
-      ingreso: () => abrirRegistro({ tipo: 'ingreso', alGuardar: repintar }),
-      egreso: () => abrirRegistro({ tipo: 'gasto', alGuardar: repintar }),
-      meta: () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'metas', args: { nueva: true } } })),
-      buscar: () => abrirBuscador(),
-      ia: () => abrirIA(),
-    };
-    acciones[b.dataset.a]?.();
-  };
-  cerrarFabActual = cerrarFab;
-
+  root.querySelector('#fab').onclick = () => abrirRegistro({ alGuardar: () => onNavigate(currentRoute) });
   return root.querySelector('#content');
 }
 
@@ -151,10 +35,8 @@ let toastTimer;
 export function toast(msg, onUndo) {
   const el = document.getElementById('toast');
   if (!el) return;
-  const msgEl = document.getElementById('toastMsg');
-  msgEl.textContent = msg;
-  const old = el.querySelector('button');
-  if (old) old.remove();
+  document.getElementById('toastMsg').textContent = msg;
+  el.querySelector('button')?.remove();
   if (onUndo) {
     const b = document.createElement('button');
     b.textContent = 'Deshacer';

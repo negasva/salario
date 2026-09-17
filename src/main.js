@@ -1,15 +1,10 @@
 import { mountIconSprite } from './ui/icons.js';
 import { renderLogin } from './ui/login.js';
 import { renderShell, toast } from './ui/shell.js';
-import { renderDashboard } from './ui/dashboard.js';
-import { renderCategorias } from './ui/categorias.js';
-import { renderMetas, abrirMeta } from './ui/metas.js';
+import { renderInicio } from './ui/inicio.js';
 import { renderMovimientos } from './ui/movimientos.js';
-import { renderHistorial } from './ui/historial.js';
-import { renderAnalisis } from './ui/analisis.js';
+import { renderCategorias } from './ui/categorias.js';
 import { renderAjustes } from './ui/ajustes.js';
-import { pintarAvisos, notificarPendientes } from './ui/avisos.js';
-import { abrirOnboarding, esCuentaNueva } from './ui/onboarding.js';
 import { getSession, onAuthChange } from './auth.js';
 import * as store from './store.js';
 
@@ -17,72 +12,30 @@ mountIconSprite();
 store.load();
 
 const app = document.getElementById('app');
-let route = 'dashboard';
-
-let routeArgs = {};
+let route = 'inicio';
 
 const ROUTES = {
-  dashboard: renderDashboard,
-  categorias: renderCategorias,
-  metas: renderMetas,
+  inicio: renderInicio,
   movimientos: renderMovimientos,
-  analisis: renderAnalisis,
-  historial: renderHistorial,
+  categorias: renderCategorias,
   ajustes: renderAjustes,
 };
 
 function paintRoute() {
-  const content = renderShell(app, route, (r) => { route = r; routeArgs = {}; paintRoute(); });
-  ROUTES[route](content, routeArgs);
-  pintarAvisos(route);
+  const content = renderShell(app, route, (r) => { route = r; paintRoute(); });
+  ROUTES[route](content);
 }
-
-// Categorías enlaza a una meta: se navega a Metas y allí se abre la hoja
-window.addEventListener('ir-a-meta', (e) => {
-  abrirMeta(e.detail.goalId);
-  route = 'metas';
-  routeArgs = {};
-  paintRoute();
-});
-
-window.addEventListener('ir-a-vista', (e) => {
-  route = e.detail.route;
-  routeArgs = e.detail.args || {};
-  paintRoute();
-});
-
-/* Las vistas se repintan solas al guardar sin pasar por paintRoute, y al
-   hacerlo se llevan por delante el anuncio. El microtask deja que la vista
-   termine de montarse y vuelve a colgarlo. */
-store.subscribe(() => queueMicrotask(() => pintarAvisos(route)));
 
 async function boot() {
   const session = await getSession();
-  if (!session) {
-    renderLogin(app, boot);
-    return;
-  }
+  if (!session) { renderLogin(app, boot); return; }
   const res = await store.bootAuth(session.user.id);
-  if (res?.migrated) toast('Tu presupuesto local se subió a tu cuenta.');
+  if (res?.migrated) toast('Tus datos locales se subieron a tu cuenta.');
   paintRoute();
-
-  // cuenta recién creada: nombre, ingreso y a repartir
-  if (esCuentaNueva()) {
-    abrirOnboarding(() => {
-      route = 'categorias';
-      routeArgs = {};
-      paintRoute();
-    });
-    return;
-  }
-  notificarPendientes();
 }
 
 onAuthChange((session) => {
-  if (!session) {
-    store.signOutLocal();
-    renderLogin(app, boot);
-  }
+  if (!session) { store.signOutLocal(); renderLogin(app, boot); }
 });
 
 boot();

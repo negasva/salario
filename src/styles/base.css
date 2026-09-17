@@ -1,6 +1,4 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-/* el body nunca se desplaza en horizontal, y no por taparlo con overflow
-   hidden: lo ancho —nav, tablas, gráficas— se desplaza dentro de su caja */
 html,body{width:100%;max-width:100%}
 html{background:var(--pink-wash)}
 body{margin:0;background:var(--pink-wash);color:var(--ink);font-family:var(--font-sans);
@@ -16,49 +14,20 @@ button:hover{border-color:var(--pink);background:var(--pink-wash)}
 button:active{transform:translateY(1px)}
 button:focus-visible{outline:2px solid var(--pink-dark);outline-offset:2px}
 button:disabled{opacity:.45;cursor:default}
-button:disabled:hover{border-color:var(--pink-lighter);background:var(--white)}
-button.mini{padding:6px 10px;font-size:var(--text-xs)}
 
 input,select{background:var(--white);border:1px solid var(--pink-lighter);border-radius:var(--radius-sm);
   padding:9px 12px;font-size:var(--text-sm)}
-/* un select se estira hasta su opción más larga y saca la pantalla de quicio */
 select{max-width:100%;min-width:0}
 input:focus,select:focus{outline:none;border-color:var(--pink)}
 input::placeholder{color:var(--ink-lighter);opacity:.7}
+input:disabled{opacity:.6}
 
-a{color:var(--pink-dark)}
-a:hover{color:var(--pink)}
 svg{width:20px;height:20px;flex:none;display:block}
-
-input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:24px;padding:0;border:0}
-input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--pink-lighter)}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
-  background:var(--pink);border:2px solid var(--white);box-shadow:var(--shadow-sm);margin-top:-7px;
-  cursor:pointer;transition:transform var(--t-fast)}
-input[type=range]::-webkit-slider-thumb:active{transform:scale(1.15)}
-input[type=range]::-moz-range-track{height:6px;border-radius:var(--radius-pill);background:var(--pink-wash);border:1px solid var(--pink-lighter)}
-input[type=range]::-moz-range-thumb{width:18px;height:18px;border:2px solid var(--white);border-radius:50%;
-  background:var(--pink);cursor:pointer;transition:transform var(--t-fast)}
-input[type=range]::-moz-range-thumb:active{transform:scale(1.15)}
-input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid var(--pink-dark);outline-offset:2px}
-input[type=range]:disabled{opacity:.45}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-/* Texto solo para lectores de pantalla: el encabezado de la columna de
-   acciones tiene que existir para que la tabla se anuncie completa, pero
-   dibujarlo no aporta nada. `clip-path` y 1px, no `display:none`, que eso
-   también lo esconde del lector. */
-.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;
-  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
-
-/* En una pantalla táctil todo control sube a 44px de alto, que es lo que mide
-   un dedo. En escritorio se quedan compactos: con ratón, 28px son de sobra y
-   estirarlo todo dejaría la vista con la mitad de información por pantalla. */
+/* En pantalla táctil todo control sube a 44px, que es lo que mide un dedo. */
 @media (pointer:coarse){
-  button,select,input:not([type=checkbox]):not([type=radio]),[role="button"]{min-height:44px}
-  /* los botones de un solo icono también por ancho, que 32px de lado no se
-     aciertan con el dedo por muy altos que sean */
+  button,select,input:not([type=checkbox]){min-height:44px}
   button{min-width:44px}
-  .mini{min-height:44px;padding-top:10px;padding-bottom:10px}
 }

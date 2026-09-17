@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');
 
-/* Sistema de diseño NEGASVA: rosa chicle + tinta casi negra. */
+/* Sistema de diseño NEGASVA: rosa chicle + tinta casi negra. Un solo tema. */
 :root{
   --pink:        #FC90B6;
   --pink-dark:   #F870A0;
@@ -15,149 +15,26 @@
   --white:       #FFFFFF;
   --line:        #E7E7E7;
 
-  /* F3 — significado antes que ambiente: verde entra, rojo sale, amarillo se
-     guarda. Estos tres son alias de los `--sem-*` y ningún tema los pisa. */
-  --success: var(--sem-ingreso-2);
-  --warning: var(--sem-ahorro-2);
-  --danger:  var(--sem-gasto-2);
-  --success-soft: color-mix(in srgb, var(--sem-ingreso-2) 15%, transparent);
-  --warning-soft: color-mix(in srgb, var(--sem-ahorro-2) 15%, transparent);
-  --danger-soft: color-mix(in srgb, var(--sem-gasto-2) 15%, transparent);
-  --on-pink: var(--ink);
-  --on-ink: var(--white);
-  --on-success: var(--white);
-  --on-warning: var(--ink);
-  --on-danger: var(--white);
-  --text-on-ink-accent: var(--pink-light);
-
-  --text-on-ink-muted: rgba(255,255,255,.70);
-  /* F3 — el saldo a favor va verde en positivo y rojo en negativo, pero sobre
-     el fondo oscuro de la categoría los `--success` y `--danger` de la paleta
-     no llegan a AA. Estos dos son los tonos claros que sí, y son fijos a
-     propósito: el significado (verde bien, rojo mal) no cambia con el tema. */
-  /* El color como significado: verde entra, rojo sale, amarillo se guarda.
-     Cuatro tonos por significado para poder distinguir varias categorías en un
-     donut sin dejar de decir lo mismo. El tono 1 es el que manda; los otros son
-     el mismo color aclarado. */
-  --sem-ingreso-1:#0F7A4F; --sem-ingreso-2:#1FA971; --sem-ingreso-3:#5CC79A; --sem-ingreso-4:#A5E3C7;
-  --sem-gasto-1:  #C81E1E; --sem-gasto-2:  #E5484D; --sem-gasto-3:  #F08A8A; --sem-gasto-4:  #F8C4C4;
-  --sem-ahorro-1: #B45309; --sem-ahorro-2: #E08A0B; --sem-ahorro-3: #F5B942; --sem-ahorro-4: #FBDFA0;
-  /* El donut es otra cosa: ahí el color no dice qué significa la plata (eso ya
-     lo dice el título "Gasto real"), dice cuál categoría es cuál. Una escala de
-     rojos no se distingue, así que las porciones usan hues distintos. Los tres
-     colores con significado —verde, rojo, amarillo— siguen mandando en barras,
-     montos y puntos de las listas de movimientos. */
-  --cat-1:#E5484D; --cat-2:#F5A524; --cat-3:#1FA971; --cat-4:#0EA5E9;
-  --cat-5:#8B5CF6; --cat-6:#EC4899; --cat-7:#0D9488; --cat-8:#A16207;
-  --cat-9:#6366F1; --cat-10:#B91C1C;
-
-  /* para texto encima de fondo claro, que los tonos vivos no llegan a AA */
-  --sem-ingreso-texto:var(--sem-ingreso-1);
-  --sem-gasto-texto:  var(--sem-gasto-1);
-  --sem-ahorro-texto: var(--sem-ahorro-1);
-
-  --saldo-ok-on-ink:   #7BE0A8;
-  --saldo-over-on-ink: #FFA8A8;
-  /* F10 — los acentos están calibrados para llenar una barra o un botón, no
-     para escribirse encima de blanco: `--success` sobre blanco da 3.0:1 y AA
-     pide 4.5:1 para texto normal. Estos tres son los mismos colores oscurecidos
-     hasta pasar, y se usan SOLO para texto. El fondo sigue siendo el de siempre,
-     así que la app no cambia de aspecto. */
+  /* el color como significado: verde entra, rojo sale */
+  --sem-ingreso-1:#0F7A4F; --sem-ingreso-2:#1FA971;
+  --sem-gasto-1:  #C81E1E; --sem-gasto-2:  #E5484D;
   --success-texto: var(--sem-ingreso-1);
   --danger-texto:  var(--sem-gasto-1);
-  --warning-texto: var(--sem-ahorro-1);
-  --pink-texto:    #B03060;
-  /* F10/F11 — bloques: la categoría es oscura y sus ítems claros, para que la
-     jerarquía se lea de un vistazo. El relleno marca lo pagado sobre lo planeado. */
-  --bloque-cat-bg:     var(--ink);
-  /* el relleno de la categoría aclara la tinta en vez de teñirla de rosa:
-     el texto blanco tiene que leerse igual sobre las dos mitades */
-  --bloque-cat-fill:   var(--ink-lighter);
-  --bloque-cat-text:   var(--on-ink);
-  --bloque-item-bg:    var(--pink-wash);
-  --bloque-item-fill:  var(--pink-lighter);
-  --bloque-item-text:  var(--ink);
-  --bloque-ok:         var(--success-soft);
-  --bloque-over:       var(--danger-soft);
-
-  --border-card:     var(--pink-lighter);
-  --border-hairline: var(--line);
-
-  /* Alias heredados: las categorías ya guardadas apuntan a estos nombres.
-     Mapean al color que el diseño le da a cada bloque. */
-  --blue:   var(--ink);
-  --mint:   var(--sem-ingreso-2);
-  --green:  var(--sem-ingreso-2);
-  --amber:  var(--sem-ahorro-2);
-  --red:    var(--sem-gasto-2);
-
-  --text:    var(--ink);
+  --danger:  var(--sem-gasto-2);
+  --on-pink: var(--ink);
+  --on-ink: var(--white);
+  --text-on-ink-accent: var(--pink-light);
+  --text-on-ink-muted: rgba(255,255,255,.70);
 
   --font-sans: 'Montserrat', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-
   --fw-semibold:600; --fw-bold:700; --fw-black:900;
   --tracking-tight:-0.03em; --tracking-wide:0.08em;
+  --text-h2:28px; --text-h3:22px; --text-base:16px; --text-sm:14px; --text-xs:12px;
 
-  --text-h1:36px; --text-h2:28px; --text-h3:22px;
-  --text-base:16px; --text-sm:14px; --text-xs:12px;
-
-  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
-  --space-5:20px; --space-6:24px;
-  --sp-1:var(--space-1); --sp-2:var(--space-2); --sp-3:var(--space-3);
-  --sp-4:var(--space-4); --sp-5:var(--space-5); --sp-6:var(--space-6);
-
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px;
   --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-pill:9999px;
-
-  --nav-height:64px;
-  /* F2 — alto unico de control y separacion unica entre campos de formulario */
-  --control-h:42px;
-  --reg-gap:var(--space-3);
 
   --shadow-sm:0 1px 2px rgba(26,26,26,.06);
   --shadow-xl:0 20px 40px rgba(26,26,26,.16);
-
-  /* Escala de movimiento. Una curva por intención: `out` para lo que entra,
-     `in` para lo que sale, `spring` para lo que el dedo arrastra. Y tres
-     duraciones, ninguna por encima de 400ms: micro-interacción, componente,
-     modal. Nada anima fuera de esta escala. */
-  --ease-out:cubic-bezier(.16,1,.3,1);
-  --ease-in:cubic-bezier(.4,0,1,1);
-  --ease-spring:cubic-bezier(.22,1.2,.36,1);
-  --dur-micro:.12s;
-  --dur-fast:.15s;
-  --dur-comp:.25s;
-  --dur-modal:.3s;
-  --t-fast:var(--dur-fast) var(--ease-out);
-  --t-micro:var(--dur-micro) var(--ease-out);
-  --t-comp:var(--dur-comp) var(--ease-out);
-  --t-salida:.2s var(--ease-in);
-}
-
-/* Temas alternativos: los acentos conservan los colores entregados, pero los
-   textos usan un par oscuro o blanco cuando el color puro no alcanza AA. */
-:root[data-paleta="coral"]{
-  --pink:#EA5455; --pink-dark:#C63C43; --pink-light:#F07B3F;
-  --pink-lighter:#F3D3C3; --pink-wash:#F9F5EB;
-  --ink:#002B5B; --ink-light:#2D4059; --ink-lighter:#304B69;
-  --white:#FFFFFF; --line:#E6DCCB;
-  --on-pink:#111827; --on-ink:#FFFFFF;
-  --text-on-ink-accent:#F9F5EB;
-}
-
-:root[data-paleta="pizarra"]{
-  --pink:#4B5563; --pink-dark:#1F2937; --pink-light:#9CA3AF;
-  --pink-lighter:#D1D5DB; --pink-wash:#EDEDED;
-  --ink:#111827; --ink-light:#1F2937; --ink-lighter:#4B5563;
-  --white:#FFFFFF; --line:#D1D5DB;
-  --on-pink:#FFFFFF; --on-ink:#FFFFFF;
-  --text-on-ink-accent:#EDEDED;
-}
-
-:root[data-paleta="vivo"]{
-  --pink:#FF5A5F; --pink-dark:#D9474D; --pink-light:#FFB400;
-  --pink-lighter:#FFE7A3; --pink-wash:#FFF7E5;
-  --ink:#111827; --ink-light:#1F2937; --ink-lighter:#4B5563;
-  --white:#FFFFFF; --line:#E5E7EB;
-  --on-pink:#111827; --on-ink:#FFFFFF;
-  --text-on-ink-accent:#FFB400;
+  --t-fast:.15s cubic-bezier(.16,1,.3,1);
 }

@@ -1,6 +1,13 @@
 # Reparto mensual
 
-Presupuesto personal por categorías, repartido en plata y no en porcentajes: esenciales, gasto libre, deudas, ahorro corto plazo, inversión largo plazo. A cada categoría le asignas cuánto le toca al mes y la app te dice cuánto falta por repartir o por cuánto te pasaste. Metas de ahorro que reclaman parte de un bloque, fondo de emergencia automático, plan de recorte cuando falta plata, historial mes a mes.
+Registra ingresos y gastos, ponles categoría, mira en gráficas a dónde se va la plata, y el saldo se arrastra de un mes al siguiente: si agosto termina en −100.000, septiembre empieza en −100.000.
+
+Cuatro pantallas:
+
+- **Inicio**: flechas de mes · empezaste con / entró / salió / terminas con · donut por categoría · barras de 6 meses · línea de saldo.
+- **Movimientos**: lista del mes agrupada por día · filtro por categoría · botón “+” con hoja de 5 campos (ingreso/gasto, monto, categoría, fecha, nota).
+- **Categorías**: nombre · presupuesto opcional · barra de lo gastado · agregar, renombrar, borrar (los movimientos pasan a Otros).
+- **Ajustes**: saldo inicial · exportar JSON · cerrar sesión.
 
 ## Correr en local
 
@@ -15,49 +22,19 @@ npm run dev
 1. Crea un proyecto en supabase.com.
 2. En el SQL editor, corre `supabase/schema.sql`.
 3. En Authentication → Providers, deja email/password activo.
-4. Copia `Project URL` y `anon public key` a `.env` (local) o a las variables de entorno de Vercel:
-   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+4. Copia `Project URL` y `anon public key` a `.env` (local) o a las variables de entorno de Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
-## Build
+## Build y tests
 
 ```
 npm run build
 npm run test
 ```
 
-## Deploy en Vercel
+## Decisiones
 
-Import del repo en Vercel, framework preset "Vite", variables de entorno arriba. El comando de build y el output (`dist/`) los detecta solo.
-
-## Decisiones de diseño
-
-- Vite + JS vanilla, sin frameworks de UI: el estado cabe en un módulo y no lo justifica.
-- Motor de cálculo aislado en `engine/`, es lo único con tests: es lo único con lógica de negocio real.
-- Gráficos en SVG a mano: cuatro tipos de gráfico no justifican una librería.
+- Vite + JS vanilla, sin framework: el estado cabe en un módulo.
+- El motor (`src/engine/`) es puro y es lo único con tests.
+- Gráficas en SVG a mano, sin librería.
 - localStorage como caché, Supabase como fuente de verdad: la UI nunca espera al servidor.
-- Un solo sistema de tokens de color, tarjetas siempre más claras que el fondo.
-
-## La función de IA (opcional)
-
-La app clasifica gastos sin red con el diccionario de `src/engine/clasificar.js`. La IA solo afina lo que queda en "otros" y responde la tarjeta de preguntas del dashboard.
-
-```
-./scripts/ia.sh
-```
-
-El script instala el CLI si falta, saca el ref del proyecto de tu `.env`, te pide la llave por teclado (no queda en el historial ni en ningún archivo) y despliega. A mano son los mismos cuatro pasos:
-
-```
-npm i -g supabase && supabase login
-supabase link --project-ref TU_REF
-supabase secrets set NVIDIA_API_KEY=tu-llave
-supabase functions deploy ia
-```
-
-Para comprobarlo: entra con tu cuenta y usa la tarjeta *Pregúntale a tus números* del dashboard.
-
-Si algo falla, los logs están en el panel: **Dashboard → Edge Functions → ia → Logs** (`supabase functions logs` no existe en el CLI 2.x). Lo que devuelve la función: `sin-llave` (falta el secreto), `proveedor-401` (llave inválida), `proveedor-404` (ese modelo no está en tu cuenta), `sin-sesion` (no habías entrado a la app).
-
-El modelo se cambia sin tocar código: `supabase secrets set IA_MODELO=meta/llama-3.1-8b-instruct`. Después vuelve a desplegar la función con `supabase functions deploy ia`.
-
-La llave nunca llega al navegador. Sin la función desplegada la app funciona igual, y lo dice donde corresponde.
+- Solo pesos colombianos. Un perfil por cuenta. Los perfiles de versiones anteriores se migran solos al abrir la app (`src/engine/migrar.js`).

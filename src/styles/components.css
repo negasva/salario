@@ -139,3 +139,15 @@ input.monto{font-size:var(--text-h3);font-weight:var(--fw-bold)}
 .pill.ok{background:#e8f7ef;color:var(--success-texto)}
 .check{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);margin-bottom:var(--space-3)}
 .check input{width:18px;height:18px;flex:none}
+
+/* ── arranque de mes y recurrentes ────────────────────────────────────── */
+.rm-arranque{grid-column:1/-1;justify-self:start;padding:6px 10px;font-size:11px;color:var(--ink-lighter);
+  border-color:var(--pink-lighter);background:transparent}
+.rm-arranque:hover{color:var(--ink)}
+.rec .cat-sub{white-space:normal}
+.rec.pagado{background:#f6fbf8;border-color:#cfe9dc}
+.pagado-btn{display:flex;align-items:center;gap:5px;color:var(--success-texto);border-color:#cfe9dc;background:#e8f7ef}
+.pagado-btn:hover{background:#dcf0e6;border-color:var(--sem-ingreso-2)}
+.ic-sm{width:14px;height:14px}
+.btn-borrar{color:var(--danger-texto);border-color:var(--pink-lighter)}
+.btn-borrar:hover{border-color:var(--sem-gasto-2);background:#fdecec}

@@ -4,10 +4,10 @@ import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/
 
 /* Un perfil, un blob. localStorage es la caché y Supabase la fuente de verdad:
    la UI nunca espera al servidor. El perfil es
-   { v, name, saldoInicial, cats, movs, recurrentes }. */
+   { v, name, saldoInicial, cats, movs, recurrentes, arranques }. */
 
-const KEY = 'reparto:v10';
-const KEY_V9 = 'reparto:v9';
+const KEY = 'reparto:v11';
+const KEYS_NUEVAS = ['reparto:v10', 'reparto:v9'];
 const KEYS_V8 = ['reparto:v8', 'reparto:v7', 'reparto:v6', 'reparto:v5'];
 
 let perfil = null;
@@ -24,7 +24,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [] };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {} };
 }
 
 /* El perfil de antes de la auditoría, si sigue en este navegador. Es de donde
@@ -59,6 +59,7 @@ function normalizar(p) {
   n.cats = normalizarCats(n.cats);
   n.movs = Array.isArray(n.movs) ? n.movs : [];
   n.recurrentes = Array.isArray(n.recurrentes) ? n.recurrentes : [];
+  n.arranques = n.arranques && typeof n.arranques === 'object' ? n.arranques : {};
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');
   n.v = VERSION;
@@ -70,7 +71,7 @@ export function active() { return perfil; }
 /* ---------- local ---------- */
 
 function leerLocal() {
-  for (const k of [KEY, KEY_V9]) {
+  for (const k of [KEY, ...KEYS_NUEVAS]) {
     try {
       const v = JSON.parse(localStorage.getItem(k) || 'null');
       if (v) return v;

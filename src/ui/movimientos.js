@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { delMes } from '../engine/movimientos.js';
 import { nombreDe, colorDe, deTipo } from '../engine/categorias.js';
-import { pendientes, agregarAlMes } from '../engine/recurrentes.js';
+import { pendientes } from '../engine/recurrentes.js';
 import { money, esc, fechaCorta } from '../format.js';
 import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
 import { abrirRegistro } from './registrar.js';
@@ -15,7 +15,7 @@ export function renderMovimientos(root) {
   const per = mesElegido();
   if (filtro && !p.cats.some((c) => c.id === filtro)) filtro = '';
   const lista = delMes(p.movs, per).filter((m) => !filtro || m.catId === filtro);
-  const faltan = pendientes(p.recurrentes, p.movs, per).filter((r) => r.monto > 0);
+  const faltan = pendientes(p.recurrentes, p.movs, per);
 
   // agrupados por día, del más reciente al más viejo
   const dias = [];
@@ -32,7 +32,7 @@ export function renderMovimientos(root) {
     ${faltan.length ? `<div class="card aviso">
       <div><b>Te faltan ${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} de este mes</b>
         <div class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</div></div>
-      <button class="btn-primary" id="mvRec">Agregarlos</button></div>` : ''}
+      <button class="btn-primary" id="mvRec">Marcarlos</button></div>` : ''}
     <div class="prow">
       <select id="mvFiltro" aria-label="Filtrar por categoría">
         <option value="">Todo</option>
@@ -59,15 +59,9 @@ export function renderMovimientos(root) {
   enlazarMes(root, repintar);
   root.querySelector('#mvFiltro').onchange = (e) => { filtro = e.target.value; repintar(); };
   root.querySelector('#mvNuevo').onclick = () => abrirRegistro({ alGuardar: repintar });
+  // marcarlos uno a uno es cosa de su pantalla: aquí solo se avisa
   root.querySelector('#mvRec')?.addEventListener('click', () => {
-    const nuevos = agregarAlMes(p.recurrentes, p.movs, per);
-    store.save();
-    repintar();
-    toast(`${nuevos.length} recurrente${nuevos.length === 1 ? '' : 's'} agregado${nuevos.length === 1 ? '' : 's'}.`, () => {
-      nuevos.forEach((m) => { const i = p.movs.indexOf(m); if (i >= 0) p.movs.splice(i, 1); });
-      store.save();
-      repintar();
-    });
+    window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'recurrentes' } }));
   });
   root.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => abrirRegistro({ movId: b.dataset.edit, alGuardar: repintar });

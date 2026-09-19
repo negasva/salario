@@ -10,7 +10,7 @@ export function renderAjustes(root) {
   root.innerHTML = `
     <div class="card">
       <span class="label">Saldo inicial</span>
-      <p class="sub">Con cuánta plata empezaste antes del primer movimiento registrado. Puede ser negativo. Hoy tienes <b class="num">${moneySigno(saldoActual(p.saldoInicial, p.movs))}</b>.</p>
+      <p class="sub">Con cuánta plata empezaste antes del primer movimiento registrado. Puede ser negativo. Hoy tienes <b class="num">${moneySigno(saldoActual(p.saldoInicial, p.movs, p.arranques))}</b>.</p>
       <div class="prow">
         <input id="ajSaldo" class="num" inputmode="numeric" value="${p.saldoInicial < 0 ? '-' : ''}${plain(Math.abs(p.saldoInicial))}" aria-label="Saldo inicial">
         <button class="btn-primary" id="ajSaldoSave">Guardar</button>

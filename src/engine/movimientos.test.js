@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   saldoInicial, saldoActual, resumenMes, resumenFlujo, gastoPorCategoria,
-  serieMensual, sumarMeses, periodoDe, delMes,
+  serieMensual, sumarMeses, periodoDe, delMes, arranqueVigente,
 } from './movimientos.js';
 
 const mov = (fecha, tipo, monto, catId = null) => ({ id: fecha + monto, fecha, tipo, monto, catId, nota: '' });
@@ -50,6 +50,42 @@ describe('flujo y categorías', () => {
 
   it('delMes ordena del más reciente al más viejo', () => {
     expect(delMes(libro, '2026-08').map((m) => m.fecha)).toEqual(['2026-08-20', '2026-08-15', '2026-08-01']);
+  });
+});
+
+describe('empezar el mes de nuevo', () => {
+  // pagó la deuda por fuera: octubre arranca en cero y no hereda los −100.000
+  const arranques = { '2026-10': 0 };
+
+  it('el mes del arranque empieza con la cifra puesta', () => {
+    expect(saldoInicial(0, libro, '2026-10', { '2026-10': 0 })).toBe(0);
+    expect(saldoInicial(0, libro, '2026-10', { '2026-10': -50000 })).toBe(-50000);
+  });
+
+  it('los meses anteriores se quedan como estaban', () => {
+    expect(saldoInicial(0, libro, '2026-08', arranques)).toBe(0);
+    expect(resumenMes(0, libro, '2026-09', arranques).final).toBe(900000);
+  });
+
+  it('desde el arranque solo cuenta lo que pasó de ahí en adelante', () => {
+    const conOctubre = libro.concat([mov('2026-10-03', 'gasto', 30000, 'a')]);
+    expect(resumenMes(0, conOctubre, '2026-10', arranques))
+      .toEqual({ inicial: 0, ingresos: 0, gastos: 30000, final: -30000 });
+    expect(saldoInicial(0, conOctubre, '2026-11', arranques)).toBe(-30000);
+  });
+
+  it('manda el arranque más reciente que no sea posterior al mes', () => {
+    const varios = { '2026-02': 1000, '2026-10': 0 };
+    expect(arranqueVigente(varios, '2026-09')).toBe('2026-02');
+    expect(arranqueVigente(varios, '2026-10')).toBe('2026-10');
+    expect(arranqueVigente(varios, '2026-01')).toBeNull();
+    expect(arranqueVigente(undefined, '2026-09')).toBeNull();
+  });
+
+  it('el saldo de hoy también arranca desde ahí', () => {
+    const hoy = new Date(2026, 8, 20); // septiembre
+    expect(saldoActual(0, libro, {}, hoy)).toBe(900000);
+    expect(saldoActual(0, libro, { '2026-09': 0 }, hoy)).toBe(1000000);
   });
 });
 

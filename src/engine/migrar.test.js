@@ -41,13 +41,15 @@ describe('migración desde el perfil viejo', () => {
 
   it('los conceptos vuelven como recurrentes, con su nombre y su precio', () => {
     const arriendo = p.recurrentes.find((r) => r.n === 'Arriendo');
-    expect(arriendo).toMatchObject({ monto: 1200000, catId: 'i1', tipo: 'gasto', activo: true });
+    expect(arriendo).toMatchObject({ monto: 1200000, catId: 'i1', tipo: 'gasto' });
     expect(arriendo.dia).toBe(5); // el día del último pago registrado
-    expect(p.recurrentes.find((r) => r.n === 'Internet')).toMatchObject({ monto: 90000, activo: true });
+    expect(p.recurrentes.find((r) => r.n === 'Internet')).toMatchObject({ monto: 90000 });
   });
 
-  it('un concepto de gasto libre vuelve apagado: no tenía precio fijo', () => {
-    expect(p.recurrentes.find((r) => r.n === 'Mercado')).toMatchObject({ monto: 0, activo: false });
+  it('un concepto de gasto libre vuelve sin estimado, pero activo como todos', () => {
+    const mercado = p.recurrentes.find((r) => r.n === 'Mercado');
+    expect(mercado.monto).toBe(0);
+    expect(p.recurrentes.every((r) => !('activo' in r))).toBe(true);
   });
 
   it('las plantillas viejas entran, sin duplicar el concepto que ya estaba', () => {
@@ -111,10 +113,23 @@ describe('rescate de un perfil que ya pasó por la primera migración', () => {
     expect(rec.find((r) => r.n === 'Internet').monto).toBe(90000);
   });
 
+  it('un perfil v10 pierde la marca de apagado y gana los arranques', () => {
+    const v10 = {
+      v: 10, name: 'Casa', saldoInicial: 0, cats: [], movs: [],
+      recurrentes: [{ id: 'r1', n: 'Luz', monto: 90000, catId: 'otros', tipo: 'gasto', dia: 5, activo: false }],
+    };
+    const p = migrarPerfil(v10);
+    expect(p.v).toBe(VERSION);
+    expect(p.recurrentes[0]).toEqual({ id: 'r1', n: 'Luz', monto: 90000, catId: 'otros', tipo: 'gasto', dia: 5 });
+    expect(p.arranques).toEqual({});
+    expect(v10.recurrentes[0].activo).toBe(false); // no se toca el original
+  });
+
   it('un perfil vacío migra a un perfil vacío', () => {
     const v = migrarPerfil({});
     expect(v.movs).toEqual([]);
     expect(v.recurrentes).toEqual([]);
+    expect(v.arranques).toEqual({});
     expect(v.saldoInicial).toBe(0);
     expect(buscar(v, 'Transporte')).toBeTruthy();
   });

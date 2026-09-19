@@ -1,6 +1,6 @@
 /* El libro de movimientos. Todo puro: recibe el array, devuelve datos.
    Un movimiento es { id, fecha 'AAAA-MM-DD', tipo 'ingreso'|'gasto', monto,
-   catId, nota }. Los ingresos no llevan categoría. */
+   catId, nota }. Los que salen de un recurrente llevan además `recId`. */
 
 export function periodoDe(fecha) {
   return String(fecha).slice(0, 7);
@@ -46,23 +46,46 @@ export function resumenFlujo(movs, periodo) {
   return { ingresos, gastos, saldo: ingresos - gastos };
 }
 
-/* El arrastre. Con qué empieza un mes: el saldo inicial declarado más todo
-   lo que entró menos todo lo que salió ANTES de ese mes. Agosto que cierra en
-   −100.000 hace que septiembre empiece en −100.000. */
-export function saldoInicial(base, movs, periodo) {
-  return movs.filter((m) => periodoDe(m.fecha) < periodo)
-    .reduce((t, m) => t + signo(m), Number(base) || 0);
+/* Un arranque es un mes en el que se borró la cuenta y se empezó de nuevo:
+   pagaste una deuda por fuera, o te sobró plata que ya no cuenta. Desde ese
+   mes el arrastre se calcula solo con lo que pasó de ahí en adelante, y los
+   meses anteriores se quedan como estaban.
+
+   `arranques` es { 'AAAA-MM': monto }. Manda el más reciente que no sea
+   posterior al mes que se está mirando. */
+export function arranqueVigente(arranques, periodo) {
+  const claves = Object.keys(arranques || {}).filter((k) => k <= periodo).sort();
+  return claves.length ? claves[claves.length - 1] : null;
 }
 
-// Saldo acumulado hasta hoy, sin filtro: un saldo es acumulado o no es un saldo.
-export function saldoActual(base, movs) {
-  return movs.reduce((t, m) => t + signo(m), Number(base) || 0);
+/* El arrastre. Con qué empieza un mes: el saldo inicial declarado más todo
+   lo que entró menos todo lo que salió ANTES de ese mes. Agosto que cierra en
+   −100.000 hace que septiembre empiece en −100.000, salvo que septiembre
+   tenga su propio arranque. */
+export function saldoInicial(base, movs, periodo, arranques) {
+  const desde = arranqueVigente(arranques, periodo);
+  const arranca = desde === null ? Number(base) || 0 : Number(arranques[desde]) || 0;
+  return movs
+    .filter((m) => {
+      const p = periodoDe(m.fecha);
+      return p < periodo && (desde === null || p >= desde);
+    })
+    .reduce((t, m) => t + signo(m), arranca);
+}
+
+// Saldo acumulado hasta hoy: un saldo es acumulado o no es un saldo.
+export function saldoActual(base, movs, arranques, hoy = new Date()) {
+  const desde = arranqueVigente(arranques, periodoActual(hoy));
+  const arranca = desde === null ? Number(base) || 0 : Number(arranques[desde]) || 0;
+  return movs
+    .filter((m) => desde === null || periodoDe(m.fecha) >= desde)
+    .reduce((t, m) => t + signo(m), arranca);
 }
 
 /* Lo que cada pantalla muestra en su cabecera:
    empezaste con → entró → salió → terminas con. */
-export function resumenMes(base, movs, periodo) {
-  const inicial = saldoInicial(base, movs, periodo);
+export function resumenMes(base, movs, periodo, arranques) {
+  const inicial = saldoInicial(base, movs, periodo, arranques);
   const { ingresos, gastos } = resumenFlujo(movs, periodo);
   return { inicial, ingresos, gastos, final: inicial + ingresos - gastos };
 }
@@ -79,9 +102,9 @@ export function gastoPorCategoria(movs, periodo) {
 
 /* Serie de los últimos n meses terminando en `periodo`, para las barras de
    ingreso contra gasto y la línea de saldo. */
-export function serieMensual(base, movs, periodo, meses = 6) {
+export function serieMensual(base, movs, periodo, meses = 6, arranques) {
   return Array.from({ length: meses }, (_, i) => {
     const per = sumarMeses(periodo, -(meses - 1 - i));
-    return { periodo: per, ...resumenMes(base, movs, per) };
+    return { periodo: per, ...resumenMes(base, movs, per, arranques) };
   });
 }

@@ -28,6 +28,13 @@ function paintRoute() {
   ROUTES[route](content);
 }
 
+// una pantalla pide saltar a otra (el aviso de recurrentes en Movimientos)
+window.addEventListener('ir-a-vista', (e) => {
+  if (!ROUTES[e.detail?.route]) return;
+  route = e.detail.route;
+  paintRoute();
+});
+
 async function boot() {
   const session = await getSession();
   if (!session) { renderLogin(app, boot); return; }

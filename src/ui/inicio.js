@@ -54,7 +54,7 @@ export function renderInicio(root) {
   const porCat = gastoPorCategoria(p.movs, per);
   const segmentos = segmentosPorCategoria(p.cats, porCat);
   const total = segmentos.reduce((t, s) => t + s.monto, 0);
-  const serie = serieMensual(p.saldoInicial, p.movs, per, 6);
+  const serie = serieMensual(p.saldoInicial, p.movs, per, 6, p.arranques);
 
   root.innerHTML = `
     ${selectorMes()}

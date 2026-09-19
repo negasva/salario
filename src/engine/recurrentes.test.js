@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  fechaEnPeriodo, nuevoRecurrente, pendientes, agregarAlMes, totalDe, activos,
+  fechaEnPeriodo, nuevoRecurrente, pendientes, pagoDelMes, estaPagado,
+  marcarPagado, quitarPago, marcarTodos, resumen,
 } from './recurrentes.js';
 
-const arriendo = nuevoRecurrente({ n: 'Arriendo', monto: 1200000, catId: 'viv', dia: 5 });
-const internet = nuevoRecurrente({ n: 'Internet', monto: 90000, catId: 'serv', dia: 12 });
-const sueldo = nuevoRecurrente({ n: 'Sueldo', monto: 3000000, tipo: 'ingreso', dia: 30 });
+const nuevo = (n, monto, extra = {}) => nuevoRecurrente({ n, monto, catId: 'viv', dia: 5, ...extra });
 
 describe('fecha del recurrente', () => {
   it('el día 31 se cae al último del mes', () => {
@@ -21,49 +20,98 @@ describe('fecha del recurrente', () => {
 });
 
 describe('modelo', () => {
-  it('guarda nombre y precio, y un ingreso no lleva categoría', () => {
-    expect(arriendo).toMatchObject({ n: 'Arriendo', monto: 1200000, catId: 'viv', tipo: 'gasto', activo: true });
-    expect(sueldo.catId).toBeNull();
-    expect(nuevoRecurrente({ n: '  Luz  ', monto: '90.000' }).n).toBe('Luz');
+  it('guarda nombre y estimado, sin marca de apagado', () => {
+    const r = nuevo('Arriendo', 1200000);
+    expect(r).toMatchObject({ n: 'Arriendo', monto: 1200000, catId: 'viv', tipo: 'gasto' });
+    expect('activo' in r).toBe(false);
   });
 
-  it('los totales separan gasto de ingreso y saltan los apagados', () => {
-    const lista = [arriendo, internet, sueldo, { ...internet, id: 'x', activo: false }];
-    expect(totalDe(lista, 'gasto')).toBe(1290000);
-    expect(totalDe(lista, 'ingreso')).toBe(3000000);
-    expect(activos(lista)).toHaveLength(3);
+  it('un ingreso no lleva categoría y el estimado puede ir vacío', () => {
+    expect(nuevoRecurrente({ n: 'Sueldo', monto: 3000000, tipo: 'ingreso' }).catId).toBeNull();
+    expect(nuevo('Mercado', 0).monto).toBe(0);
   });
 });
 
-describe('agregar al mes', () => {
-  it('lo pendiente es lo que todavía no está en ese mes', () => {
-    const movs = [{ id: 'm1', fecha: '2026-09-05', tipo: 'gasto', monto: 1200000, recId: arriendo.id }];
-    expect(pendientes([arriendo, internet], movs, '2026-09').map((r) => r.n)).toEqual(['Internet']);
-    // en otro mes siguen faltando los dos
-    expect(pendientes([arriendo, internet], movs, '2026-10')).toHaveLength(2);
+describe('marcar el pago del mes', () => {
+  it('se marca con lo que de verdad costó y el estimado no se toca', () => {
+    const luz = nuevo('Luz', 90000);
+    const movs = [];
+    const mov = marcarPagado(luz, movs, '2026-09', 87400);
+    expect(mov).toMatchObject({ monto: 87400, fecha: '2026-09-05', tipo: 'gasto', catId: 'viv', nota: 'Luz', recId: luz.id });
+    expect(luz.monto).toBe(90000);
+    expect(estaPagado(luz, movs, '2026-09')).toBe(true);
+    expect(estaPagado(luz, movs, '2026-10')).toBe(false);
   });
 
-  it('agrega los que faltan y no repite al volver a llamarlo', () => {
+  it('sin estimado se marca con el monto que se escriba', () => {
+    const mercado = nuevo('Mercado', 0);
     const movs = [];
-    const lista = [arriendo, internet, sueldo];
-    const nuevos = agregarAlMes(lista, movs, '2026-09');
-    expect(nuevos).toHaveLength(3);
-    expect(movs).toHaveLength(3);
-    expect(nuevos.find((m) => m.nota === 'Arriendo')).toMatchObject({ fecha: '2026-09-05', tipo: 'gasto', catId: 'viv' });
-    expect(nuevos.find((m) => m.nota === 'Sueldo')).toMatchObject({ tipo: 'ingreso', catId: null });
-    expect(agregarAlMes(lista, movs, '2026-09')).toHaveLength(0);
-    expect(movs).toHaveLength(3);
+    expect(marcarPagado(mercado, movs, '2026-09', 240000).monto).toBe(240000);
+    expect(marcarPagado(nuevo('Nada', 0), [], '2026-09')).toBeNull();
   });
 
-  it('no agrega los apagados ni los que no tienen precio', () => {
+  it('volver a marcarlo corrige el mismo movimiento, no crea otro', () => {
+    const luz = nuevo('Luz', 90000);
     const movs = [];
-    agregarAlMes([{ ...arriendo, activo: false }, nuevoRecurrente({ n: 'Sin precio', monto: 0 })], movs, '2026-09');
+    const primero = marcarPagado(luz, movs, '2026-09', 87400);
+    const segundo = marcarPagado(luz, movs, '2026-09', 91200, '2026-09-07');
+    expect(movs).toHaveLength(1);
+    expect(segundo).toBe(primero);
+    expect(movs[0]).toMatchObject({ monto: 91200, fecha: '2026-09-07' });
+  });
+
+  it('quitar el pago lo devuelve a pendiente', () => {
+    const luz = nuevo('Luz', 90000);
+    const movs = [];
+    marcarPagado(luz, movs, '2026-09', 87400);
+    const fuera = quitarPago(luz, movs, '2026-09');
+    expect(fuera.monto).toBe(87400);
     expect(movs).toEqual([]);
+    expect(quitarPago(luz, movs, '2026-09')).toBeNull();
   });
 
-  it('con una lista de ids agrega solo esos', () => {
+  it('lo pendiente incluye a los que no tienen estimado', () => {
+    const arriendo = nuevo('Arriendo', 1200000);
+    const mercado = nuevo('Mercado', 0);
     const movs = [];
-    agregarAlMes([arriendo, internet], movs, '2026-09', [internet.id]);
+    expect(pendientes([arriendo, mercado], movs, '2026-09').map((r) => r.n)).toEqual(['Arriendo', 'Mercado']);
+    marcarPagado(arriendo, movs, '2026-09', 1200000);
+    expect(pendientes([arriendo, mercado], movs, '2026-09').map((r) => r.n)).toEqual(['Mercado']);
+    expect(pagoDelMes(mercado, movs, '2026-09')).toBeNull();
+  });
+});
+
+describe('marcar de una vez', () => {
+  it('marca los que faltan y tienen estimado, y no repite', () => {
+    const arriendo = nuevo('Arriendo', 1200000);
+    const internet = nuevo('Internet', 90000);
+    const mercado = nuevo('Mercado', 0);
+    const movs = [];
+    const hechos = marcarTodos([arriendo, internet, mercado], movs, '2026-09');
+    expect(hechos.map((m) => m.nota)).toEqual(['Arriendo', 'Internet']);
+    expect(marcarTodos([arriendo, internet, mercado], movs, '2026-09')).toEqual([]);
+    expect(movs).toHaveLength(2);
+  });
+
+  it('con una lista de ids marca solo esos', () => {
+    const arriendo = nuevo('Arriendo', 1200000);
+    const internet = nuevo('Internet', 90000);
+    const movs = [];
+    marcarTodos([arriendo, internet], movs, '2026-09', [internet.id]);
     expect(movs.map((m) => m.nota)).toEqual(['Internet']);
+  });
+});
+
+describe('resumen del mes', () => {
+  it('separa lo estimado de lo pagado y cuenta los que faltan', () => {
+    const arriendo = nuevo('Arriendo', 1200000);
+    const luz = nuevo('Luz', 90000);
+    const sueldo = nuevoRecurrente({ n: 'Sueldo', monto: 3000000, tipo: 'ingreso' });
+    const movs = [];
+    marcarPagado(luz, movs, '2026-09', 87400);
+    expect(resumen([arriendo, luz, sueldo], movs, '2026-09', 'gasto'))
+      .toEqual({ estimado: 1290000, pagado: 87400, faltan: 1, total: 2 });
+    expect(resumen([arriendo, luz, sueldo], movs, '2026-09', 'ingreso'))
+      .toEqual({ estimado: 3000000, pagado: 0, faltan: 1, total: 1 });
   });
 });

@@ -6,6 +6,8 @@
      con aportes, 16 "tipos de gasto" automáticos, saldo por moneda.
    - v9: el modelo que dejó la primera pasada de la auditoría, que perdía los
      conceptos. Aquí se le añaden los recurrentes y las categorías de ingreso.
+   - v10: los recurrentes se podían apagar. Ya no: están todos activos y lo
+     que se marca cada mes es cuál se pagó.
 
    Lo que un concepto era —un nombre y un precio mensual— es hoy un gasto
    recurrente, que es como se registraba antes y como se vuelve a registrar. */
@@ -25,7 +27,7 @@ const NOMBRE_TIPO = {
 
 const RE_SUELDO = /n[oó]mina|sueldo|salario|quincena|pago mes/i;
 
-export const VERSION = 10;
+export const VERSION = 11;
 
 export function esViejo(p) {
   return !!p && p.v !== VERSION;
@@ -38,8 +40,8 @@ function diaDe(fecha) {
 
 /* Los conceptos de un perfil viejo, convertidos en recurrentes. Cada uno
    conserva su nombre, su precio mensual, su categoría y el día en que solías
-   pagarlo. Los que estaban marcados como gasto libre (sin plan) entran
-   apagados: no tenían precio fijo que repetir. */
+   pagarlo. Los que estaban marcados como gasto libre entran sin estimado:
+   no tenían precio fijo, así que el monto se escribe al pagarlos. */
 export function recurrentesDesdeConceptos(viejo) {
   const p = viejo || {};
   const ultimoDia = {};
@@ -58,7 +60,6 @@ export function recurrentesDesdeConceptos(viejo) {
         catId: it.id || OTROS,
         tipo: 'gasto',
         dia: ultimoDia[l.id] || 1,
-        activo: l.fixed !== false,
       });
     });
   });
@@ -86,7 +87,6 @@ export function recurrentesDesdePlantillas(viejo, yaHay = []) {
       catId: r.tipo === 'ingreso' ? null : (r.itemId || OTROS),
       tipo: r.tipo === 'ingreso' ? 'ingreso' : 'gasto',
       dia: Math.min(31, Math.max(1, Number(r.dia) || 1)),
-      activo: true,
     });
   });
   return fuera;
@@ -165,7 +165,21 @@ function migrarV9(p) {
   return { ...p, v: VERSION, cats, movs, recurrentes: p.recurrentes || [] };
 }
 
+/* El último paso por el que pasan todos los caminos: la forma de hoy.
+   `activo` desaparece —están todos activos— y `arranques` guarda los meses
+   que se empezaron de nuevo. */
+function finalizar(p) {
+  p.recurrentes = (p.recurrentes || []).map((r) => {
+    const { activo, ...resto } = r;
+    return resto;
+  });
+  p.arranques = p.arranques && typeof p.arranques === 'object' ? p.arranques : {};
+  p.v = VERSION;
+  return p;
+}
+
 export function migrarPerfil(viejo) {
   const p = viejo || {};
-  return p.v >= 9 ? migrarV9(p) : migrarV8(p);
+  if (p.v >= 10) return finalizar({ ...p });
+  return finalizar(p.v >= 9 ? migrarV9(p) : migrarV8(p));
 }

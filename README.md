@@ -1,12 +1,12 @@
 # Reparto mensual
 
-Registra ingresos y gastos, ponles categoría, mira en gráficas a dónde se va la plata, y el saldo se arrastra de un mes al siguiente: si agosto termina en −100.000, septiembre empieza en −100.000.
+Registra ingresos y gastos, ponles categoría, mira en gráficas a dónde se va la plata, y el saldo se arrastra de un mes al siguiente: si agosto termina en −100.000, septiembre empieza en −100.000. Cuando quieras cortar ese arrastre, un mes puede empezar de nuevo con la cifra que le pongas.
 
 Cinco pantallas:
 
-- **Inicio**: flechas de mes · empezaste con / entró / salió / terminas con · donut por categoría · barras de 6 meses · línea de saldo.
+- **Inicio**: flechas de mes · empezaste con / entró / salió / terminas con · empezar el mes de nuevo · donut por categoría · barras de 6 meses · línea de saldo.
 - **Movimientos**: lista del mes agrupada por día · filtro por categoría · botón “+” con hoja de 5 campos (ingreso/gasto, monto, categoría, fecha, nota).
-- **Recurrentes**: lo que se repite todos los meses, cada uno con su nombre y su precio. No se agregan solos: un botón los mete al mes cuando tú lo dices.
+- **Recurrentes**: lo que se repite todos los meses, cada uno con su nombre y su estimado. Están todos siempre; lo que cambia cada mes es cuál marcaste como pagado y por cuánto. El estimado es solo una referencia: al pagar escribes lo que de verdad costó y el estimado no se mueve.
 - **Categorías**: dos listas, gastos e ingresos. Nombre · presupuesto opcional · barra de lo gastado · agregar, renombrar, borrar (los movimientos pasan a Otros).
 - **Ajustes**: saldo inicial · exportar JSON · cerrar sesión.
 
@@ -39,4 +39,6 @@ npm run test
 - Gráficas en SVG a mano, sin librería.
 - localStorage como caché, Supabase como fuente de verdad: la UI nunca espera al servidor.
 - Solo pesos colombianos. Un perfil por cuenta.
+- Un recurrente no crea movimientos solo: uno que aparece sin que lo pidas es uno que nadie revisa.
+- Empezar un mes de nuevo no borra nada: `arranques` guarda desde qué mes se cuenta el arrastre, y los meses anteriores quedan intactos.
 - Los perfiles de versiones anteriores se migran solos al abrir la app (`src/engine/migrar.js`). Lo que antes eran conceptos dentro de una categoría —un nombre y un precio al mes— hoy son los recurrentes. Un perfil que ya pasó por una migración anterior los recupera del blob viejo que sigue en `localStorage`.

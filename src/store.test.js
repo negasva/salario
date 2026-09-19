@@ -75,12 +75,21 @@ describe('abrir la app con datos guardados', () => {
   });
 
   it('el rescate no se repite ni pisa lo que el usuario ya tenga', async () => {
-    const yaMigrado = { ...V9, v: 10, recurrentes: [{ id: 'x', n: 'Solo este', monto: 1, catId: 'otros', tipo: 'gasto', dia: 1, activo: true }] };
+    const yaMigrado = { ...V9, v: 11, recurrentes: [{ id: 'x', n: 'Solo este', monto: 1, catId: 'otros', tipo: 'gasto', dia: 1 }] };
     const p = await cargarCon({
-      'reparto:v10': JSON.stringify(yaMigrado),
+      'reparto:v11': JSON.stringify(yaMigrado),
       'reparto:v8': JSON.stringify(V8),
     });
     expect(p.recurrentes.map((r) => r.n)).toEqual(['Solo este']);
+  });
+
+  it('un perfil v10 se abre sin la marca de apagado y con los arranques listos', async () => {
+    const v10 = { ...V9, v: 10, arranques: { '2026-09': 0 },
+      recurrentes: [{ id: 'r1', n: 'Luz', monto: 90000, catId: 'otros', tipo: 'gasto', dia: 5, activo: false }] };
+    const p = await cargarCon({ 'reparto:v10': JSON.stringify(v10) });
+    expect(p.v).toBe(11);
+    expect('activo' in p.recurrentes[0]).toBe(false);
+    expect(p.arranques).toEqual({ '2026-09': 0 });
   });
 
   it('sin nada guardado arranca en blanco, con las categorías de fábrica', async () => {
@@ -92,7 +101,7 @@ describe('abrir la app con datos guardados', () => {
   });
 
   it('una caché corrupta no tumba la app', async () => {
-    const p = await cargarCon({ 'reparto:v10': '{roto', 'reparto:v8': JSON.stringify(V8) });
+    const p = await cargarCon({ 'reparto:v11': '{roto', 'reparto:v8': JSON.stringify(V8) });
     expect(p.recurrentes.map((r) => r.n)).toContain('Arriendo');
   });
 });
@@ -100,10 +109,17 @@ describe('abrir la app con datos guardados', () => {
 describe('guardar', () => {
   it('escribe en la caché lo que se acaba de cambiar', async () => {
     const p = await cargarCon({ 'reparto:v8': JSON.stringify(V8) });
-    p.recurrentes.push({ id: 'z', n: 'Netflix', monto: 26900, catId: 'otros', tipo: 'gasto', dia: 8, activo: true });
+    p.recurrentes.push({ id: 'z', n: 'Netflix', monto: 26900, catId: 'otros', tipo: 'gasto', dia: 8 });
     store.save();
-    const guardado = JSON.parse(localStorage.getItem('reparto:v10'));
+    const guardado = JSON.parse(localStorage.getItem('reparto:v11'));
     expect(guardado.recurrentes.map((r) => r.n)).toContain('Netflix');
-    expect(guardado.v).toBe(10);
+    expect(guardado.v).toBe(11);
+  });
+
+  it('guarda el mes que se empezó de nuevo', async () => {
+    const p = await cargarCon({ 'reparto:v8': JSON.stringify(V8) });
+    p.arranques['2026-10'] = 0;
+    store.save();
+    expect(JSON.parse(localStorage.getItem('reparto:v11')).arranques).toEqual({ '2026-10': 0 });
   });
 });

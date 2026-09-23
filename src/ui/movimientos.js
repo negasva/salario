@@ -23,6 +23,7 @@ export function renderMovimientos(root) {
   if (filtro && !p.cats.some((c) => c.id === filtro)) filtro = '';
   const lista = delMes(p.movs, per).filter((m) => !filtro || m.catId === filtro);
   const faltan = pendientes(p.recurrentes, p.movs, per);
+  const recs = new Map(p.recurrentes.map((r) => [r.id, r]));
 
   // agrupados por día, del más reciente al más viejo
   const dias = [];
@@ -40,7 +41,7 @@ export function renderMovimientos(root) {
     ${cabeceraMes(p, per, { compacta: true })}
     ${faltan.length ? `<div class="callout">
       <span class="callout-ic">${icon('campana')}</span>
-      <div class="callout-txt"><b>Te faltan ${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} de este mes</b>
+      <div class="callout-txt"><b>${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} sin ningún pago este mes</b>
         <span class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</span></div>
       <button id="mvRec">Marcarlos</button></div>` : ''}
     <div class="toolbar">
@@ -58,12 +59,15 @@ export function renderMovimientos(root) {
       <ul class="list">
       ${d.movs.map((m) => {
     const nombre = nombreDe(p.cats, m.catId);
+    // un pago por partes dice de qué recurrente es: "Mercado · Éxito"
+    const rec = m.recId && recs.get(m.recId);
+    const nota = rec && m.nota && m.nota !== rec.n ? `${rec.n} · ${m.nota}` : m.nota;
     return `<li class="row row-link mov ${m.tipo}">
         <button class="row-main" data-edit="${m.id}"><span class="sr-only">Editar </span>
           <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombre.trim().charAt(0).toUpperCase())}</span>
           <span class="row-txt">
             <span class="row-t">${esc(nombre)}</span>
-            ${m.nota ? `<span class="row-s">${esc(m.nota)}</span>` : ''}
+            ${nota ? `<span class="row-s">${esc(nota)}</span>` : ''}
           </span>
           <b class="num row-monto">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto)}</b>
         </button>

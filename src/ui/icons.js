@@ -22,6 +22,7 @@ const ICONS = {
   'alerta': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" />',
   'pendiente': '<circle cx="12" cy="12" r="9" stroke-dasharray="3.5 3" />',
   'pagado': '<circle cx="12" cy="12" r="10" /> <path d="m9 12 2 2 4-4" />',
+  'parcial': '<circle cx="12" cy="12" r="9" /> <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />',
   'billetera': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /> <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />',
 };
 

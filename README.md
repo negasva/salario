@@ -6,7 +6,7 @@ Cinco pantallas:
 
 - **Inicio**: flechas de mes · empezaste con / entró / salió / terminas con · empezar el mes de nuevo · donut por categoría · barras de 6 meses · línea de saldo.
 - **Movimientos**: lista del mes agrupada por día · filtro por categoría · botón “+” con hoja de 5 campos (ingreso/gasto, monto, categoría, fecha, nota).
-- **Recurrentes**: lo que se repite todos los meses, cada uno con su nombre y su estimado. Están todos siempre; lo que cambia cada mes es cuál marcaste como pagado y por cuánto. El estimado es solo una referencia: al pagar escribes lo que de verdad costó y el estimado no se mueve.
+- **Recurrentes**: lo que se repite todos los meses, cada uno con su nombre y su estimado. Están todos siempre; lo que cambia cada mes es cuánto llevas pagado de cada uno. Se paga de una vez (“Pagar todo”) o por partes: el mercado presupuestado en 400.000 se va pagando 130.000 en el Éxito, 200.000 en el D1 y 30.000 en domicilios, y ves que quedan 40.000. Cada parte es un movimiento con su nota y su fecha; el estimado no se mueve por lo que pagues.
 - **Categorías**: dos listas, gastos e ingresos. Nombre · presupuesto opcional · barra de lo gastado · agregar, renombrar, borrar (los movimientos pasan a Otros).
 - **Ajustes**: saldo inicial · exportar JSON · cerrar sesión.
 

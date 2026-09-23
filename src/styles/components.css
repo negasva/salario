@@ -267,11 +267,30 @@ input.monto{min-height:56px;font-size:26px;font-weight:var(--fw-bold);letter-spa
 /* recurrentes */
 .estado{display:flex;color:var(--text-3)}
 .estado svg{width:24px;height:24px}
-.estado.ok{color:var(--pos)}
+.estado.pagado{color:var(--pos)}
+.estado.parcial{color:var(--accent-text)}
 .rec .row-s{display:block;white-space:normal}
+.rec .row-s b{color:var(--text);font-weight:var(--fw-semibold)}
 .rec .row-s .dot{margin-right:6px;vertical-align:1px}
+.rec .barra{height:6px;margin-top:6px}
 .rec.pagado{background:color-mix(in srgb,var(--pos-soft) 55%,var(--surface))}
 .rec.pagado .row-t{color:var(--text-2)}
+
+/* hoja de pagos de un recurrente */
+.pg-resumen{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-4);margin-bottom:var(--space-5);
+  background:var(--surface-2);border-radius:var(--radius-md)}
+.pg-cifras{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:var(--space-2)}
+.pg-cifras .stat-label{flex-basis:100%}
+.pg-cifras b{font-size:26px;font-weight:var(--fw-black);letter-spacing:-0.03em}
+.pg-resumen .barra{background:var(--surface-3)}
+.pg-resumen .sub span{display:inline-flex;align-items:center;gap:4px;font-weight:var(--fw-semibold)}
+.pg-t{margin-bottom:var(--space-2)}
+.pg-lista{margin-bottom:var(--space-5)}
+.pg-lista .row,.pg-lista .row-main{min-height:52px}
+.pg-lista .editando{background:var(--accent-soft)}
+.pg-todo{margin-bottom:var(--space-2)}
+.pg-o{margin:var(--space-2) 0 var(--space-4);text-align:center;font-size:var(--text-xs);color:var(--text-3)}
+.pg-notas{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-2)}
 
 /* movimientos por día */
 .dia{margin-bottom:var(--space-5)}

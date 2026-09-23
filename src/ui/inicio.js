@@ -48,12 +48,9 @@ function graficaLinea(serie) {
   const d = puntos.map((pt, i) => `${i ? 'L' : 'M'}${pt.x} ${pt.y}`).join(' ');
   const area = puntos.length ? `${d} L${puntos[puntos.length - 1].x} ${cero} L${puntos[0].x} ${cero} Z` : '';
   return `<svg class="linea" viewBox="-10 -10 ${W + 20} ${H + 38}" role="img" aria-label="Saldo al final de cada mes">
-    <defs><linearGradient id="gradSaldo" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0" stop-color="var(--brand)" stop-opacity=".35" /><stop offset="1" stop-color="var(--brand)" stop-opacity="0" />
-    </linearGradient></defs>
-    <path d="${area}" fill="url(#gradSaldo)" />
+    <path d="${area}" fill="var(--brand)" fill-opacity=".12" />
     <line x1="0" x2="${W}" y1="${cero}" y2="${cero}" class="cero" />
-    <path d="${d}" fill="none" stroke="var(--text)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+    <path d="${d}" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
     ${puntos.map((pt, i) => `<circle cx="${pt.x}" cy="${pt.y}" r="${i === puntos.length - 1 ? 5.5 : 4}" fill="${pt.final < 0 ? 'var(--neg-fill)' : 'var(--pos-fill)'}" stroke="var(--surface)" stroke-width="2"><title>${etiquetaMes(pt.periodo)}: ${moneySigno(pt.final)}</title></circle>
       <text x="${pt.x}" y="${H + 22}" text-anchor="middle" class="eje ${i === puntos.length - 1 ? 'eje-actual' : ''}">${etiquetaMes(pt.periodo)}</text>`).join('')}
   </svg>`;

@@ -12,6 +12,17 @@ const ICONS = {
   'check': '<path d="M20 6 9 17l-5-5" />',
   'izq': '<path d="m15 18-6-6 6-6" />',
   'der': '<path d="m9 18 6-6-6-6" />',
+  'mas': '<path d="M5 12h14" /> <path d="M12 5v14" />',
+  'entra': '<path d="M17 7 7 17" /> <path d="M17 17H7V7" />',
+  'sale': '<path d="M7 7h10v10" /> <path d="M7 17 17 7" />',
+  'reiniciar': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" />',
+  'campana': '<path d="M10.268 21a2 2 0 0 0 3.464 0" /> <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />',
+  'basura': '<path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" />',
+  'descargar': '<path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" />',
+  'alerta': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" />',
+  'pendiente': '<circle cx="12" cy="12" r="9" stroke-dasharray="3.5 3" />',
+  'pagado': '<circle cx="12" cy="12" r="10" /> <path d="m9 12 2 2 4-4" />',
+  'billetera': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /> <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />',
 };
 
 let mounted = false;
@@ -24,6 +35,15 @@ export function mountIconSprite() {
   svg.innerHTML = Object.entries(ICONS)
     .map(([id, cuerpo]) => `<symbol id="ic-${id}" viewBox="0 0 24 24">${cuerpo}</symbol>`).join('');
   document.body.prepend(svg);
+}
+
+// El logo de la app, a color: no sale del sprite porque lleva dos tintas.
+export function logo(cls = 'logo') {
+  return `<svg class="${cls}" viewBox="0 0 512 512" aria-hidden="true">
+    <rect width="512" height="512" rx="112" fill="#17151A"/>
+    <circle cx="256" cy="256" r="150" fill="#FC90B6"/>
+    <path d="M196 340V172h74a52 52 0 0 1 0 104h-32l52 64" fill="none" stroke="#17151A"
+      stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 export function icon(name, cls = '') {

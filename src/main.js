@@ -13,7 +13,6 @@ mountIconSprite();
 store.load();
 
 const app = document.getElementById('app');
-let route = 'inicio';
 
 const ROUTES = {
   inicio: renderInicio,
@@ -23,28 +22,46 @@ const ROUTES = {
   ajustes: renderAjustes,
 };
 
+// La pantalla vive en el # de la dirección: atrás funciona y se puede enlazar.
+const deHash = () => (ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio');
+let route = deHash();
+let conSesion = false;
+
 function paintRoute() {
-  const content = renderShell(app, route, (r) => { route = r; paintRoute(); });
+  const content = renderShell(app, route, navegar);
   ROUTES[route](content);
 }
 
-// una pantalla pide saltar a otra (el aviso de recurrentes en Movimientos)
-window.addEventListener('ir-a-vista', (e) => {
-  if (!ROUTES[e.detail?.route]) return;
-  route = e.detail.route;
+function navegar(r) {
+  if (!ROUTES[r]) return;
+  if (location.hash.slice(1) === r) { route = r; paintRoute(); return; }
+  location.hash = r; // hashchange pinta
+}
+
+window.addEventListener('hashchange', () => {
+  // un # que no es pantalla (el enlace de recuperar clave) no mueve nada
+  if (!conSesion || !ROUTES[location.hash.slice(1)]) return;
+  const antes = route;
+  route = deHash();
   paintRoute();
+  if (route !== antes) window.scrollTo(0, 0);
 });
+
+// una pantalla pide saltar a otra (el aviso de recurrentes en Movimientos)
+window.addEventListener('ir-a-vista', (e) => navegar(e.detail?.route));
 
 async function boot() {
   const session = await getSession();
-  if (!session) { renderLogin(app, boot); return; }
+  if (!session) { conSesion = false; renderLogin(app, boot); return; }
   const res = await store.bootAuth(session.user.id);
   if (res?.migrated) toast('Tus datos locales se subieron a tu cuenta.');
+  conSesion = true;
+  route = deHash();
   paintRoute();
 }
 
 onAuthChange((session) => {
-  if (!session) { store.signOutLocal(); renderLogin(app, boot); }
+  if (!session) { conSesion = false; store.signOutLocal(); renderLogin(app, boot); }
 });
 
 boot();

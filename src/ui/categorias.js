@@ -51,39 +51,44 @@ export function renderCategorias(root) {
     const total = (c.tipo === 'ingreso' ? ingreso : gasto)[c.id] || 0;
     const pct = c.m > 0 ? Math.min(100, Math.round((total / c.m) * 100)) : 0;
     const pasado = c.m > 0 && total > c.m;
-    return `<div class="cat ${pasado ? 'over' : ''}" data-id="${c.id}">
-      <span class="dot" style="background:${c.c}"></span>
-      <div class="cat-txt">
-        <div class="cat-n">${esc(c.n)}</div>
-        <div class="cat-sub num">${money(total)}${c.m > 0 ? ` de ${money(c.m)}${pasado ? ` · te pasaste ${money(total - c.m)}` : ''}` : ''}</div>
-        ${c.m > 0 ? `<div class="barra"><i style="width:${pct}%;background:${pasado ? 'var(--sem-gasto-2)' : c.c}"></i></div>` : ''}
-      </div>
-      ${esFija(c.id) ? '' : `<button class="btn-icon" data-del="${c.id}" aria-label="Borrar ${esc(c.n)}">${icon('cerrar')}</button>`}
-    </div>`;
+    return `<li class="row row-link cat ${pasado ? 'over' : ''}">
+      <button class="row-main" data-id="${c.id}"><span class="sr-only">Editar </span>
+        <span class="av" style="--c:${c.c}" aria-hidden="true">${esc(c.n.trim().charAt(0).toUpperCase())}</span>
+        <span class="row-txt">
+          <span class="row-top">
+            <span class="row-t">${esc(c.n)}</span>
+            <span class="num row-monto">${money(total)}</span>
+          </span>
+          ${c.m > 0 ? `<span class="barra ${pasado ? 'barra-over' : ''}"><i style="width:${pct}%;background:${pasado ? 'var(--neg-fill)' : c.c}"></i></span>
+          <span class="row-s num">${pasado
+    ? `<span class="neg">${icon('alerta', 'ic-sm')}Te pasaste ${money(total - c.m)}</span><span class="trozo">de ${money(c.m)}</span>`
+    : `<span class="trozo">Quedan ${money(c.m - total)}</span><span class="trozo">de ${money(c.m)}</span>`}</span>`
+    : `<span class="row-s">${c.tipo === 'gasto' ? 'Sin presupuesto' : 'Este mes'}</span>`}
+        </span>
+      </button>
+      ${esFija(c.id) ? '<span class="row-acc-vacio"></span>' : `<button class="btn-icon btn-icon-danger" data-del="${c.id}" aria-label="Borrar ${esc(c.n)}">${icon('basura')}</button>`}
+    </li>`;
   };
 
   root.innerHTML = `
-    ${selectorMes()}
-    <div class="prow"><span class="sub">Toca una para editarla. Borrar una pasa sus movimientos a Otros.</span></div>
-    <div class="seccion">
-      <div class="seccion-head"><span class="label">Gastos</span><button class="mini" data-nueva="gasto">+ Nueva</button></div>
-      <div class="cats">${deTipo(p.cats, 'gasto').map(fila).join('')}</div>
-    </div>
-    <div class="seccion">
-      <div class="seccion-head"><span class="label">Ingresos</span><button class="mini" data-nueva="ingreso">+ Nueva</button></div>
-      <div class="cats">${deTipo(p.cats, 'ingreso').map(fila).join('')}</div>
-    </div>`;
+    ${selectorMes('Categorías')}
+    <p class="sub intro">Toca una para editarla. Borrar una pasa sus movimientos a Otros.</p>
+    <section class="seccion">
+      <div class="seccion-head"><h2 class="seccion-t">Gastos</h2><button class="mini" data-nueva="gasto">${icon('mas', 'ic-sm')}Nueva</button></div>
+      <ul class="list">${deTipo(p.cats, 'gasto').map(fila).join('')}</ul>
+    </section>
+    <section class="seccion">
+      <div class="seccion-head"><h2 class="seccion-t">Ingresos</h2><button class="mini" data-nueva="ingreso">${icon('mas', 'ic-sm')}Nueva</button></div>
+      <ul class="list">${deTipo(p.cats, 'ingreso').map(fila).join('')}</ul>
+    </section>`;
 
   const repintar = () => renderCategorias(root);
   enlazarMes(root, repintar);
   root.querySelectorAll('[data-nueva]').forEach((b) => {
     b.onclick = () => editor(null, b.dataset.nueva, repintar);
   });
-  root.querySelectorAll('.cat').forEach((el) => {
-    el.onclick = (e) => {
-      if (e.target.closest('[data-del]')) return;
-      editor(p.cats.find((c) => c.id === el.dataset.id), null, repintar);
-    };
+  root.querySelectorAll('.row-main').forEach((b) => {
+    b.onclick = () => editor(p.cats.find((c) => c.id === b.dataset.id), null, repintar);
   });
   root.querySelectorAll('[data-del]').forEach((b) => {
     b.onclick = () => {

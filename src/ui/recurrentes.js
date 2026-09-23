@@ -20,8 +20,8 @@ function editorFicha(rec, alGuardar) {
   const { cuerpo, cerrar } = abrirModal({ titulo: nuevo ? 'Nuevo recurrente' : 'Editar recurrente' });
   cuerpo.innerHTML = `
     <div class="chips chips-tipo" id="reTipo">
-      <button class="chip chip-gasto ${r.tipo === 'gasto' ? 'on' : ''}" data-tipo="gasto">Gasto</button>
-      <button class="chip chip-ingreso ${r.tipo === 'ingreso' ? 'on' : ''}" data-tipo="ingreso">Ingreso</button>
+      <button class="chip chip-gasto" data-tipo="gasto">${icon('sale', 'ic-sm')}Gasto</button>
+      <button class="chip chip-ingreso" data-tipo="ingreso">${icon('entra', 'ic-sm')}Ingreso</button>
     </div>
     <div class="fld"><label for="reNombre">Nombre</label>
       <input id="reNombre" value="${esc(r.n)}" placeholder="Ej: Arriendo, Internet" autocomplete="off"></div>
@@ -40,7 +40,10 @@ function editorFicha(rec, alGuardar) {
   let tipo = r.tipo;
   const setTipo = (t) => {
     tipo = t;
-    cuerpo.querySelectorAll('#reTipo .chip').forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
+    cuerpo.querySelectorAll('#reTipo .chip').forEach((b) => {
+      b.classList.toggle('on', b.dataset.tipo === t);
+      b.setAttribute('aria-pressed', String(b.dataset.tipo === t));
+    });
     $('#reCatWrap').hidden = t === 'ingreso';
   };
   const guardar = () => {
@@ -127,45 +130,57 @@ export function renderRecurrentes(root) {
     const mov = pagoDelMes(r, p.movs, per);
     const detalle = mov
       ? `${money(mov.monto)} el ${fechaCorta(mov.fecha)}${r.monto && mov.monto !== r.monto ? ` · estimado ${money(r.monto)}` : ''}`
-      : `${r.monto ? `estimado ${money(r.monto)}` : 'sin estimado'} · día ${r.dia}`;
-    return `<div class="cat rec ${mov ? 'pagado' : ''}" data-id="${r.id}">
-      <span class="dot" style="background:${r.tipo === 'ingreso' ? 'var(--sem-ingreso-2)' : colorDe(p.cats, r.catId)}"></span>
-      <div class="cat-txt">
-        <div class="cat-n">${esc(r.n)}</div>
-        <div class="cat-sub num">${detalle} · ${r.tipo === 'ingreso' ? 'Ingreso' : esc(nombreDe(p.cats, r.catId))}</div>
+      : `${r.monto ? `Estimado ${money(r.monto)}` : 'Sin estimado'} · día ${r.dia}`;
+    return `<li class="row rec ${mov ? 'pagado' : ''}" data-id="${r.id}">
+      <span class="estado ${mov ? 'ok' : ''}" aria-hidden="true">${icon(mov ? 'pagado' : 'pendiente')}</span>
+      <div class="row-txt">
+        <div class="row-t">${esc(r.n)}</div>
+        <div class="row-s num"><span class="dot" style="background:${r.tipo === 'ingreso' ? 'var(--pos-fill)' : colorDe(p.cats, r.catId)}"></span>${detalle} · ${r.tipo === 'ingreso' ? 'Ingreso' : esc(nombreDe(p.cats, r.catId))}</div>
       </div>
-      <button class="${mov ? 'mini pagado-btn' : 'mini btn-primary'}" data-pago="${r.id}">${mov ? `${icon('check', 'ic-sm')} Pagado` : 'Pagar'}</button>
-      <button class="btn-icon" data-edit="${r.id}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
-    </div>`;
+      <div class="row-acc">
+        <button class="${mov ? 'mini pagado-btn' : 'mini btn-primary'}" data-pago="${r.id}" aria-label="${mov ? `${esc(r.n)}: pagado, cambiar` : `Pagar ${esc(r.n)}`}">${mov ? `${icon('check', 'ic-sm')}Pagado` : 'Pagar'}</button>
+        <button class="btn-icon" data-edit="${r.id}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
+      </div>
+    </li>`;
   };
 
   const lista = (tipo) => p.recurrentes.filter((r) => r.tipo === tipo);
+  const total = p.recurrentes.length;
+  const marcados = total - faltan;
 
   root.innerHTML = `
-    ${selectorMes()}
-    <div class="card resumen-mes">
-      <div class="rm-col"><span class="label">Pagado este mes</span><b class="num neg">${money(gastos.pagado)}</b></div>
-      <div class="rm-col"><span class="label">Estimado del mes</span><b class="num">${money(gastos.estimado)}</b></div>
-      ${ingresos.total ? `<div class="rm-col"><span class="label">Ingresos fijos recibidos</span><b class="num pos">${money(ingresos.pagado)}</b></div>
-      <div class="rm-col"><span class="label">Estimado</span><b class="num">${money(ingresos.estimado)}</b></div>` : ''}
-    </div>
-    ${faltan ? `<div class="card aviso">
-      <div><b>Faltan ${faltan} por marcar</b>
-        <div class="sub">Marca cada uno con lo que de verdad costó.</div></div>
-      ${conEstimado ? `<button id="reTodos">Marcar ${conEstimado} con su estimado</button>` : ''}
-    </div>` : (p.recurrentes.length ? '<div class="card aviso"><div class="sub">Ya marcaste todos los de este mes.</div></div>' : '')}
-    <div class="prow"><span class="sub">Cada uno guarda su nombre y su estimado. Al pagarlo escribes lo que costó de verdad.</span>
-      <button class="btn-primary" id="reNuevo">+ Nuevo</button></div>
-    ${p.recurrentes.length ? `
-      <div class="seccion">
-        <div class="seccion-head"><span class="label">Gastos</span></div>
-        <div class="cats">${lista('gasto').map(fila).join('') || '<div class="empty">Ninguno todavía.</div>'}</div>
+    ${selectorMes('Recurrentes')}
+    <section class="card resumen">
+      <div class="stats">
+        <div class="stat"><span class="stat-label">Pagado este mes</span><b class="num neg">${money(gastos.pagado)}</b></div>
+        <div class="stat"><span class="stat-label">Estimado del mes</span><b class="num">${money(gastos.estimado)}</b></div>
+        ${ingresos.total ? `<div class="stat"><span class="stat-label">Ingresos fijos recibidos</span><b class="num pos">${money(ingresos.pagado)}</b></div>
+        <div class="stat"><span class="stat-label">Estimado de ingresos</span><b class="num">${money(ingresos.estimado)}</b></div>` : ''}
       </div>
-      ${lista('ingreso').length ? `<div class="seccion">
-        <div class="seccion-head"><span class="label">Ingresos</span></div>
-        <div class="cats">${lista('ingreso').map(fila).join('')}</div>
-      </div>` : ''}`
-    : '<div class="empty">Todavía no tienes recurrentes. Toca “+ Nuevo”.</div>'}`;
+      ${total ? `<div class="progreso">
+        <div class="progreso-txt"><span>${faltan ? `Faltan <b>${faltan}</b> por marcar` : 'Ya marcaste todos los de este mes'}</span><span class="num">${marcados} de ${total}</span></div>
+        <div class="barra" role="progressbar" aria-label="Recurrentes marcados" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${marcados}"><i style="width:${Math.round((marcados / total) * 100)}%"></i></div>
+        ${conEstimado ? `<button class="mini" id="reTodos">${icon('check', 'ic-sm')}Marcar ${conEstimado} con su estimado</button>` : ''}
+      </div>` : ''}
+    </section>
+    <div class="section-bar">
+      <p class="sub">Cada uno guarda su nombre y su estimado. Al pagarlo escribes lo que costó de verdad.</p>
+      <button class="btn-primary" id="reNuevo">${icon('mas')}Nuevo</button>
+    </div>
+    ${total ? `
+      <section class="seccion">
+        <h2 class="seccion-t">Gastos</h2>
+        ${lista('gasto').length ? `<ul class="list">${lista('gasto').map(fila).join('')}</ul>` : '<div class="empty">Ninguno todavía.</div>'}
+      </section>
+      ${lista('ingreso').length ? `<section class="seccion">
+        <h2 class="seccion-t">Ingresos</h2>
+        <ul class="list">${lista('ingreso').map(fila).join('')}</ul>
+      </section>` : ''}`
+    : `<div class="empty-state">
+        <span class="empty-ic">${icon('recurrente')}</span>
+        <b>Todavía no tienes recurrentes</b>
+        <span class="sub">El arriendo, el internet, el sueldo: lo que se repite cada mes. Toca Nuevo para agregar el primero.</span>
+      </div>`}`;
 
   const repintar = () => renderRecurrentes(root);
   enlazarMes(root, repintar);

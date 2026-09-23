@@ -1,6 +1,6 @@
 import * as store from '../store.js';
 import { resumenMes, periodoActual, sumarMeses } from '../engine/movimientos.js';
-import { money, moneySigno, nombreMes, plain, digits } from '../format.js';
+import { money, moneySigno, nombreMes, plain, digits, MESES } from '../format.js';
 import { abrirModal } from './modal.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -11,13 +11,23 @@ let periodo = periodoActual();
 export function mesElegido() { return periodo; }
 export function setMes(per) { periodo = per; }
 
-// Flechas del mes. Devuelve el HTML; `enlazarMes` cuelga los clics.
-export function selectorMes() {
-  return `<div class="mes-nav">
-    <button class="btn-icon" data-mes="-1" aria-label="Mes anterior">${icon('izq')}</button>
-    <h2 class="mes-titulo">${nombreMes(periodo)}</h2>
-    <button class="btn-icon" data-mes="1" aria-label="Mes siguiente">${icon('der')}</button>
-  </div>`;
+/* Cabecera de cada pantalla: qué pantalla es, el mes en grande y sus
+   flechas. `Hoy` aparece solo cuando uno se fue a otro mes. Devuelve el HTML;
+   `enlazarMes` cuelga los clics. */
+export function selectorMes(pantalla = '') {
+  const [a, m] = periodo.split('-');
+  const hoy = periodoActual();
+  return `<header class="page-head">
+    <div class="ph-txt">
+      ${pantalla ? `<span class="eyebrow">${pantalla}</span>` : ''}
+      <h1 class="mes-titulo">${MESES[Number(m) - 1]} <span class="mes-anio">${a}</span></h1>
+    </div>
+    <div class="mes-nav" role="group" aria-label="Cambiar de mes">
+      ${periodo !== hoy ? '<button class="mes-hoy" data-mes-hoy title="Volver al mes actual">Hoy</button>' : ''}
+      <button class="btn-icon" data-mes="-1" aria-label="Mes anterior">${icon('izq')}</button>
+      <button class="btn-icon" data-mes="1" aria-label="Mes siguiente">${icon('der')}</button>
+    </div>
+  </header>`;
 }
 
 /* Empezar el mes de nuevo. Pagaste una deuda por fuera, o te sobró plata que
@@ -57,22 +67,30 @@ export function enlazarMes(root, repintar) {
   root.querySelectorAll('[data-mes]').forEach((b) => {
     b.onclick = () => { periodo = sumarMeses(periodo, Number(b.dataset.mes)); repintar(); };
   });
+  root.querySelector('[data-mes-hoy]')?.addEventListener('click', () => { periodo = periodoActual(); repintar(); });
   root.querySelector('#mesArranque')?.addEventListener('click', () => abrirArranque(periodo, repintar));
 }
 
 /* Empezaste con → entró → salió → terminas con. El arrastre a la vista en
-   cada mes, que es lo que la app existe para decir. */
-export function cabeceraMes(p, per = periodo) {
+   cada mes, que es lo que la app existe para decir: el saldo final en grande
+   y debajo la cuenta que lo explica. `compacta` es la versión para encima de
+   una lista. */
+export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
   const r = resumenMes(p.saldoInicial, p.movs, per, p.arranques);
   const arrancado = p.arranques?.[per] !== undefined;
-  const clase = (v) => (v < 0 ? 'neg' : 'pos');
-  return `<div class="card resumen-mes">
-    <div class="rm-col"><span class="label">Empezaste con</span><b class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</b></div>
-    <div class="rm-col"><span class="label">Entró</span><b class="num pos">${money(r.ingresos)}</b></div>
-    <div class="rm-col"><span class="label">Salió</span><b class="num neg">${money(r.gastos)}</b></div>
-    <div class="rm-col rm-final"><span class="label">Terminas con</span><b class="num ${clase(r.final)}">${moneySigno(r.final)}</b></div>
-    <button class="mini rm-arranque" id="mesArranque">${arrancado
+  const clase = (v) => (v < 0 ? 'neg' : v > 0 ? 'pos' : '');
+  return `<section class="hero ${compacta ? 'hero-compacta' : ''}" aria-label="Saldo del mes">
+    <div class="hero-main">
+      <span class="hero-label">Terminas con</span>
+      <b class="hero-monto num ${clase(r.final)}">${moneySigno(r.final)}</b>
+    </div>
+    <dl class="hero-cuenta">
+      <div class="hc"><dt>${icon('billetera')}Empezaste con</dt><dd class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</dd></div>
+      <div class="hc"><dt>${icon('entra')}Entró</dt><dd class="num ${clase(r.ingresos)}">${moneySigno(r.ingresos)}</dd></div>
+      <div class="hc"><dt>${icon('sale')}Salió</dt><dd class="num ${clase(-r.gastos)}">${moneySigno(-r.gastos)}</dd></div>
+    </dl>
+    <button class="hero-arranque" id="mesArranque">${icon('reiniciar')}${arrancado
     ? 'Este mes empieza de nuevo · cambiar'
     : 'Empezar este mes en cero'}</button>
-  </div>`;
+  </section>`;
 }

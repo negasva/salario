@@ -3,6 +3,7 @@ import { money, plain, esc, digits } from '../format.js';
 import { hoyISO } from '../engine/movimientos.js';
 import { deTipo, fallbackDe, nuevoId } from '../engine/categorias.js';
 import { abrirModal } from './modal.js';
+import { icon } from './icons.js';
 import { toast } from './shell.js';
 
 /* La hoja de registro: Ingreso/Gasto · Monto · Categoría · Fecha · Nota.
@@ -19,8 +20,8 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
 
   cuerpo.innerHTML = `
     <div class="chips chips-tipo" id="regTipo">
-      <button class="chip chip-gasto ${tipo === 'gasto' ? 'on' : ''}" data-tipo="gasto">Gasto</button>
-      <button class="chip chip-ingreso ${tipo === 'ingreso' ? 'on' : ''}" data-tipo="ingreso">Ingreso</button>
+      <button class="chip chip-gasto" data-tipo="gasto">${icon('sale', 'ic-sm')}Gasto</button>
+      <button class="chip chip-ingreso" data-tipo="ingreso">${icon('entra', 'ic-sm')}Ingreso</button>
     </div>
     <div class="fld"><label for="regMonto">Monto</label>
       <input id="regMonto" class="num monto" inputmode="numeric" placeholder="0" value="${previo ? plain(previo.monto) : ''}"></div>
@@ -36,7 +37,10 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
   const $ = (s) => cuerpo.querySelector(s);
   function setTipo(t) {
     tipo = t;
-    cuerpo.querySelectorAll('#regTipo .chip').forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
+    cuerpo.querySelectorAll('#regTipo .chip').forEach((b) => {
+      b.classList.toggle('on', b.dataset.tipo === t);
+      b.setAttribute('aria-pressed', String(b.dataset.tipo === t));
+    });
     // cada tipo tiene sus propias categorías: mercado no es un ingreso
     $('#regCat').innerHTML = opciones(t);
     if (previo?.catId && deTipo(p.cats, t).some((c) => c.id === previo.catId)) $('#regCat').value = previo.catId;

@@ -37,6 +37,8 @@ npm run test
 - Vite + JS vanilla, sin framework: el estado cabe en un módulo.
 - El motor (`src/engine/`) es puro y es lo único con tests.
 - Gráficas en SVG a mano, sin librería.
+- Diseño en tokens (`src/styles/tokens.css`): rosa de marca como único acento sobre neutros cálidos, claro u oscuro según el sistema. En el teléfono el menú va abajo, al alcance del pulgar; en escritorio, a un lado.
+- La pantalla vive en el `#` de la dirección (`#movimientos`), así que atrás funciona y se puede enlazar.
 - localStorage como caché, Supabase como fuente de verdad: la UI nunca espera al servidor.
 - Solo pesos colombianos. Un perfil por cuenta.
 - Un recurrente no crea movimientos solo: uno que aparece sin que lo pidas es uno que nadie revisa.

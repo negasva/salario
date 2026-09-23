@@ -10,6 +10,13 @@ import { toast } from './shell.js';
 
 let filtro = ''; // '' = todo | catId
 
+// '2026-09-08' → 'lunes'
+function diaSemana(fecha) {
+  const [a, m, d] = String(fecha).split('-').map(Number);
+  const dt = new Date(a, m - 1, d);
+  return Number.isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('es-CO', { weekday: 'long' });
+}
+
 export function renderMovimientos(root) {
   const p = store.active();
   const per = mesElegido();
@@ -26,39 +33,54 @@ export function renderMovimientos(root) {
   const grupo = (tipo) => deTipo(p.cats, tipo)
     .map((c) => `<option value="${c.id}" ${filtro === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
 
+  const netoDia = (movs) => movs.reduce((t, m) => t + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
+
   root.innerHTML = `
-    ${selectorMes()}
-    ${cabeceraMes(p, per)}
-    ${faltan.length ? `<div class="card aviso">
-      <div><b>Te faltan ${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} de este mes</b>
-        <div class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</div></div>
-      <button class="btn-primary" id="mvRec">Marcarlos</button></div>` : ''}
-    <div class="prow">
+    ${selectorMes('Movimientos')}
+    ${cabeceraMes(p, per, { compacta: true })}
+    ${faltan.length ? `<div class="callout">
+      <span class="callout-ic">${icon('campana')}</span>
+      <div class="callout-txt"><b>Te faltan ${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} de este mes</b>
+        <span class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</span></div>
+      <button id="mvRec">Marcarlos</button></div>` : ''}
+    <div class="toolbar">
       <select id="mvFiltro" aria-label="Filtrar por categoría">
-        <option value="">Todo</option>
+        <option value="">Todas las categorías</option>
         <optgroup label="Gastos">${grupo('gasto')}</optgroup>
         <optgroup label="Ingresos">${grupo('ingreso')}</optgroup>
       </select>
-      <button class="btn-primary" id="mvNuevo">+ Registrar</button>
     </div>
-    ${dias.length ? dias.map((d) => `<div class="dia">
-      <div class="dia-fecha">${fechaCorta(d.fecha)}</div>
-      ${d.movs.map((m) => `<div class="mov ${m.tipo}" data-id="${m.id}">
-        <span class="dot" style="background:${colorDe(p.cats, m.catId)}"></span>
-        <div class="mov-txt">
-          <div class="mov-cat">${esc(nombreDe(p.cats, m.catId))}</div>
-          ${m.nota ? `<div class="mov-nota">${esc(m.nota)}</div>` : ''}
-        </div>
-        <b class="num mov-monto">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto)}</b>
-        <button class="btn-icon" data-edit="${m.id}" aria-label="Editar">${icon('lapiz')}</button>
-        <button class="btn-icon" data-del="${m.id}" aria-label="Borrar">${icon('cerrar')}</button>
-      </div>`).join('')}
-    </div>`).join('') : '<div class="empty">Nada registrado este mes. Toca “+ Registrar”.</div>'}`;
+    ${dias.length ? dias.map((d) => {
+    const neto = netoDia(d.movs); // solo se muestra si el día tiene más de uno
+    return `<section class="dia">
+      <h2 class="dia-head"><span class="dia-fecha">${fechaCorta(d.fecha)}</span><span class="dia-semana">${diaSemana(d.fecha)}</span>
+        ${d.movs.length > 1 ? `<span class="dia-neto num ${neto < 0 ? 'neg' : 'pos'}">${neto < 0 ? '−' : '+'}${money(Math.abs(neto))}</span>` : ''}</h2>
+      <ul class="list">
+      ${d.movs.map((m) => {
+    const nombre = nombreDe(p.cats, m.catId);
+    return `<li class="row row-link mov ${m.tipo}">
+        <button class="row-main" data-edit="${m.id}"><span class="sr-only">Editar </span>
+          <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombre.trim().charAt(0).toUpperCase())}</span>
+          <span class="row-txt">
+            <span class="row-t">${esc(nombre)}</span>
+            ${m.nota ? `<span class="row-s">${esc(m.nota)}</span>` : ''}
+          </span>
+          <b class="num row-monto">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto)}</b>
+        </button>
+        <button class="btn-icon btn-icon-danger" data-del="${m.id}" aria-label="Borrar ${esc(nombre)} de ${money(m.monto)}">${icon('basura')}</button>
+      </li>`;
+  }).join('')}
+      </ul>
+    </section>`;
+  }).join('') : `<div class="empty-state">
+      <span class="empty-ic">${icon('movimientos')}</span>
+      <b>${filtro ? 'Nada en esta categoría este mes' : 'Nada registrado este mes'}</b>
+      <span class="sub">${filtro ? 'Prueba con otra o vuelve a ver todas.' : 'Toca el + para anotar lo que entra y lo que sale.'}</span>
+    </div>`}`;
 
   const repintar = () => renderMovimientos(root);
   enlazarMes(root, repintar);
   root.querySelector('#mvFiltro').onchange = (e) => { filtro = e.target.value; repintar(); };
-  root.querySelector('#mvNuevo').onclick = () => abrirRegistro({ alGuardar: repintar });
   // marcarlos uno a uno es cosa de su pantalla: aquí solo se avisa
   root.querySelector('#mvRec')?.addEventListener('click', () => {
     window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'recurrentes' } }));

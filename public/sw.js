@@ -5,7 +5,7 @@
    que aquí no se cachea ni una respuesta de la API: una app de plata que
    muestra saldos viejos es peor que una que dice que no hay internet. */
 
-const CACHE = 'reparto-v1';
+const CACHE = 'reparto-v2';
 const BASE = ['/', '/index.html', '/manifest.webmanifest', '/icono.svg'];
 
 self.addEventListener('install', (e) => {

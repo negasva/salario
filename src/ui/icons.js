@@ -23,6 +23,17 @@ const ICONS = {
   'pendiente': '<circle cx="12" cy="12" r="9" stroke-dasharray="3.5 3" />',
   'pagado': '<circle cx="12" cy="12" r="10" /> <path d="m9 12 2 2 4-4" />',
   'parcial': '<circle cx="12" cy="12" r="9" /> <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />',
+  'ahorro': '<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z" /> <path d="M2 9v1c0 1.1.9 2 2 2h1" /> <path d="M16 11h.01" />',
+  'comparar': '<path d="M3 3v18h18" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" />',
+  'mas-menu': '<rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" />',
+  'buscar': '<circle cx="11" cy="11" r="8" /> <path d="m21 21-4.3-4.3" />',
+  'calendario': '<path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" />',
+  'subir': '<path d="M12 3v12" /> <path d="m17 8-5-5-5 5" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />',
+  'meta': '<circle cx="12" cy="12" r="10" /> <circle cx="12" cy="12" r="6" /> <circle cx="12" cy="12" r="2" />',
+  'tarjeta': '<rect width="20" height="14" x="2" y="5" rx="2" /> <line x1="2" x2="22" y1="10" y2="10" />',
+  'sube': '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /> <polyline points="16 7 22 7 22 13" />',
+  'baja': '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7" /> <polyline points="16 17 22 17 22 11" />',
+  'reloj': '<circle cx="12" cy="12" r="10" /> <polyline points="12 6 12 12 16 14" />',
   'billetera': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /> <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />',
 };
 

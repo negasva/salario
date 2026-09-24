@@ -13,10 +13,14 @@
    menos lo que llevas, y el estimado nunca se mueve por lo que pagues.
    Un estimado en cero significa "no sé cuánto, lo voy sumando".
 
-   Un recurrente es { id, n, monto, catId, tipo, dia }. Sus pagos son los
-   movimientos del mes con `recId` igual a su id. */
+   Una deuda en cuotas (el carro, el celular) es un recurrente con fin:
+   `cuotas: { total, desde: 'AAAA-MM' }`. Solo aparece en los meses que le
+   tocan, dice qué cuota va y cuánto falta en total.
 
-import { periodoDe, hoyISO } from './movimientos.js';
+   Un recurrente es { id, n, monto, catId, tipo, dia, cuotas? }. Sus pagos son
+   los movimientos del mes con `recId` igual a su id. */
+
+import { periodoDe, hoyISO, sumarMeses } from './movimientos.js';
 import { nuevoId, OTROS } from './categorias.js';
 
 // El día 31 en febrero no existe: se cae al último día del mes.
@@ -33,8 +37,8 @@ export function fechaSugerida(rec, periodo, hoy = hoyISO()) {
   return periodoDe(hoy) === periodo ? hoy : fechaEnPeriodo(periodo, rec?.dia);
 }
 
-export function nuevoRecurrente({ n, monto = 0, catId = OTROS, tipo = 'gasto', dia = 1 } = {}) {
-  return {
+export function nuevoRecurrente({ n, monto = 0, catId = OTROS, tipo = 'gasto', dia = 1, cuotas = null } = {}) {
+  const r = {
     id: nuevoId(),
     n: String(n || '').trim(),
     monto: Math.max(0, Math.round(Number(monto) || 0)),
@@ -42,6 +46,63 @@ export function nuevoRecurrente({ n, monto = 0, catId = OTROS, tipo = 'gasto', d
     tipo: tipo === 'ingreso' ? 'ingreso' : 'gasto',
     dia: Math.min(31, Math.max(1, Math.round(Number(dia) || 1))),
   };
+  const c = normalizarCuotas(cuotas);
+  if (c) r.cuotas = c;
+  return r;
+}
+
+/* ---------- deudas en cuotas ---------- */
+
+// { total, desde } válido, o null si no es una deuda.
+export function normalizarCuotas(c) {
+  const total = Math.round(Number(c?.total) || 0);
+  if (!(total > 0) || !/^\d{4}-\d{2}$/.test(String(c?.desde || ''))) return null;
+  return { total, desde: c.desde };
+}
+
+// Meses de `a` a `b` ('AAAA-MM'): de agosto a octubre son 2.
+export function mesesEntre(a, b) {
+  const [ya, ma] = a.split('-').map(Number);
+  const [yb, mb] = b.split('-').map(Number);
+  return (yb - ya) * 12 + (mb - ma);
+}
+
+// Qué cuota toca en el mes (1 es la primera), o null si no es una deuda.
+export function numeroCuota(rec, periodo) {
+  if (!rec?.cuotas) return null;
+  return mesesEntre(rec.cuotas.desde, periodo) + 1;
+}
+
+// El mes de la última cuota.
+export function mesFinal(rec) {
+  return rec?.cuotas ? sumarMeses(rec.cuotas.desde, rec.cuotas.total - 1) : null;
+}
+
+// Un recurrente normal va todos los meses; una deuda, solo en los suyos.
+export function activoEn(rec, periodo) {
+  const n = numeroCuota(rec, periodo);
+  return n === null || (n >= 1 && n <= rec.cuotas.total);
+}
+
+/* Cómo va una deuda: cuánto era en total (cuotas × estimado), cuánto llevas
+   pagado sumando todos sus meses y cuánto falta. Contar lo pagado de verdad,
+   y no las cuotas, hace que un abono extra o una cuota a medias se vean. */
+export function estadoDeuda(rec, movs, periodo) {
+  if (!rec?.cuotas) return null;
+  const { total, desde } = rec.cuotas;
+  const fin = mesFinal(rec);
+  const deuda = total * (rec.monto || 0);
+  const pagado = (movs || [])
+    .filter((m) => m.recId === rec.id && periodoDe(m.fecha) >= desde && periodoDe(m.fecha) <= fin)
+    .reduce((t, m) => t + m.monto, 0);
+  const falta = Math.max(0, deuda - pagado);
+  const n = numeroCuota(rec, periodo);
+  const cuota = Math.min(total, Math.max(0, n));
+  let estado = 'en curso';
+  if (n < 1) estado = 'por empezar';
+  else if (falta === 0 && deuda > 0) estado = 'pagada';
+  else if (n > total) estado = 'vencida';
+  return { total, cuota, deuda, pagado, falta, fin, estado };
 }
 
 const entero = (v) => Math.max(0, Math.round(Number(v) || 0));
@@ -72,9 +133,9 @@ export function estadoDelMes(rec, movs, periodo) {
   return { pagos, pagado, queda, pasado, estado };
 }
 
-// Los que todavía no tienen ni un pago en el mes elegido.
+// Los que tocan en el mes elegido y todavía no tienen ni un pago.
 export function pendientes(recurrentes, movs, periodo) {
-  return (recurrentes || []).filter((r) => !estaPagado(r, movs, periodo));
+  return (recurrentes || []).filter((r) => activoEn(r, periodo) && !estaPagado(r, movs, periodo));
 }
 
 function notaDe(rec, nota) {
@@ -153,7 +214,7 @@ export function marcarTodos(recurrentes, movs, periodo, soloIds = null) {
 /* Cómo va el mes: cuánto se esperaba, cuánto se lleva pagado, cuánto queda
    por pagar de los que tienen estimado y cuántos no tienen ni un pago. */
 export function resumen(recurrentes, movs, periodo, tipo = 'gasto') {
-  const lista = (recurrentes || []).filter((r) => r.tipo === tipo);
+  const lista = (recurrentes || []).filter((r) => r.tipo === tipo && activoEn(r, periodo));
   let estimado = 0;
   let pagado = 0;
   let queda = 0;
@@ -166,4 +227,85 @@ export function resumen(recurrentes, movs, periodo, tipo = 'gasto') {
     if (e.estado === 'pendiente') faltan += 1;
   });
   return { estimado, pagado, queda, faltan, total: lista.length };
+}
+
+/* ---------- lo que viene ---------- */
+
+// Días de `a` a `b` ('AAAA-MM-DD'), negativo si `b` ya pasó.
+export function diasEntre(a, b) {
+  const f = (x) => { const [y, m, d] = x.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((f(b) - f(a)) / 86400000);
+}
+
+/* Los gastos que vencen pronto y no tienen ni un pago: los de este mes que
+   ya pasaron (vencidos) y los que caen en los próximos `dias`, aunque sean
+   del mes siguiente. Del más urgente al más lejano. */
+export function vencimientos(recurrentes, movs, hoy = hoyISO(), dias = 7) {
+  const actual = periodoDe(hoy);
+  const lista = [];
+  [actual, sumarMeses(actual, 1)].forEach((per) => {
+    (recurrentes || []).forEach((rec) => {
+      if (rec.tipo !== 'gasto' || !activoEn(rec, per) || estaPagado(rec, movs, per)) return;
+      const fecha = fechaEnPeriodo(per, rec.dia);
+      const en = diasEntre(hoy, fecha);
+      if (en > dias || (per !== actual && en < 0)) return;
+      lista.push({ rec, periodo: per, fecha, en, monto: rec.monto });
+    });
+  });
+  return lista.sort((a, b) => a.en - b.en);
+}
+
+// 'vence hoy', 'vence mañana', 'vence en 3 días', 'venció hace 2 días'
+export function cuandoVence(en) {
+  if (en === 0) return 'vence hoy';
+  if (en === 1) return 'vence mañana';
+  if (en > 1) return `vence en ${en} días`;
+  if (en === -1) return 'venció ayer';
+  return `venció hace ${-en} días`;
+}
+
+/* Si pagas (y recibes) lo que falta de los recurrentes, con cuánto terminas
+   el mes. Parte del "terminas con" de hoy. */
+export function proyeccion(final, recurrentes, movs, periodo) {
+  const g = resumen(recurrentes, movs, periodo, 'gasto');
+  const i = resumen(recurrentes, movs, periodo, 'ingreso');
+  return { final: final - g.queda + i.queda, porPagar: g.queda, porRecibir: i.queda };
+}
+
+/* Los recurrentes como calendario (.ics): un evento cada mes el día que toca,
+   con aviso la víspera a las 9 de la mañana. El 31 cae en el último día de
+   los meses cortos. Una deuda solo repite las cuotas que le faltan. */
+export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date()) {
+  const esc = (t) => String(t).replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
+  const plata = (v) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(v);
+  const dtstamp = sello.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const actual = periodoDe(hoy);
+  const eventos = (recurrentes || []).filter((r) => r.tipo === 'gasto').map((r) => {
+    let per = actual;
+    let count = '';
+    if (r.cuotas) {
+      if (actual < r.cuotas.desde) per = r.cuotas.desde;
+      const quedan = r.cuotas.total - (numeroCuota(r, per) - 1);
+      if (quedan <= 0) return null;
+      count = `;COUNT=${quedan}`;
+    }
+    const inicio = fechaEnPeriodo(per, r.dia).replace(/-/g, '');
+    const dias = r.dia > 28 ? `${Array.from({ length: r.dia - 27 }, (_, i) => 28 + i).join(',')};BYSETPOS=-1` : String(r.dia);
+    return [
+      'BEGIN:VEVENT',
+      `UID:${r.id}@reparto-mensual`,
+      `DTSTAMP:${dtstamp}`,
+      `DTSTART;VALUE=DATE:${inicio}`,
+      `RRULE:FREQ=MONTHLY;BYMONTHDAY=${dias}${count}`,
+      `SUMMARY:${esc(`Pagar ${r.n}${r.monto ? ` ($ ${plata(r.monto)})` : ''}`)}`,
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${esc(`Mañana: ${r.n}`)}`,
+      'TRIGGER:-PT15H',
+      'END:VALARM',
+      'END:VEVENT',
+    ].join('\r\n');
+  }).filter(Boolean);
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Reparto mensual//ES', 'CALSCALE:GREGORIAN',
+    'X-WR-CALNAME:Pagos del mes', ...eventos, 'END:VCALENDAR'].join('\r\n');
 }

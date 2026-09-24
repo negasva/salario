@@ -7,16 +7,18 @@ import { icon } from './icons.js';
 import { toast } from './shell.js';
 
 /* La hoja de registro: Ingreso/Gasto · Monto · Categoría · Fecha · Nota.
-   Con `movId` edita uno existente. `alGuardar` repinta la vista de turno. */
-export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => {} } = {}) {
+   Con `movId` edita uno existente; `catId` y `nota` llenan uno nuevo (Ahorrar
+   abre con Ahorro puesto). `alGuardar` repinta la vista de turno. */
+export function abrirRegistro({ tipo = 'gasto', movId = null, catId = null, nota = '', titulo = '', alGuardar = () => {} } = {}) {
   const p = store.active();
   if (!p) return;
   const previo = movId ? p.movs.find((m) => m.id === movId) : null;
   if (previo) tipo = previo.tipo;
 
-  const { cuerpo, cerrar } = abrirModal({ titulo: previo ? 'Editar movimiento' : 'Registrar' });
+  const { cuerpo, cerrar } = abrirModal({ titulo: previo ? 'Editar movimiento' : (titulo || 'Registrar') });
+  const catInicial = previo?.catId || catId;
   const opciones = (t) => deTipo(p.cats, t)
-    .map((c) => `<option value="${c.id}" ${previo?.catId === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
+    .map((c) => `<option value="${c.id}" ${catInicial === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
 
   cuerpo.innerHTML = `
     <div class="chips chips-tipo" id="regTipo">
@@ -30,7 +32,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
     <div class="fld"><label for="regFecha">Fecha</label>
       <input type="date" id="regFecha" value="${previo?.fecha || hoyISO()}"></div>
     <div class="fld"><label for="regNota">Nota <span class="opcional">(opcional)</span></label>
-      <input id="regNota" autocomplete="off" placeholder="Qué fue" value="${esc(previo?.nota || '')}"></div>
+      <input id="regNota" autocomplete="off" placeholder="Qué fue" value="${esc(previo?.nota || nota)}"></div>
     <div id="regErr" class="auth-err"></div>
     <button class="wide btn-primary" id="regSave">${previo ? 'Actualizar' : 'Guardar'}</button>`;
 
@@ -43,7 +45,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, alGuardar = () => 
     });
     // cada tipo tiene sus propias categorías: mercado no es un ingreso
     $('#regCat').innerHTML = opciones(t);
-    if (previo?.catId && deTipo(p.cats, t).some((c) => c.id === previo.catId)) $('#regCat').value = previo.catId;
+    if (catInicial && deTipo(p.cats, t).some((c) => c.id === catInicial)) $('#regCat').value = catInicial;
   }
   function guardar() {
     const monto = Math.round(digits($('#regMonto').value));

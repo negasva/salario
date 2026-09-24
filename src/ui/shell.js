@@ -2,13 +2,21 @@ import { icon, logo } from './icons.js';
 import { abrirRegistro } from './registrar.js';
 import { signOut } from '../auth.js';
 
+/* En el teléfono caben cinco pestañas: las cuatro de todos los días y Más,
+   que abre el resto. En escritorio la barra lateral las muestra todas. */
 const NAV = [
-  { id: 'inicio', label: 'Inicio', ic: 'inicio' },
-  { id: 'movimientos', label: 'Movimientos', ic: 'movimientos' },
-  { id: 'recurrentes', label: 'Recurrentes', ic: 'recurrente' },
+  { id: 'inicio', label: 'Inicio', ic: 'inicio', tel: true },
+  { id: 'movimientos', label: 'Movimientos', ic: 'movimientos', tel: true },
+  { id: 'recurrentes', label: 'Recurrentes', ic: 'recurrente', tel: true },
+  { id: 'ahorro', label: 'Ahorro', ic: 'ahorro', tel: true },
+  { id: 'comparar', label: 'Comparar', ic: 'comparar' },
   { id: 'categorias', label: 'Categorías', ic: 'categorias' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
+  { id: 'mas', label: 'Más', ic: 'mas-menu', soloTel: true },
 ];
+
+// Las pantallas que en el teléfono viven dentro de Más.
+export const EN_MAS = NAV.filter((n) => !n.tel && !n.soloTel);
 
 /* Un solo menú: barra lateral en escritorio y barra de pestañas abajo en el
    teléfono, donde alcanza el pulgar. Cada pestaña es un enlace con su #, así
@@ -21,8 +29,12 @@ export function renderShell(root, currentRoute, onNavigate) {
         <div class="brand">${logo()}<span class="brand-txt">Reparto<small>mensual</small></span></div>
         <button class="btn-primary sidebar-cta" id="sideRegistrar">${icon('mas')}Registrar</button>
         <nav class="nav" aria-label="Secciones">
-          ${NAV.map((n) => `<a class="navlink" href="#${n.id}" data-r="${n.id}" ${n.id === currentRoute ? 'aria-current="page"' : ''}>
-            <span class="navlink-ic">${icon(n.ic)}</span><span class="navlink-txt">${n.label}</span></a>`).join('')}
+          ${NAV.map((n) => {
+    // Más se enciende cuando la pantalla es una de las que viven dentro de él
+    const actual = n.id === currentRoute || (n.soloTel && EN_MAS.some((m) => m.id === currentRoute));
+    return `<a class="navlink ${n.tel ? '' : n.soloTel ? 'solo-tel' : 'solo-esc'}" href="#${n.id}" data-r="${n.id}" ${actual ? 'aria-current="page"' : ''}>
+            <span class="navlink-ic">${icon(n.ic)}</span><span class="navlink-txt">${n.label}</span></a>`;
+  }).join('')}
         </nav>
         <button class="navlink logout" id="btnLogout">${icon('salir')}<span>Cerrar sesión</span></button>
       </aside>

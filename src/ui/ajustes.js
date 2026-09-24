@@ -3,8 +3,23 @@ import { saldoActual } from '../engine/movimientos.js';
 import { money, moneySigno, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
 import { toast, salir } from './shell.js';
+import { aCSV } from '../engine/csv.js';
+import { calendarioICS } from '../engine/recurrentes.js';
+import { abrirImportar } from './importar.js';
+import { avisosSoportados, avisosActivos, activarAvisos, desactivarAvisos } from './avisos.js';
 
-/* Saldo inicial · exportar JSON · salir. Nada más. */
+function descargar(nombre, contenido, tipo) {
+  const blob = new Blob([contenido], { type: tipo });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+const hoyArchivo = () => new Date().toISOString().slice(0, 10);
+
+/* Saldo inicial · nombre · datos (exportar e importar) · avisos · salir. */
 export function renderAjustes(root) {
   const p = store.active();
   const hoy = saldoActual(p.saldoInicial, p.movs, p.arranques);
@@ -34,9 +49,25 @@ export function renderAjustes(root) {
       <section class="card ajuste">
         <div class="ajuste-txt">
           <h2 class="card-title">Tus datos</h2>
-          <p class="sub">${p.movs.length} movimientos, ${p.cats.length} categorías y ${p.recurrentes.length} recurrentes. El archivo trae todo lo que la app sabe de ti.</p>
+          <p class="sub">${p.movs.length} movimientos, ${p.cats.length} categorías y ${p.recurrentes.length} recurrentes. Para Excel, el CSV trae tus movimientos; el JSON trae todo lo que la app sabe de ti. Del banco puedes traer el extracto en CSV y revisarlo antes de que entre.</p>
         </div>
-        <div class="field-row"><button id="ajExportar">${icon('descargar')}Exportar JSON</button></div>
+        <div class="field-row">
+          <button id="ajCSV">${icon('descargar')}Excel (CSV)</button>
+          <button id="ajExportar">${icon('descargar')}JSON</button>
+          <button class="btn-primary" id="ajImportar">${icon('subir')}Importar extracto</button>
+        </div>
+      </section>
+      <section class="card ajuste">
+        <div class="ajuste-txt">
+          <h2 class="card-title">Avisos de pagos</h2>
+          <p class="sub">${avisosSoportados()
+    ? `Un aviso en este dispositivo cuando un recurrente vence hoy o mañana, al abrir la app. ${avisosActivos() ? '<b class="pos">Activos.</b>' : ''}`
+    : 'Este navegador no deja mostrar avisos.'} Para que te avise aunque no abras la app, agrega tus pagos al calendario del teléfono: te recuerda la víspera.</p>
+        </div>
+        <div class="field-row">
+          ${avisosSoportados() ? `<button id="ajAvisos">${icon('campana')}${avisosActivos() ? 'Apagar avisos' : 'Activar avisos'}</button>` : ''}
+          <button id="ajCalendario" ${p.recurrentes.some((r) => r.tipo === 'gasto') ? '' : 'disabled'}>${icon('calendario')}Al calendario</button>
+        </div>
       </section>
       <section class="card ajuste">
         <div class="ajuste-txt">
@@ -60,13 +91,21 @@ export function renderAjustes(root) {
     store.save();
     toast('Nombre guardado.');
   };
-  root.querySelector('#ajExportar').onclick = () => {
-    const blob = new Blob([store.exportarJSON()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `reparto-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  root.querySelector('#ajExportar').onclick = () => descargar(`reparto-${hoyArchivo()}.json`, store.exportarJSON(), 'application/json');
+  // con BOM, para que Excel lea las tildes
+  root.querySelector('#ajCSV').onclick = () => descargar(`movimientos-${hoyArchivo()}.csv`,
+    `\uFEFF${aCSV(p.movs, p.cats, p.recurrentes)}`, 'text/csv;charset=utf-8');
+  root.querySelector('#ajImportar').onclick = () => abrirImportar(() => renderAjustes(root));
+  root.querySelector('#ajCalendario').onclick = () => {
+    descargar('pagos-del-mes.ics', calendarioICS(p.recurrentes), 'text/calendar;charset=utf-8');
+    toast('Abre el archivo para agregar tus pagos al calendario.');
   };
+  root.querySelector('#ajAvisos')?.addEventListener('click', async () => {
+    if (avisosActivos()) { desactivarAvisos(); toast('Avisos apagados en este dispositivo.'); } else {
+      const ok = await activarAvisos();
+      toast(ok ? 'Listo: te avisará cuando algo venza hoy o mañana.' : 'El navegador no dio permiso para avisos.');
+    }
+    renderAjustes(root);
+  });
   root.querySelector('#ajSalir').onclick = salir;
 }

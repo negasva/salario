@@ -1,7 +1,8 @@
 import * as store from '../store.js';
 import {
   estadoDelMes, abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos,
-  nuevoRecurrente, resumen, fechaSugerida, pendientes,
+  nuevoRecurrente, resumen, fechaSugerida, pendientes, normalizarCuotas, numeroCuota, activoEn,
+  estadoDeuda, mesFinal,
 } from '../engine/recurrentes.js';
 import { deTipo, nombreDe, colorDe, OTROS } from '../engine/categorias.js';
 import { money, plain, esc, digits, fechaCorta, nombreMes } from '../format.js';
@@ -13,7 +14,7 @@ import { toast } from './shell.js';
 /* Lo que se repite todos los meses. Están todos siempre; lo que cambia es
    cuánto llevas pagado de cada uno este mes, de una vez o por partes. */
 
-// Editor de la ficha: nombre, estimado, categoría y día.
+// Editor de la ficha: nombre, estimado, categoría, día y, si es una deuda, sus cuotas.
 function editorFicha(rec, alGuardar) {
   const p = store.active();
   const nuevo = !rec;
@@ -33,6 +34,16 @@ function editorFicha(rec, alGuardar) {
       <select id="reCat">${deTipo(p.cats, 'gasto').map((c) => `<option value="${c.id}" ${(r.catId || OTROS) === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>
     <div class="fld"><label for="reDia">Día del mes</label>
       <input id="reDia" class="num" type="number" min="1" max="31" value="${r.dia || 1}"></div>
+    <div class="fld cuotas-wrap" id="reCuotasWrap">
+      <label class="check-chip"><input type="checkbox" id="reEsDeuda" ${r.cuotas ? 'checked' : ''}> Es una deuda en cuotas</label>
+      <div class="cuotas-campos" id="reCuotasCampos">
+        <div class="fld"><label for="reCuotas">Número de cuotas</label>
+          <input id="reCuotas" class="num" type="number" min="1" max="600" inputmode="numeric" value="${r.cuotas?.total || ''}" placeholder="12"></div>
+        <div class="fld"><label for="reDesde">Primera cuota</label>
+          <input id="reDesde" type="month" value="${r.cuotas?.desde || mesElegido()}"></div>
+        <p class="sub" id="reCuotasTxt"></p>
+      </div>
+    </div>
     <div id="reErr" class="auth-err"></div>
     <button class="wide btn-primary" id="reSave">Guardar</button>
     ${nuevo ? '' : '<button class="wide btn-borrar" id="reBorrar" style="margin-top:var(--space-2)">Borrar recurrente</button>'}`;
@@ -46,10 +57,29 @@ function editorFicha(rec, alGuardar) {
       b.setAttribute('aria-pressed', String(b.dataset.tipo === t));
     });
     $('#reCatWrap').hidden = t === 'ingreso';
+    $('#reCuotasWrap').hidden = t === 'ingreso';
   };
+  // la cuenta de la deuda se ve mientras se escribe: 12 cuotas de 500.000 son 6.000.000
+  const cuentaCuotas = () => {
+    const deuda = $('#reEsDeuda').checked;
+    $('#reCuotasCampos').hidden = !deuda;
+    const n = Math.round(Number($('#reCuotas').value) || 0);
+    const monto = Math.round(digits($('#reMonto').value));
+    const desde = $('#reDesde').value;
+    $('#reCuotasTxt').textContent = deuda && n > 0 && /^\d{4}-\d{2}$/.test(desde)
+      ? `${monto ? `${n} cuotas de ${money(monto)} son ${money(n * monto)}. ` : ''}La última es en ${nombreMes(mesFinal({ cuotas: { total: n, desde } }))}.`
+      : '';
+  };
+  ['#reEsDeuda', '#reCuotas', '#reDesde', '#reMonto'].forEach((sel) => $(sel).addEventListener('input', cuentaCuotas));
   const guardar = () => {
     const n = $('#reNombre').value.trim();
     if (!n) { $('#reErr').textContent = 'Escribe el nombre.'; return; }
+    const cuotas = tipo === 'gasto' && $('#reEsDeuda').checked
+      ? normalizarCuotas({ total: $('#reCuotas').value, desde: $('#reDesde').value }) : null;
+    if (tipo === 'gasto' && $('#reEsDeuda').checked && !cuotas) {
+      $('#reErr').textContent = 'Escribe cuántas cuotas son y el mes de la primera.'; return;
+    }
+    if (cuotas) r.cuotas = cuotas; else delete r.cuotas;
     Object.assign(r, {
       n,
       monto: Math.max(0, Math.round(digits($('#reMonto').value))),
@@ -74,6 +104,7 @@ function editorFicha(rec, alGuardar) {
   });
   cuerpo.onkeydown = (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); guardar(); } };
   setTipo(tipo);
+  cuentaCuotas();
   $('#reNombre').focus();
 }
 
@@ -190,6 +221,35 @@ function hojaPagos(rec, per, alGuardar) {
   pinta();
 }
 
+/* Las deudas: en qué cuota vas, cuánto llevas pagado de todo, cuánto falta y
+   cuándo terminas. Aparecen todas, también las que no tocan este mes. */
+function seccionDeudas(deudas, p, per) {
+  const falta = deudas.reduce((t, r) => t + estadoDeuda(r, p.movs, per).falta, 0);
+  return `<section class="seccion">
+    <div class="seccion-head"><h2 class="seccion-t">Deudas</h2><span class="sub num">Te faltan <b>${money(falta)}</b></span></div>
+    <ul class="list">${deudas.map((r) => {
+    const d = estadoDeuda(r, p.movs, per);
+    const pct = d.deuda ? Math.min(100, Math.round((d.pagado / d.deuda) * 100)) : 0;
+    const cuando = {
+      'por empezar': `Empieza en ${nombreMes(r.cuotas.desde)}`,
+      'en curso': `Cuota ${d.cuota} de ${d.total} · termina en ${nombreMes(d.fin)}`,
+      pagada: `Pagada · ${d.total} cuotas`,
+      vencida: `Terminó en ${nombreMes(d.fin)} y quedó saldo`,
+    }[d.estado];
+    return `<li class="row row-link deuda ${d.estado === 'pagada' ? 'pagada' : ''}">
+      <button class="row-main" data-deuda="${r.id}"><span class="sr-only">Editar </span>
+        <span class="av" style="--c:${colorDe(p.cats, r.catId)}" aria-hidden="true">${icon('tarjeta', 'ic-sm')}</span>
+        <span class="row-txt">
+          <span class="row-top"><span class="row-t">${esc(r.n)}</span><span class="num row-monto">${d.falta ? `faltan ${money(d.falta)}` : icon('check', 'ic-sm')}</span></span>
+          <span class="barra" aria-hidden="true"><i style="width:${pct}%;background:var(--pos-fill)"></i></span>
+          <span class="row-s num"><span class="trozo">${cuando}</span>${d.deuda ? `<span class="trozo">· ${money(d.pagado)} de ${money(d.deuda)}</span>` : ''}</span>
+        </span>
+      </button>
+    </li>`;
+  }).join('')}</ul>
+  </section>`;
+}
+
 export function renderRecurrentes(root) {
   const p = store.active();
   const per = mesElegido();
@@ -213,6 +273,7 @@ export function renderRecurrentes(root) {
       const ultimo = e.pagos[e.pagos.length - 1];
       detalle = `${money(e.pagado)}${e.pagos.length > 1 ? partes : ` el ${fechaCorta(ultimo.fecha)}`}${r.monto && e.pagado !== r.monto ? ` · estimado ${money(r.monto)}` : ''}`;
     }
+    if (r.cuotas) detalle = `Cuota ${numeroCuota(r, per)} de ${r.cuotas.total} · ${detalle}`;
     const pct = r.monto > 0 ? Math.min(100, Math.round((e.pagado / r.monto) * 100)) : 0;
     const boton = {
       pendiente: ['mini btn-primary', ingreso ? 'Recibir' : 'Pagar', `${ingreso ? 'Recibir' : 'Pagar'} ${esc(r.n)}`],
@@ -233,9 +294,11 @@ export function renderRecurrentes(root) {
     </li>`;
   };
 
-  const lista = (tipo) => p.recurrentes.filter((r) => r.tipo === tipo);
-  const total = p.recurrentes.length;
+  // una deuda solo aparece en los meses de sus cuotas
+  const lista = (tipo) => p.recurrentes.filter((r) => r.tipo === tipo && activoEn(r, per));
+  const total = gastos.total + ingresos.total;
   const marcados = total - faltan;
+  const deudas = p.recurrentes.filter((r) => r.cuotas);
 
   root.innerHTML = `
     ${selectorMes('Recurrentes')}
@@ -257,7 +320,7 @@ export function renderRecurrentes(root) {
       <p class="sub">Cada uno guarda su nombre y su estimado. Págalo de una vez o por partes: el mercado en el Éxito, luego en el D1, y ves cuánto te queda.</p>
       <button class="btn-primary" id="reNuevo">${icon('mas')}Nuevo</button>
     </div>
-    ${total ? `
+    ${p.recurrentes.length ? `
       <section class="seccion">
         <h2 class="seccion-t">Gastos</h2>
         ${lista('gasto').length ? `<ul class="list">${lista('gasto').map(fila).join('')}</ul>` : '<div class="empty">Ninguno todavía.</div>'}
@@ -265,7 +328,8 @@ export function renderRecurrentes(root) {
       ${lista('ingreso').length ? `<section class="seccion">
         <h2 class="seccion-t">Ingresos</h2>
         <ul class="list">${lista('ingreso').map(fila).join('')}</ul>
-      </section>` : ''}`
+      </section>` : ''}
+      ${deudas.length ? seccionDeudas(deudas, p, per) : ''}`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('recurrente')}</span>
         <b>Todavía no tienes recurrentes</b>
@@ -280,6 +344,9 @@ export function renderRecurrentes(root) {
   });
   root.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => editorFicha(p.recurrentes.find((r) => r.id === b.dataset.edit), repintar);
+  });
+  root.querySelectorAll('[data-deuda]').forEach((b) => {
+    b.onclick = () => editorFicha(p.recurrentes.find((r) => r.id === b.dataset.deuda), repintar);
   });
   root.querySelector('#reTodos')?.addEventListener('click', () => {
     const nuevos = marcarTodos(p.recurrentes, p.movs, per);

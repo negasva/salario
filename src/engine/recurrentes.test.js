@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   fechaEnPeriodo, fechaSugerida, nuevoRecurrente, pendientes, pagosDelMes, estaPagado, estadoDelMes,
   abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos, resumen,
+  normalizarCuotas, mesesEntre, numeroCuota, mesFinal, activoEn, estadoDeuda,
+  diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS,
 } from './recurrentes.js';
 
 const nuevo = (n, monto, extra = {}) => nuevoRecurrente({ n, monto, catId: 'viv', dia: 5, ...extra });
@@ -186,5 +188,99 @@ describe('resumen del mes', () => {
       .toEqual({ estimado: 1690000, pagado: 417400, queda: 1200000 + 2600 + 70000, faltan: 1, total: 3 });
     expect(resumen([arriendo, luz, mercado, sueldo], movs, '2026-09', 'ingreso'))
       .toEqual({ estimado: 3000000, pagado: 0, queda: 3000000, faltan: 1, total: 1 });
+  });
+});
+
+describe('deudas en cuotas', () => {
+  const carro = () => nuevo('Carro', 500000, { cuotas: { total: 12, desde: '2026-03' } });
+
+  it('dice qué cuota va y solo aparece en sus meses', () => {
+    const r = carro();
+    expect(numeroCuota(r, '2026-09')).toBe(7);
+    expect(mesFinal(r)).toBe('2027-02');
+    expect(activoEn(r, '2026-02')).toBe(false);
+    expect(activoEn(r, '2026-03')).toBe(true);
+    expect(activoEn(r, '2027-02')).toBe(true);
+    expect(activoEn(r, '2027-03')).toBe(false);
+    expect(activoEn(nuevo('Luz', 90000), '1999-01')).toBe(true);
+  });
+
+  it('fuera de sus meses no cuenta como pendiente ni en el resumen', () => {
+    const r = carro();
+    expect(pendientes([r], [], '2027-05')).toEqual([]);
+    expect(resumen([r], [], '2027-05', 'gasto').total).toBe(0);
+    expect(marcarTodos([r], [], '2027-05')).toEqual([]);
+  });
+
+  it('lo que falta sale de lo pagado de verdad, abonos incluidos', () => {
+    const r = carro();
+    const movs = [];
+    for (let i = 0; i < 6; i += 1) abonar(r, movs, `2026-0${3 + i}`, 500000);
+    abonar(r, movs, '2026-09', 200000);
+    expect(estadoDeuda(r, movs, '2026-09'))
+      .toMatchObject({ total: 12, cuota: 7, deuda: 6000000, pagado: 3200000, falta: 2800000, fin: '2027-02', estado: 'en curso' });
+  });
+
+  it('una deuda sin cuotas válidas es un recurrente normal', () => {
+    expect(nuevo('X', 1, { cuotas: { total: 0, desde: '2026-01' } }).cuotas).toBeUndefined();
+    expect(normalizarCuotas({ total: 3, desde: 'mal' })).toBeNull();
+    expect(estadoDeuda(nuevo('Luz', 1), [], '2026-09')).toBeNull();
+    expect(mesesEntre('2026-11', '2027-02')).toBe(3);
+  });
+});
+
+describe('lo que viene', () => {
+  it('avisa los que vencen pronto y los vencidos, sin los ya pagados', () => {
+    const arriendo = nuevo('Arriendo', 1200000, { dia: 1 });
+    const luz = nuevo('Luz', 90000, { dia: 20 });
+    const internet = nuevo('Internet', 90000, { dia: 25 });
+    const agua = nuevo('Agua', 50000, { dia: 28 });
+    const sueldo = nuevoRecurrente({ n: 'Sueldo', monto: 1, tipo: 'ingreso', dia: 24 });
+    const movs = [];
+    abonar(internet, movs, '2026-09', 90000);
+    const v = vencimientos([arriendo, luz, internet, agua, sueldo], movs, '2026-09-23', 7);
+    expect(v.map((x) => [x.rec.n, x.en])).toEqual([['Arriendo', -22], ['Luz', -3], ['Agua', 5]]);
+  });
+
+  it('mira también el comienzo del mes siguiente', () => {
+    const arriendo = nuevo('Arriendo', 1200000, { dia: 1 });
+    abonar(arriendo, [], '2026-09', 1);
+    const movs = [];
+    abonar(arriendo, movs, '2026-09', 1200000);
+    expect(vencimientos([arriendo], movs, '2026-09-28', 7).map((x) => [x.fecha, x.en])).toEqual([['2026-10-01', 3]]);
+  });
+
+  it('dice cuándo vence en palabras', () => {
+    expect([0, 1, 4, -1, -3].map(cuandoVence)).toEqual(['vence hoy', 'vence mañana', 'vence en 4 días', 'venció ayer', 'venció hace 3 días']);
+    expect(diasEntre('2026-02-27', '2026-03-02')).toBe(3);
+  });
+
+  it('proyecta con cuánto terminas si pagas y recibes lo que falta', () => {
+    const arriendo = nuevo('Arriendo', 1200000);
+    const mercado = nuevo('Mercado', 400000);
+    const sueldo = nuevoRecurrente({ n: 'Sueldo', monto: 3000000, tipo: 'ingreso' });
+    const movs = [];
+    abonar(mercado, movs, '2026-09', 360000);
+    expect(proyeccion(500000, [arriendo, mercado, sueldo], movs, '2026-09'))
+      .toEqual({ final: 500000 - 1240000 + 3000000, porPagar: 1240000, porRecibir: 3000000 });
+  });
+});
+
+describe('calendario', () => {
+  it('arma un evento mensual por gasto, con aviso y el 31 cae al final de mes', () => {
+    const ics = calendarioICS([
+      nuevo('Arriendo', 1200000, { dia: 5 }),
+      nuevo('Tarjeta', 0, { dia: 31 }),
+      nuevo('Carro', 500000, { dia: 10, cuotas: { total: 12, desde: '2026-03' } }),
+      nuevoRecurrente({ n: 'Sueldo', monto: 1, tipo: 'ingreso' }),
+    ], '2026-09-23', new Date('2026-09-23T10:00:00Z'));
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20260905');
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;BYMONTHDAY=5\r\n');
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1');
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;BYMONTHDAY=10;COUNT=6');
+    expect(ics).toContain('SUMMARY:Pagar Arriendo ($ 1.200.000)');
+    expect(ics).not.toContain('Sueldo');
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(3);
   });
 });

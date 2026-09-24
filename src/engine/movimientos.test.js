@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   saldoInicial, saldoActual, resumenMes, resumenFlujo, gastoPorCategoria,
-  serieMensual, sumarMeses, periodoDe, delMes, arranqueVigente,
+  serieMensual, sumarMeses, periodoDe, delMes, arranqueVigente, buscar,
 } from './movimientos.js';
 
 const mov = (fecha, tipo, monto, catId = null) => ({ id: fecha + monto, fecha, tipo, monto, catId, nota: '' });
@@ -100,5 +100,27 @@ describe('serie mensual', () => {
     const s = serieMensual(0, libro, '2026-09', 3);
     expect(s.map((x) => x.periodo)).toEqual(['2026-07', '2026-08', '2026-09']);
     expect(s.map((x) => x.final)).toEqual([0, -100000, 900000]);
+  });
+});
+
+describe('búsqueda', () => {
+  const cats = [{ id: 'mer', n: 'Mercado' }];
+  const recurrentes = [{ id: 'r1', n: 'Mercado del mes' }];
+  const movs = [
+    { id: 'a', fecha: '2026-08-10', tipo: 'gasto', monto: 200000, catId: 'mer', nota: 'D1', recId: 'r1' },
+    { id: 'b', fecha: '2026-09-03', tipo: 'gasto', monto: 130000, catId: 'mer', nota: 'Éxito calle 80' },
+    { id: 'c', fecha: '2026-09-04', tipo: 'gasto', monto: 45000, catId: 'otros', nota: 'Droguería' },
+  ];
+
+  it('sin tildes ni mayúsculas, en nota, categoría y recurrente, del más nuevo al más viejo', () => {
+    expect(buscar(movs, 'exito', { cats, recurrentes }).map((m) => m.id)).toEqual(['b']);
+    expect(buscar(movs, 'MERCADO', { cats, recurrentes }).map((m) => m.id)).toEqual(['b', 'a']);
+    expect(buscar(movs, 'del mes', { cats, recurrentes }).map((m) => m.id)).toEqual(['a']);
+    expect(buscar(movs, 'drogueria', { cats }).map((m) => m.id)).toEqual(['c']);
+  });
+
+  it('un número encuentra el monto', () => {
+    expect(buscar(movs, '130.000', { cats }).map((m) => m.id)).toEqual(['b']);
+    expect(buscar(movs, '', { cats })).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import * as store from '../store.js';
 import { resumenMes, periodoActual, sumarMeses } from '../engine/movimientos.js';
+import { proyeccion } from '../engine/recurrentes.js';
 import { money, moneySigno, nombreMes, plain, digits, MESES } from '../format.js';
 import { abrirModal } from './modal.js';
 import { icon } from './icons.js';
@@ -89,8 +90,24 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
       <div class="hc"><dt>${icon('entra')}Entró</dt><dd class="num ${clase(r.ingresos)}">${moneySigno(r.ingresos)}</dd></div>
       <div class="hc"><dt>${icon('sale')}Salió</dt><dd class="num ${clase(-r.gastos)}">${moneySigno(-r.gastos)}</dd></div>
     </dl>
+    ${proyeccionHTML(p, per, r.final, clase)}
     <button class="hero-arranque" id="mesArranque">${icon('reiniciar')}${arrancado
     ? 'Este mes empieza de nuevo · cambiar'
     : 'Empezar este mes en cero'}</button>
   </section>`;
+}
+
+/* Si pagas y recibes lo que falta de los recurrentes, con cuánto terminas.
+   Solo en el mes en curso y los que vienen: en uno pasado ya no hay nada
+   que pagar a tiempo. */
+function proyeccionHTML(p, per, final, clase) {
+  if (per < periodoActual()) return '';
+  const pr = proyeccion(final, p.recurrentes, p.movs, per);
+  if (!pr.porPagar && !pr.porRecibir) return '';
+  const partes = [pr.porPagar ? `−${money(pr.porPagar)} por pagar` : '', pr.porRecibir ? `+${money(pr.porRecibir)} por recibir` : '']
+    .filter(Boolean).join(' · ');
+  return `<a class="hero-proy" href="#recurrentes">
+    <span class="hp-txt">${icon('reloj')}<span>Con lo que falta de tus recurrentes<small class="num">${partes}</small></span></span>
+    <b class="num ${clase(pr.final)}">terminas con ${moneySigno(pr.final)}</b>
+  </a>`;
 }

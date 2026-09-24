@@ -284,7 +284,7 @@ export function renderRecurrentes(root) {
       <span class="estado ${e.estado}" aria-hidden="true">${icon(e.estado)}</span>
       <div class="row-txt">
         <div class="row-t">${esc(r.n)}</div>
-        <div class="row-s num"><span class="dot" style="background:${ingreso ? 'var(--pos-fill)' : colorDe(p.cats, r.catId)}"></span>${detalle} · ${ingreso ? 'Ingreso' : esc(nombreDe(p.cats, r.catId))}</div>
+        <div class="row-s num"><span class="dot" style="background:${ingreso ? 'var(--pos-fill)' : colorDe(p.cats, r.catId)}"></span>${detalle}${ingreso ? ' · Ingreso' : nombreDe(p.cats, r.catId) === r.n ? '' : ` · ${esc(nombreDe(p.cats, r.catId))}`}</div>
         ${e.estado === 'parcial' || e.pasado ? `<span class="barra ${e.pasado ? 'barra-over' : ''}" aria-hidden="true"><i style="width:${pct}%;background:${e.pasado ? 'var(--neg-fill)' : 'var(--brand)'}"></i></span>` : ''}
       </div>
       <div class="row-acc">

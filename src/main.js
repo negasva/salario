@@ -34,9 +34,17 @@ const deHash = () => (ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 
 let route = deHash();
 let conSesion = false;
 
-function paintRoute() {
+const TITULOS = { inicio: 'Inicio', movimientos: 'Movimientos', recurrentes: 'Recurrentes', ahorro: 'Ahorro',
+  comparar: 'Comparar', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
+
+function paintRoute({ entrada = false } = {}) {
   const content = renderShell(app, route, navegar);
   ROUTES[route](content);
+  document.title = `${TITULOS[route]} · Reparto mensual`;
+  if (!entrada) return;
+  content.classList.add('entrada');
+  // solo la primera pintada: repintar dentro de la pantalla no vuelve a entrar
+  setTimeout(() => content.classList.remove('entrada'), 700);
 }
 
 function navegar(r) {
@@ -64,7 +72,7 @@ async function boot() {
   if (res?.migrated) toast('Tus datos locales se subieron a tu cuenta.');
   conSesion = true;
   route = deHash();
-  paintRoute();
+  paintRoute({ entrada: true });
   avisarVencimientos();
 }
 

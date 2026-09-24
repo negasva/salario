@@ -12,16 +12,15 @@ let periodo = periodoActual();
 export function mesElegido() { return periodo; }
 export function setMes(per) { periodo = per; }
 
-/* Cabecera de cada pantalla: qué pantalla es, el mes en grande y sus
-   flechas. `Hoy` aparece solo cuando uno se fue a otro mes. Devuelve el HTML;
+/* Cabecera de cada pantalla: el mes en grande y sus flechas. Qué pantalla
+   es lo dice el menú; el título lo lleva oculto para quien usa lector. `Hoy` aparece solo cuando uno se fue a otro mes. Devuelve el HTML;
    `enlazarMes` cuelga los clics. */
 export function selectorMes(pantalla = '') {
   const [a, m] = periodo.split('-');
   const hoy = periodoActual();
   return `<header class="page-head">
     <div class="ph-txt">
-      ${pantalla ? `<span class="eyebrow">${pantalla}</span>` : ''}
-      <h1 class="mes-titulo">${MESES[Number(m) - 1]} <span class="mes-anio">${a}</span></h1>
+      <h1 class="mes-titulo">${pantalla ? `<span class="sr-only">${pantalla}: </span>` : ''}${MESES[Number(m) - 1]} <span class="mes-anio">${a}</span></h1>
     </div>
     <div class="mes-nav" role="group" aria-label="Cambiar de mes">
       ${periodo !== hoy ? '<button class="mes-hoy" data-mes-hoy title="Volver al mes actual">Hoy</button>' : ''}

@@ -18,11 +18,15 @@ export function abrirModal({ titulo = '', alCerrar } = {}) {
     </div>`;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
+  /* Sale por donde entró: la hoja baja y el fondo se funde. El estado cambia
+     ya (foco, scroll, Esc); lo único que espera es quitar el nodo, con un
+     tiempo fijo y no con animationend, que en segundo plano no siempre llega. */
   function cerrar() {
-    if (!overlay.isConnected) return;
+    if (!overlay.isConnected || overlay.classList.contains('saliendo')) return;
     document.body.style.overflow = '';
     document.removeEventListener('keydown', onKey);
-    overlay.remove();
+    overlay.classList.add('saliendo');
+    setTimeout(() => overlay.remove(), 200);
     alCerrar?.();
     // el foco vuelve a donde estaba, si ese botón sigue en pantalla
     if (origen?.isConnected) origen.focus({ preventScroll: true });

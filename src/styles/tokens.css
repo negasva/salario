@@ -24,19 +24,18 @@
   --border-strong:#34343C;
   --text:         #F4F3F6;
   --text-2:       #B3B0BA;
-  --text-3:       #8D8A95;
+  --text-3:       #98959F;
 
   /* acento en texto y fondos suaves */
   --accent-text:  #FF9EC2;
   --accent-soft:  #2A1820;
   --accent-line:  #57293B;
 
-  /* tarjeta del saldo: una superficie más alta con el filo de marca */
+  /* tarjeta del saldo: una superficie más alta que el resto */
   --hero-bg:      #18181D;
   --hero-text:    #FFFFFF;
   --hero-text-2:  #B3B0BA;
   --hero-line:    #2C2C33;
-  --hero-edge:    #FC90B6;
   --hero-pos:     #4ADE9B;
   --hero-neg:     #FF7B7B;
 
@@ -74,7 +73,12 @@
   --shadow-md:none;
   --shadow-lg:0 24px 48px rgba(0,0,0,.6);
 
-  --ease-out:cubic-bezier(.16,1,.3,1);
+  /* movimiento (Emil Kowalski): ease-out fuerte para entrar y salir,
+     la curva de iOS para hojas que suben, nunca ease-in en la interfaz */
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-in-out:cubic-bezier(.77,0,.175,1);
+  --ease-drawer:cubic-bezier(.32,.72,0,1);
+  --t-press:.16s var(--ease-out);
   --t-fast:.15s var(--ease-out);
   --t-med:.24s var(--ease-out);
 

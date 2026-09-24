@@ -10,7 +10,7 @@ const DETALLE = {
 /* En el teléfono no caben todas las pestañas: lo que no va abajo vive aquí. */
 export function renderMas(root) {
   root.innerHTML = `
-    <header class="page-head"><div class="ph-txt"><span class="eyebrow">Todo lo demás</span><h1 class="mes-titulo">Más</h1></div></header>
+    <header class="page-head"><div class="ph-txt"><h1 class="mes-titulo">Más</h1></div></header>
     <ul class="list">${EN_MAS.map((n) => `<li class="row row-link">
       <a class="row-main" href="#${n.id}">
         <span class="av" style="--c:var(--brand)" aria-hidden="true">${icon(n.ic, 'ic-sm')}</span>

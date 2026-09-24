@@ -24,7 +24,7 @@ export function renderAjustes(root) {
   const p = store.active();
   const hoy = saldoActual(p.saldoInicial, p.movs, p.arranques);
   root.innerHTML = `
-    <header class="page-head"><div class="ph-txt"><span class="eyebrow">Tu cuenta</span><h1 class="mes-titulo">Ajustes</h1></div></header>
+    <header class="page-head"><div class="ph-txt"><h1 class="mes-titulo">Ajustes</h1></div></header>
     <div class="ajustes">
       <section class="card ajuste">
         <div class="ajuste-txt">

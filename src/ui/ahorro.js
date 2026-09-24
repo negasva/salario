@@ -191,7 +191,7 @@ export function renderAhorro(root) {
         <span class="hero-label">Ahorro total</span>
         <b class="hero-monto num ${e.total < 0 ? 'neg' : ''}">${money(e.total)}</b>
       </div>
-      ${e.total > 0 ? `<div class="reparto" role="img" aria-label="Cómo se reparte tu ahorro">
+      ${e.total > 0 && abiertas.length ? `<div class="reparto" role="img" aria-label="Cómo se reparte tu ahorro">
         ${abiertas.map((x) => `<i style="width:${trozo(x.llevado)}%;background:${colorMeta(p.metas.indexOf(x.meta))}" title="${esc(x.meta.n)}: ${money(x.llevado)}"></i>`).join('')}
         <i class="libre" style="width:${trozo(libreBarra)}%" title="Libre: ${money(libreBarra)}"></i>
       </div>

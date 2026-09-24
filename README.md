@@ -40,6 +40,7 @@ npm run test
 - El motor (`src/engine/`) es puro y es lo único con tests.
 - Gráficas en SVG a mano, sin librería.
 - Diseño en tokens (`src/styles/tokens.css`): Montserrat, solo modo oscuro y sin degradados: rosa de marca como único acento sobre grafito. En el teléfono el menú va abajo, al alcance del pulgar; en escritorio, a un lado.
+- Movimiento con restricción (criterio de Emil Kowalski): los botones responden al presionar (escala 0,97 en 160 ms), las hojas suben con la curva de iOS y bajan por donde entraron, y solo al abrir la app las piezas de la pantalla entran en cascada. Cambiar de pestaña o de mes es instantáneo, porque pasa decenas de veces al día. Con “reducir movimiento” quedan solo los fundidos. Los hover solo existen donde hay mouse, para que no se queden pegados en el teléfono.
 - La pantalla vive en el `#` de la dirección (`#movimientos`), así que atrás funciona y se puede enlazar.
 - localStorage como caché, Supabase como fuente de verdad: la UI nunca espera al servidor.
 - Solo pesos colombianos. Un perfil por cuenta.

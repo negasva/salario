@@ -1,8 +1,24 @@
 import * as store from '../store.js';
 import { gastoPorCategoria, serieMensual } from '../engine/movimientos.js';
 import { arcos, segmentosPorCategoria, barras, linea } from '../engine/graficas.js';
-import { money, moneySigno, esc, MESES_CORTOS } from '../format.js';
+import { money, moneySigno, esc, fechaCorta, MESES_CORTOS } from '../format.js';
 import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
+import { vencimientos, cuandoVence } from '../engine/recurrentes.js';
+import { icon } from './icons.js';
+
+/* Lo que vence en la próxima semana y lo que ya se pasó sin pagar. */
+function proximos(p) {
+  const lista = vencimientos(p.recurrentes, p.movs);
+  if (!lista.length) return '';
+  return `<section class="card proximos">
+    <div class="card-head"><h2 class="card-title">Próximos pagos</h2><a class="card-meta" href="#recurrentes">Ver recurrentes</a></div>
+    <ul class="prox-lista">${lista.map((v) => `<li class="prox ${v.en < 0 ? 'vencido' : v.en <= 1 ? 'urgente' : ''}">
+      <span class="prox-ic" aria-hidden="true">${icon(v.en < 0 ? 'alerta' : 'reloj', 'ic-sm')}</span>
+      <span class="prox-txt"><b>${esc(v.rec.n)}</b><span class="sub">${cuandoVence(v.en)} · ${fechaCorta(v.fecha)}</span></span>
+      <span class="num prox-monto">${v.monto ? money(v.monto) : 'Sin estimado'}</span>
+    </li>`).join('')}</ul>
+  </section>`;
+}
 
 const R = 64;
 const C = Math.round(2 * Math.PI * R * 100) / 100;
@@ -69,6 +85,7 @@ export function renderInicio(root) {
   root.innerHTML = `
     ${selectorMes('Inicio')}
     ${cabeceraMes(p, per)}
+    ${proximos(p)}
     <div class="grid-2">
       <section class="card">
         <div class="card-head"><h2 class="card-title">Gasto por categoría</h2></div>

@@ -1,5 +1,5 @@
 import * as store from '../store.js';
-import { delMes } from '../engine/movimientos.js';
+import { delMes, buscar } from '../engine/movimientos.js';
 import { nombreDe, colorDe, deTipo } from '../engine/categorias.js';
 import { pendientes } from '../engine/recurrentes.js';
 import { money, esc, fechaCorta } from '../format.js';
@@ -9,6 +9,8 @@ import { icon } from './icons.js';
 import { toast } from './shell.js';
 
 let filtro = ''; // '' = todo | catId
+let texto = ''; // lo que se está buscando
+let todosLosMeses = false; // buscar en toda la historia y no solo en el mes
 
 // '2026-09-08' → 'lunes'
 function diaSemana(fecha) {
@@ -21,20 +23,9 @@ export function renderMovimientos(root) {
   const p = store.active();
   const per = mesElegido();
   if (filtro && !p.cats.some((c) => c.id === filtro)) filtro = '';
-  const lista = delMes(p.movs, per).filter((m) => !filtro || m.catId === filtro);
   const faltan = pendientes(p.recurrentes, p.movs, per);
-  const recs = new Map(p.recurrentes.map((r) => [r.id, r]));
-
-  // agrupados por día, del más reciente al más viejo
-  const dias = [];
-  lista.forEach((m) => {
-    const ultimo = dias[dias.length - 1];
-    if (ultimo && ultimo.fecha === m.fecha) ultimo.movs.push(m); else dias.push({ fecha: m.fecha, movs: [m] });
-  });
   const grupo = (tipo) => deTipo(p.cats, tipo)
     .map((c) => `<option value="${c.id}" ${filtro === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
-
-  const netoDia = (movs) => movs.reduce((t, m) => t + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
 
   root.innerHTML = `
     ${selectorMes('Movimientos')}
@@ -43,18 +34,61 @@ export function renderMovimientos(root) {
       <span class="callout-ic">${icon('campana')}</span>
       <div class="callout-txt"><b>${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} sin ningún pago este mes</b>
         <span class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</span></div>
-      <button id="mvRec">Marcarlos</button></div>` : ''}
-    <div class="toolbar">
+      <button id="mvRec">Ir a pagarlos</button></div>` : ''}
+    <div class="toolbar toolbar-mov">
+      <label class="buscador">${icon('buscar', 'ic-sm')}<span class="sr-only">Buscar</span>
+        <input type="search" id="mvBuscar" placeholder="Buscar: Éxito, D1, 130.000…" value="${esc(texto)}" autocomplete="off" enterkeyhint="search"></label>
       <select id="mvFiltro" aria-label="Filtrar por categoría">
         <option value="">Todas las categorías</option>
         <optgroup label="Gastos">${grupo('gasto')}</optgroup>
         <optgroup label="Ingresos">${grupo('ingreso')}</optgroup>
       </select>
+      <label class="check-chip"><input type="checkbox" id="mvTodos" ${todosLosMeses ? 'checked' : ''}> En todos los meses</label>
     </div>
+    <div id="mvLista"></div>`;
+
+  const repintar = () => renderMovimientos(root);
+  const lista = root.querySelector('#mvLista');
+  const pintarLista = () => pintar(lista, p, per, repintar);
+  pintarLista();
+
+  enlazarMes(root, repintar);
+  root.querySelector('#mvFiltro').onchange = (e) => { filtro = e.target.value; pintarLista(); };
+  root.querySelector('#mvBuscar').oninput = (e) => { texto = e.target.value; pintarLista(); };
+  root.querySelector('#mvTodos').onchange = (e) => { todosLosMeses = e.target.checked; pintarLista(); };
+  // pagarlos es cosa de su pantalla: aquí solo se avisa
+  root.querySelector('#mvRec')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'recurrentes' } }));
+  });
+}
+
+function pintar(root, p, per, repintar) {
+  const buscando = texto.trim() !== '';
+  const base = buscando
+    ? buscar(todosLosMeses ? p.movs : delMes(p.movs, per), texto, { cats: p.cats, recurrentes: p.recurrentes })
+    : (todosLosMeses ? [...p.movs].sort((a, b) => (a.fecha < b.fecha ? 1 : -1)) : delMes(p.movs, per));
+  const lista = base.filter((m) => !filtro || m.catId === filtro);
+  const recs = new Map(p.recurrentes.map((r) => [r.id, r]));
+  const hoyAnio = String(new Date().getFullYear());
+
+  // agrupados por día, del más reciente al más viejo
+  const dias = [];
+  lista.forEach((m) => {
+    const ultimo = dias[dias.length - 1];
+    if (ultimo && ultimo.fecha === m.fecha) ultimo.movs.push(m); else dias.push({ fecha: m.fecha, movs: [m] });
+  });
+  const netoDia = (movs) => movs.reduce((t, m) => t + (m.tipo === 'ingreso' ? m.monto : -m.monto), 0);
+  const entra = lista.filter((m) => m.tipo === 'ingreso').reduce((t, m) => t + m.monto, 0);
+  const sale = lista.filter((m) => m.tipo === 'gasto').reduce((t, m) => t + m.monto, 0);
+
+  root.innerHTML = `
+    ${buscando || filtro || todosLosMeses ? `<p class="resultados sub num" role="status">${lista.length} movimiento${lista.length === 1 ? '' : 's'}${todosLosMeses ? ' en todos los meses' : ''}
+      ${sale ? ` · salió <b class="neg">${money(sale)}</b>` : ''}${entra ? ` · entró <b class="pos">${money(entra)}</b>` : ''}</p>` : ''}
     ${dias.length ? dias.map((d) => {
     const neto = netoDia(d.movs); // solo se muestra si el día tiene más de uno
+    const anio = d.fecha.slice(0, 4);
     return `<section class="dia">
-      <h2 class="dia-head"><span class="dia-fecha">${fechaCorta(d.fecha)}</span><span class="dia-semana">${diaSemana(d.fecha)}</span>
+      <h2 class="dia-head"><span class="dia-fecha">${fechaCorta(d.fecha)}${anio !== hoyAnio ? ` ${anio}` : ''}</span><span class="dia-semana">${diaSemana(d.fecha)}</span>
         ${d.movs.length > 1 ? `<span class="dia-neto num ${neto < 0 ? 'neg' : 'pos'}">${neto < 0 ? '−' : '+'}${money(Math.abs(neto))}</span>` : ''}</h2>
       <ul class="list">
       ${d.movs.map((m) => {
@@ -77,18 +111,12 @@ export function renderMovimientos(root) {
       </ul>
     </section>`;
   }).join('') : `<div class="empty-state">
-      <span class="empty-ic">${icon('movimientos')}</span>
-      <b>${filtro ? 'Nada en esta categoría este mes' : 'Nada registrado este mes'}</b>
-      <span class="sub">${filtro ? 'Prueba con otra o vuelve a ver todas.' : 'Toca el + para anotar lo que entra y lo que sale.'}</span>
+      <span class="empty-ic">${icon(buscando ? 'buscar' : 'movimientos')}</span>
+      <b>${buscando ? `Nada con “${esc(texto.trim())}”` : filtro ? 'Nada en esta categoría este mes' : 'Nada registrado este mes'}</b>
+      <span class="sub">${buscando ? (todosLosMeses ? 'Prueba con otra palabra o un monto.' : 'Prueba con otra palabra, o busca en todos los meses.')
+    : filtro ? 'Prueba con otra o vuelve a ver todas.' : 'Toca el + para anotar lo que entra y lo que sale.'}</span>
     </div>`}`;
 
-  const repintar = () => renderMovimientos(root);
-  enlazarMes(root, repintar);
-  root.querySelector('#mvFiltro').onchange = (e) => { filtro = e.target.value; repintar(); };
-  // marcarlos uno a uno es cosa de su pantalla: aquí solo se avisa
-  root.querySelector('#mvRec')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'recurrentes' } }));
-  });
   root.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => abrirRegistro({ movId: b.dataset.edit, alGuardar: repintar });
   });

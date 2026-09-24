@@ -1,10 +1,11 @@
 import { supabase } from './auth.js';
 import { categoriasBase, normalizarCats } from './engine/categorias.js';
 import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/migrar.js';
+import { normalizarMetas } from './engine/ahorro.js';
 
 /* Un perfil, un blob. localStorage es la caché y Supabase la fuente de verdad:
    la UI nunca espera al servidor. El perfil es
-   { v, name, saldoInicial, cats, movs, recurrentes, arranques }. */
+   { v, name, saldoInicial, cats, movs, recurrentes, arranques, metas }. */
 
 const KEY = 'reparto:v11';
 const KEYS_NUEVAS = ['reparto:v10', 'reparto:v9'];
@@ -24,7 +25,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {} };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [] };
 }
 
 /* El perfil de antes de la auditoría, si sigue en este navegador. Es de donde
@@ -60,6 +61,7 @@ function normalizar(p) {
   n.movs = Array.isArray(n.movs) ? n.movs : [];
   n.recurrentes = Array.isArray(n.recurrentes) ? n.recurrentes : [];
   n.arranques = n.arranques && typeof n.arranques === 'object' ? n.arranques : {};
+  n.metas = normalizarMetas(n.metas);
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');
   n.v = VERSION;

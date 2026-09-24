@@ -5,7 +5,7 @@
    que aquí no se cachea ni una respuesta de la API: una app de plata que
    muestra saldos viejos es peor que una que dice que no hay internet. */
 
-const CACHE = 'reparto-v2';
+const CACHE = 'reparto-v3';
 const BASE = ['/', '/index.html', '/manifest.webmanifest', '/icono.svg'];
 
 self.addEventListener('install', (e) => {
@@ -38,4 +38,15 @@ self.addEventListener('fetch', (e) => {
       return r;
     })));
   }
+});
+
+// tocar un aviso de vencimiento abre la app en Recurrentes
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || '/';
+  e.waitUntil(self.clients.matchAll({ type: 'window' }).then((ventanas) => {
+    const abierta = ventanas.find((v) => new URL(v.url).origin === self.location.origin);
+    if (abierta) { abierta.navigate(url); return abierta.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });

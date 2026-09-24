@@ -6,6 +6,10 @@ import { renderMovimientos } from './ui/movimientos.js';
 import { renderRecurrentes } from './ui/recurrentes.js';
 import { renderCategorias } from './ui/categorias.js';
 import { renderAjustes } from './ui/ajustes.js';
+import { renderAhorro } from './ui/ahorro.js';
+import { renderComparar } from './ui/comparar.js';
+import { renderMas } from './ui/mas.js';
+import { avisarVencimientos } from './ui/avisos.js';
 import { getSession, onAuthChange } from './auth.js';
 import * as store from './store.js';
 
@@ -18,8 +22,11 @@ const ROUTES = {
   inicio: renderInicio,
   movimientos: renderMovimientos,
   recurrentes: renderRecurrentes,
+  ahorro: renderAhorro,
+  comparar: renderComparar,
   categorias: renderCategorias,
   ajustes: renderAjustes,
+  mas: renderMas,
 };
 
 // La pantalla vive en el # de la dirección: atrás funciona y se puede enlazar.
@@ -58,7 +65,13 @@ async function boot() {
   conSesion = true;
   route = deHash();
   paintRoute();
+  avisarVencimientos();
 }
+
+// al volver a la app (el teléfono la tenía en segundo plano) se revisa otra vez
+document.addEventListener('visibilitychange', () => {
+  if (conSesion && document.visibilityState === 'visible') avisarVencimientos();
+});
 
 onAuthChange((session) => {
   if (!session) { conSesion = false; store.signOutLocal(); renderLogin(app, boot); }

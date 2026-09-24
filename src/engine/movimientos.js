@@ -108,3 +108,23 @@ export function serieMensual(base, movs, periodo, meses = 6, arranques) {
     return { periodo: per, ...resumenMes(base, movs, per, arranques) };
   });
 }
+
+/* Búsqueda: cada palabra tiene que aparecer en la nota, en la categoría o en
+   el recurrente, sin importar tildes ni mayúsculas. Si lo escrito es un
+   número ("130.000", "130000"), también encuentra los montos que lo llevan. */
+const sinTildes = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+export function buscar(movs, texto, { cats = [], recurrentes = [] } = {}) {
+  const q = sinTildes(texto).trim();
+  if (!q) return [];
+  const palabras = q.split(/\s+/);
+  const cifras = q.replace(/[$\s.,]/g, '');
+  const esNumero = /^\d+$/.test(cifras);
+  const nombreCat = new Map(cats.map((c) => [c.id, c.n]));
+  const nombreRec = new Map(recurrentes.map((r) => [r.id, r.n]));
+  return movs.filter((m) => {
+    if (esNumero && String(m.monto).includes(cifras)) return true;
+    const pajar = sinTildes(`${m.nota || ''} ${nombreCat.get(m.catId) || ''} ${nombreRec.get(m.recId) || ''}`);
+    return palabras.every((p) => pajar.includes(p));
+  }).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+}

@@ -97,7 +97,7 @@ export function graficaLinea(serie, Wtotal = 308) {
   const area = puntos.length ? `${d} L${puntos[puntos.length - 1].x} ${cero} L${puntos[0].x} ${cero} Z` : '';
   const ult = puntos.length - 1;
   return `<svg class="linea" viewBox="-10 -10 ${W + 20} ${H + 38}" role="img" aria-label="Saldo al final de cada mes: ${moneySigno(puntos[ult]?.final)} en ${mesCorto(puntos[ult]?.periodo || '2000-01')}">
-    <path d="${area}" fill="var(--chart-line)" fill-opacity=".10" class="area-in" />
+    <path d="${area}" fill="var(--chart-line)" fill-opacity=".06" class="area-in" />
     <line x1="0" x2="${W}" y1="${cero}" y2="${cero}" class="cero" />
     <path d="${d}" pathLength="1" fill="none" stroke="var(--chart-line)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="trazo-in" />
     ${puntos.map((pt, i) => `<g class="hit"><circle class="punto" cx="${pt.x}" cy="${pt.y}" r="${i === ult ? 5.5 : 4}" fill="${pt.final < 0 ? 'var(--neg-fill)' : 'var(--pos-fill)'}" stroke="var(--surface)" stroke-width="2"></circle>

@@ -1,9 +1,9 @@
 import * as store from '../store.js';
-import { gastoPorCategoria, serieMensual } from '../engine/movimientos.js';
+import { gastoPorCategoria, serieMensual, delMes } from '../engine/movimientos.js';
 import { segmentosPorCategoria } from '../engine/graficas.js';
 import { resumenReporte } from '../engine/reportes.js';
 import { idsAhorro, estadoAhorro } from '../engine/ahorro.js';
-import { colorPara } from '../engine/categorias.js';
+import { colorPara, colorDe, nombreDe } from '../engine/categorias.js';
 import { money, esc, fechaCorta } from '../format.js';
 import { abrirRegistro } from './registrar.js';
 import { titulo, avatar } from './piezas.js';
@@ -13,16 +13,34 @@ import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
 import { vencimientos, cuandoVence } from '../engine/recurrentes.js';
 import { icon } from './icons.js';
 
-/* Lo que vence en la próxima semana y lo que ya se pasó sin pagar. */
+/* Lo que vence en la próxima semana y lo que ya se pasó sin pagar, en tiles
+   que se deslizan de lado; el último, negro, lleva a crear uno nuevo. */
 function proximos(p) {
   const lista = vencimientos(p.recurrentes, p.movs);
   if (!lista.length) return '';
-  return `<section class="card proximos">
-    <div class="card-head">${titulo('reloj', 'Próximos pagos')}<a class="card-meta" href="#recurrentes">Ver recurrentes</a></div>
-    <ul class="prox-lista">${lista.map((v) => `<li class="prox ${v.en < 0 ? 'vencido' : v.en <= 1 ? 'urgente' : ''}">
-      <span class="prox-ic" aria-hidden="true">${icon(v.en < 0 ? 'alerta' : 'reloj', 'ic-sm')}</span>
-      <span class="prox-txt"><b>${esc(v.rec.n)}</b><span class="sub">${cuandoVence(v.en)} · ${fechaCorta(v.fecha)}</span></span>
-      <span class="num prox-monto">${v.monto ? money(v.monto) : 'Sin estimado'}</span>
+  return `<section class="bloque proximos">
+    <div class="bloque-head"><h2 class="card-title">Próximos pagos</h2><a class="card-meta" href="#recurrentes">Ver todos</a></div>
+    <ul class="tiles">${lista.map((v) => `<li class="tile ${v.en < 0 ? 'vencido' : v.en <= 1 ? 'urgente' : ''}">
+      <span class="tile-ic" style="--c:${colorDe(p.cats, v.rec.catId)}" aria-hidden="true">${icon(v.en < 0 ? 'alerta' : 'reloj')}</span>
+      <span class="tile-n">${esc(v.rec.n)}</span>
+      <b class="num tile-v">${v.monto ? money(v.monto) : 'Sin estimado'}</b>
+      <span class="tile-s">${cuandoVence(v.en)}</span>
+    </li>`).join('')}
+      <li class="tile tile-nuevo"><a href="#recurrentes">${icon('mas')}<span>Nuevo pago</span></a></li>
+    </ul>
+  </section>`;
+}
+
+/* Los tres últimos movimientos del mes, como en la lista de Movimientos. */
+function ultimos(p, per) {
+  const movs = delMes(p.movs, per).slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 3);
+  if (!movs.length) return '';
+  return `<section class="bloque">
+    <div class="bloque-head"><h2 class="card-title">Últimos movimientos</h2><a class="card-meta" href="#movimientos">Ver todos</a></div>
+    <ul class="list">${movs.map((m) => `<li class="row mov ${m.tipo}">
+      <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombreDe(p.cats, m.catId).trim().charAt(0).toUpperCase())}</span>
+      <span class="row-txt"><span class="row-t">${esc(nombreDe(p.cats, m.catId))}</span><span class="row-s">${fechaCorta(m.fecha)}${m.nota ? ` · ${esc(m.nota)}` : ''}</span></span>
+      <b class="num row-monto">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto)}</b>
     </li>`).join('')}</ul>
   </section>`;
 }
@@ -34,6 +52,10 @@ function saludoFila(p) {
   return `<div class="saludo-fila">
     <div class="saludo-txt"><span class="saludo">${saludo(new Date().getHours())}</span>${nombre ? `<b class="saludo-nombre">${esc(nombre)}</b>` : ''}</div>
     <a class="avatar-btn" href="#perfil" aria-label="Tu perfil">${avatar(p.persona, correo, 'md')}</a>
+    <nav class="saludo-acc" aria-label="Atajos">
+      <a class="btn-redondo" href="#recurrentes" aria-label="Pagos recurrentes">${icon('campana')}</a>
+      <a class="btn-redondo" href="#reportes" aria-label="Reportes">${icon('reportes')}</a>
+    </nav>
   </div>`;
 }
 
@@ -103,10 +125,11 @@ export function renderInicio(root) {
     ${saludoFila(p)}
     ${selectorMes('Inicio')}
     ${cabeceraMes(p, per)}
+    ${ultimos(p, per)}
+    ${proximos(p)}
     ${resumenRapido(p, per)}
     <div class="cols-2">
       <div class="stack">
-        ${proximos(p)}
         <section class="card">
           <div class="card-head">${titulo('categorias', 'Gasto por categoría')}</div>
           ${donutBloque(segmentos, 'Salió', { limite: 5 })}

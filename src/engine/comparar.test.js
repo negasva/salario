@@ -30,4 +30,10 @@ describe('comparar meses', () => {
     expect(tra).toMatchObject({ antes: 33333, delta: 16667 });
     expect(c.filas.find((f) => f.id === 'mer')).toMatchObject({ antes: 300000, pct: 20 });
   });
+
+  it('el mes en curso se mide contra los mismos días de antes', () => {
+    const c = compararMeses(movs, cats, '2026-09', 'anterior', { hastaDia: 2 });
+    expect(c.filas.find((f) => f.id === 'tra')).toMatchObject({ actual: 50000, antes: 0, pct: null });
+    expect(c.filas.find((f) => f.id === 'mer')).toMatchObject({ antes: 300000 });
+  });
 });

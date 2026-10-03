@@ -1,5 +1,5 @@
 import * as store from '../store.js';
-import { delMes, buscar } from '../engine/movimientos.js';
+import { delMes, buscar, hoyISO } from '../engine/movimientos.js';
 import { nombreDe, colorDe, deTipo } from '../engine/categorias.js';
 import { pendientes } from '../engine/recurrentes.js';
 import { money, esc, fechaCorta } from '../format.js';
@@ -85,6 +85,7 @@ function pintar(root, p, per, repintar) {
   const entra = lista.filter((m) => m.tipo === 'ingreso').reduce((t, m) => t + m.monto, 0);
   const sale = lista.filter((m) => m.tipo === 'gasto').reduce((t, m) => t + m.monto, 0);
 
+  const hoy = hoyISO(); const ayer = hoyISO(new Date(Date.now() - 864e5));
   root.innerHTML = `
     ${buscando || filtro || todosLosMeses ? `<p class="resultados sub num" role="status">${lista.length} movimiento${lista.length === 1 ? '' : 's'}${todosLosMeses ? ' en todos los meses' : ''}
       ${sale ? ` · salió <b class="neg">${money(sale)}</b>` : ''}${entra ? ` · entró <b class="pos">${money(entra)}</b>` : ''}</p>` : ''}
@@ -92,7 +93,7 @@ function pintar(root, p, per, repintar) {
     const neto = netoDia(d.movs); // solo se muestra si el día tiene más de uno
     const anio = d.fecha.slice(0, 4);
     return `<section class="dia">
-      <h2 class="dia-head"><span class="dia-fecha">${fechaCorta(d.fecha)}${anio !== hoyAnio ? ` ${anio}` : ''}</span><span class="dia-semana">${diaSemana(d.fecha)}</span>
+      <h2 class="dia-head"><span class="dia-fecha">${d.fecha === hoy ? 'Hoy' : d.fecha === ayer ? 'Ayer' : `${fechaCorta(d.fecha)}${anio !== hoyAnio ? ` ${anio}` : ''}`}</span><span class="dia-semana">${diaSemana(d.fecha)}</span>
         ${d.movs.length > 1 ? `<span class="dia-neto num ${neto < 0 ? 'neg' : 'pos'}">${neto < 0 ? '−' : '+'}${money(Math.abs(neto))}</span>` : ''}</h2>
       <ul class="list">
       ${d.movs.map((m) => {

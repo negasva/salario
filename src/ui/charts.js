@@ -33,7 +33,7 @@ export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite
   const total = segmentos.reduce((t, s) => t + s.monto, 0);
   const mayor = trozos[0]?.pct || 0;
   return `<div class="donut-bloque">
-    <div class="donut-wrap">${donut(trozos)}<div class="donut-centro"><span>${rotulo}</span><b class="num" title="${money(total)}">${moneyCorto(total, 12)}</b></div></div>
+    <div class="donut-wrap">${donut(trozos)}${pildoras(trozos)}<div class="donut-centro"><span>${rotulo}</span><b class="num" title="${money(total)}">${moneyCorto(total, 12)}</b></div></div>
     ${!lista ? '' : trozos.length ? `<ul class="lista-cat">${trozos.slice(0, limite).map((s) => `<li class="fila-cat">
         <span class="dot" style="background:${s.color}"></span>
         <span class="fc-n">${esc(s.nombre)}</span>
@@ -43,6 +43,16 @@ export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite
       ${trozos.length > limite ? `<a class="ver-mas" href="#reportes">${trozos.length - limite} categorías más en Reportes</a>` : ''}`
     : '<div class="empty">Sin gastos en este periodo.</div>'}
   </div>`;
+}
+
+/* Las tres porciones más grandes llevan su monto en una píldora sobre el
+   anillo, a mitad de su arco. El svg va girado -90°: el arco empieza arriba. */
+function pildoras(trozos) {
+  return trozos.filter((t) => t.pct >= 10).slice(0, 3).map((t) => {
+    const a = ((-t.offset + t.largo / 2) / C) * 2 * Math.PI;
+    const r = (R / 160) * 100;
+    return `<span class="donut-pildora num" aria-hidden="true" style="left:${(50 + r * Math.sin(a)).toFixed(1)}%;top:${(50 - r * Math.cos(a)).toFixed(1)}%">${moneyCorto(t.monto, 8)}</span>`;
+  }).join('');
 }
 
 /* ---------- barras de entró contra salió ---------- */

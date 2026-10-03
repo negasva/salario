@@ -1,7 +1,8 @@
 /* Sistema de diseño, sexta versión: Reparto.
 
-   Poppins en todo, con el peso y el tamaño haciendo la jerarquía. Grises
-   fríos de una sola familia, un acento (cobalto) para lo activo y el foco,
+   Poppins en todo, con el peso y el tamaño haciendo la jerarquía. Neutros
+   con tinte ciruela de una sola familia y el rosa de marca para lo activo, el foco
+   y el tramo más grande de la franja,
    y plata que se lee por color y por signo: verde entra, rojo sale, nunca
    solo. La firma es la franja de reparto: el mes entero partido en lo que se
    fue a cada categoría.
@@ -10,51 +11,51 @@
 :root{
   color-scheme:dark;
 
-  --brand:        #5B77FF;
-  --brand-strong: #7C93FF;
-  --on-brand:     #0B0D10;
+  --brand:        #FC90B6;
+  --brand-strong: #FF7AA8;
+  --on-brand:     #1A0E14;
 
-  --primary:      #ECEEF1;
+  --primary:      #F6EEF2;
   --primary-hover:#FFFFFF;
-  --on-primary:   #0B0D10;
+  --on-primary:   #100B0E;
 
-  --bg:           #0B0D10;
-  --surface:      #12151A;
-  --surface-2:    #181C22;
-  --surface-3:    #20252C;
-  --border:       #1E232A;
-  --border-strong:#2C333C;
-  --text:         #ECEEF1;
-  --text-2:       #A4ABB5;
-  --text-3:       #8A929D;
-  --hairline:     inset 0 1px 0 rgba(255,255,255,.05);
+  --bg:           #100B0E;
+  --surface:      #181116;
+  --surface-2:    #1F161C;
+  --surface-3:    #291E25;
+  --border:       #2B2027;
+  --border-strong:#3D2E37;
+  --text:         #F6EEF2;
+  --text-2:       #BBA9B3;
+  --text-3:       #9C8A94;
+  --hairline:     inset 0 1px 0 rgba(255,235,245,.05);
 
-  --accent-text:  #93A6FF;
-  --accent-soft:  rgba(91,119,255,.12);
-  --accent-line:  rgba(124,147,255,.36);
+  --accent-text:  #FFA8C7;
+  --accent-soft:  rgba(252,144,182,.12);
+  --accent-line:  rgba(252,144,182,.38);
 
   /* el saldo vive sobre el fondo, sin tarjeta */
   --hero-bg:      transparent;
-  --hero-text:    #ECEEF1;
-  --hero-text-2:  #A4ABB5;
-  --hero-line:    #1E232A;
-  --hero-pos:     #3DD6A0;
-  --hero-neg:     #FF7D74;
+  --hero-text:    #F6EEF2;
+  --hero-text-2:  #BBA9B3;
+  --hero-line:    #2B2027;
+  --hero-pos:     #5FD7A8;
+  --hero-neg:     #FF7A66;
 
-  --pos:          #3DD6A0;
-  --pos-fill:     #1FB886;
-  --pos-soft:     #0E1D18;
-  --pos-line:     #1B4A39;
-  --neg:          #FF7D74;
-  --neg-fill:     #E5483F;
-  --neg-soft:     #25120F;
-  --neg-line:     #55241F;
+  --pos:          #5FD7A8;
+  --pos-fill:     #2FB886;
+  --pos-soft:     #0F1E18;
+  --pos-line:     #1E4A39;
+  --neg:          #FF7A66;
+  --neg-fill:     #E5533F;
+  --neg-soft:     #2A130F;
+  --neg-line:     #5A271E;
 
   --warn:         #F2B04A;
-  --focus:        #93A6FF;
-  --scrim:        rgba(4,6,9,.72);
-  --glass:        rgba(11,13,16,.80);
-  --seg-on:       #262C35;
+  --focus:        #FFA8C7;
+  --scrim:        rgba(8,4,6,.72);
+  --glass:        rgba(16,11,14,.80);
+  --seg-on:       #33262E;
 
   --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: var(--font-sans);
@@ -83,7 +84,7 @@
   --z-nav:30; --z-modal:80; --z-toast:90;
 
   /* las cuatro primeras categorías, para la muestra de la entrada */
-  --cat-1:#5B77FF; --cat-2:#2DB5A3; --cat-3:#F2B04A; --cat-4:#E5604F;
+  --cat-1:#FC90B6; --cat-2:#7C8CFF; --cat-3:#F5B25A; --cat-4:#3FC7B0;
 
   --tabbar-h:64px;
   --sidebar-w:248px;
@@ -91,42 +92,42 @@
 
 :root[data-theme=light]{
   color-scheme:light;
-  --brand:        #3550E8;
-  --brand-strong: #2640D0;
-  --on-brand:     #FFFFFF;
-  --primary:      #0E1116;
+  --brand:        #E5528A;
+  --brand-strong: #D43B77;
+  --on-brand:     #1E1319;
+  --primary:      #1E1319;
   --primary-hover:#000000;
   --on-primary:   #FFFFFF;
-  --bg:           #F1F3F6;
+  --bg:           #FBF3F6;
   --surface:      #FFFFFF;
-  --surface-2:    #F6F7F9;
-  --surface-3:    #E9ECF1;
-  --border:       #E1E5EB;
-  --border-strong:#CBD1DA;
-  --text:         #0E1116;
-  --text-2:       #4A525E;
-  --text-3:       #626B78;
+  --surface-2:    #F6EAEF;
+  --surface-3:    #EEDDE5;
+  --border:       #EBDDE3;
+  --border-strong:#D8C3CD;
+  --text:         #1E1319;
+  --text-2:       #5C4A54;
+  --text-3:       #75626C;
   --hairline:     inset 0 1px 0 rgba(255,255,255,.9);
-  --accent-text:  #2A44D4;
-  --accent-soft:  rgba(53,80,232,.09);
-  --accent-line:  rgba(53,80,232,.38);
-  --hero-text:    #0E1116;
-  --hero-text-2:  #4A525E;
-  --hero-line:    #E1E5EB;
-  --hero-pos:     #0B7A55;
-  --hero-neg:     #C7372F;
-  --pos:          #0B7A55;
-  --pos-fill:     #17A074;
-  --pos-soft:     #E6F5EE;
-  --pos-line:     #B3DDC9;
-  --neg:          #C7372F;
-  --neg-fill:     #E0473D;
-  --neg-soft:     #FCEAE8;
-  --neg-line:     #F2BDB8;
-  --warn:         #96600A;
-  --focus:        #2A44D4;
-  --scrim:        rgba(14,17,22,.45);
-  --glass:        rgba(241,243,246,.86);
+  --accent-text:  #B3175A;
+  --accent-soft:  rgba(229,82,138,.10);
+  --accent-line:  rgba(229,82,138,.40);
+  --hero-text:    #1E1319;
+  --hero-text-2:  #5C4A54;
+  --hero-line:    #EBDDE3;
+  --hero-pos:     #0F7A55;
+  --hero-neg:     #C13A25;
+  --pos:          #0F7A55;
+  --pos-fill:     #1AA070;
+  --pos-soft:     #E6F4EC;
+  --pos-line:     #B3DCC6;
+  --neg:          #C13A25;
+  --neg-fill:     #DC4A33;
+  --neg-soft:     #FCE9E4;
+  --neg-line:     #F0BDB1;
+  --warn:         #8A5A0B;
+  --focus:        #B3175A;
+  --scrim:        rgba(30,19,25,.45);
+  --glass:        rgba(251,243,246,.86);
   --seg-on:       #FFFFFF;
-  --shadow-lg:    0 24px 56px rgba(20,30,60,.18);
+  --shadow-lg:    0 24px 56px rgba(60,20,40,.16);
 }

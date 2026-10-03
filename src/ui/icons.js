@@ -81,9 +81,9 @@ export function mountIconSprite() {
 // El logo de la app: una moneda partida en dos, el reparto. Va a color, no sale del sprite.
 export function logo(cls = 'logo') {
   return `<svg class="${cls}" viewBox="0 0 512 512" aria-hidden="true">
-    <rect width="512" height="512" rx="112" fill="#0B0D10"/>
-    <path d="M246 116a140 140 0 0 0 0 280z" fill="#5B77FF"/>
-    <path d="M266 116a140 140 0 0 1 0 280z" fill="#ECEEF1"/></svg>`;
+    <rect width="512" height="512" rx="112" fill="#100B0E"/>
+    <path d="M246 116a140 140 0 0 0 0 280z" fill="#FC90B6"/>
+    <path d="M266 116a140 140 0 0 1 0 280z" fill="#F6EEF2"/></svg>`;
 }
 
 // Icono de navegación: relleno si es la pestaña activa y existe su versión -on.

@@ -64,7 +64,27 @@ function abrirArranque(per, repintar) {
   cuerpo.querySelector('#arrMonto').focus();
 }
 
+/* El saldo rueda de la cifra que tenías a la nueva cuando cambia (otro mes,
+   un movimiento guardado): así se ve cuánto se movió. 450 ms, ease-out, y
+   nada con "reducir movimiento". La primera pintada no rueda. */
+let cifraPrevia = null;
+function rodarCifra(root) {
+  const el = root.querySelector('.hero-monto[data-v]');
+  if (!el) return;
+  const a = cifraPrevia; const z = Number(el.dataset.v);
+  cifraPrevia = z;
+  if (a === null || a === z || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  const t0 = performance.now();
+  const paso = (t) => {
+    const k = Math.min(1, (t - t0) / 450);
+    el.textContent = moneySigno(Math.round(a + (z - a) * (1 - (1 - k) ** 3)));
+    if (k < 1 && el.isConnected) requestAnimationFrame(paso);
+  };
+  requestAnimationFrame(paso);
+}
+
 export function enlazarMes(root, repintar) {
+  rodarCifra(root);
   root.querySelectorAll('[data-mes]').forEach((b) => {
     b.onclick = () => { periodo = sumarMeses(periodo, Number(b.dataset.mes)); repintar(); };
   });
@@ -83,7 +103,7 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
   return `<section class="hero ${compacta ? 'hero-compacta' : ''}" aria-label="Saldo del mes">
     <div class="hero-main">
       <span class="hero-label">${per < periodoActual() ? 'Terminaste con' : 'Terminas con'}</span>
-      <b class="hero-monto num ${clase(r.final)}">${moneySigno(r.final)}</b>
+      <b class="hero-monto num ${clase(r.final)}" data-v="${r.final}">${moneySigno(r.final)}</b>
     </div>
     ${compacta ? '' : franjaHTML(p, per, r)}
     <dl class="hero-cuenta">
@@ -104,7 +124,8 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
 function franjaHTML(p, per, r) {
   const segs = segmentosPorCategoria(p.cats, gastoPorCategoria(p.movs, per));
   const f = franjaReparto(segs, r.ingresos);
-  if (!f) return '';
+  if (!f) return `<div class="reparto reparto-vacio" aria-hidden="true"><i class="libre" style="--w:100;--k:0"></i></div>
+  <p class="reparto-pie">Aquí se reparte el mes cuando registres un ingreso y un gasto.</p>`;
   const tramos = [...f.partes, ...(f.libre ? [{ nombre: 'Libre', monto: f.libre.monto, pct: f.libre.pct, libre: true }] : [])];
   const resumen = tramos.map((t) => `${t.nombre} ${money(t.monto)}`).join(', ');
   const leyenda = f.partes.slice(0, 3).concat(f.libre ? [{ nombre: 'Libre', monto: f.libre.monto, libre: true }] : []);

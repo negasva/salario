@@ -273,9 +273,9 @@ input.monto{min-height:56px;font-size:26px;font-weight:var(--fw-bold);letter-spa
 .mov.gasto .row-monto{color:var(--neg)}
 
 /* avatar con la inicial, teñido con el color de la categoría */
-.av{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;font-size:var(--text-sm);font-weight:var(--fw-bold);
-  color:var(--text);background:var(--surface-2);background:color-mix(in srgb,var(--c) 22%,var(--surface));
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 30%,transparent)}
+.av{flex:none;width:4px;height:34px;border-radius:var(--radius-pill);background:var(--c,var(--brand))}
+.av-ic{display:grid;place-items:center;flex:none;width:24px;height:24px;color:var(--c,var(--text-2))}
+.av-ic svg{width:22px;height:22px}
 
 /* categorías */
 .cat .barra{height:6px;margin:6px 0 2px}
@@ -469,7 +469,7 @@ a.row-main{text-decoration:none;color:inherit}
 .deuda .row-s{flex-wrap:wrap;column-gap:4px;row-gap:0}
 .deuda .row-monto{font-size:13px;color:var(--text-2)}
 .deuda.pagada .row-monto{color:var(--pos)}
-.deuda .av svg{width:16px;height:16px}
+.deuda .av-ic svg{width:20px;height:20px}
 
 /* ── ahorro ───────────────────────────────────────────────────────────── */
 .reparto{display:flex;height:12px;margin-top:var(--space-4);border-radius:var(--radius-pill);overflow:hidden;background:var(--surface-3);gap:2px}

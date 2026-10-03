@@ -150,9 +150,9 @@ function vistaMes(p, per) {
     </section>
 
     <section class="seccion">
-      <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('alerta', 'ic-sm')}</span>Mayores gastos</h2>
+      <h2 class="seccion-t">Mayores gastos</h2>
       ${top.length ? `<ul class="list">${top.map((m) => `<li class="row mov gasto">
-        <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombreDe(p.cats, m.catId).trim().charAt(0).toUpperCase())}</span>
+        <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true"></span>
         <span class="row-txt"><span class="row-t">${esc(nombreDe(p.cats, m.catId))}</span>
           <span class="row-s">${fechaCorta(m.fecha)}${m.nota ? ` · ${esc(m.nota)}` : ''}</span></span>
         <b class="num row-monto">−${money(m.monto)}</b></li>`).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}

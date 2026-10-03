@@ -2,6 +2,11 @@
 
 /* ── título de tarjeta con su ícono ───────────────────────────────────── */
 .card-title,.seccion-t{display:inline-flex;align-items:center;gap:var(--space-3)}
+.ct-ic{display:none;place-items:center;flex:none;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--border)}
+.ct-ic svg{width:15px;height:15px}
+.seccion-t .ct-ic{width:22px;height:22px;background:transparent;box-shadow:none}
+.seccion-t .ct-ic svg{width:14px;height:14px}
 
 /* ── control segmentado con la pastilla que viaja ─────────────────────────
    Estado: qué opción está activa. Ocasional: 260ms, curva de hoja de iOS. */
@@ -40,12 +45,7 @@
    Pantallas que se abren pocas veces: los pasos de bienvenida, las frases de
    Reportes. 30 a 60ms entre una y otra, nunca bloquean tocar. */
 .entrada .paso,.anima .ins{animation:entrar .32s var(--ease-out) both;animation-delay:calc(var(--i,0) * 55ms + 120ms)}
-/* la franja se reparte: cada tramo crece desde la izquierda, uno tras otro.
-   Solo al abrir la app; cambiar de mes la deja quieta. */
-.entrada .reparto i{animation:repartir .7s var(--ease-out) both;animation-delay:calc(var(--k) * 70ms + 80ms)}
-@keyframes repartir{from{transform:scaleX(0);opacity:0}}
 @media (prefers-reduced-motion:reduce){
-  .entrada .reparto i{animation:none}
   /* el relleno de mantener presionado es un temporizador, no adorno: sigue llenándose */
   .mantener .mantener-relleno{transition-property:clip-path!important}
   .chips[data-seg]::before{transition:none}

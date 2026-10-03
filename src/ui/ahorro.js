@@ -211,7 +211,7 @@ export function renderAhorro(root) {
     </section>
 
     <section class="seccion">
-      <div class="seccion-head"><h2 class="seccion-t">Metas</h2><button class="mini" id="ahNueva" ${e.pctUsado >= 100 ? 'disabled' : ''}>${icon('mas', 'ic-sm')}Nueva meta</button></div>
+      <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('meta', 'ic-sm')}</span>Metas</h2><button class="mini" id="ahNueva" ${e.pctUsado >= 100 ? 'disabled' : ''}>${icon('mas', 'ic-sm')}Nueva meta</button></div>
       ${abiertas.length ? `<p class="sub intro">Cada meta se lleva un % de lo que ahorras. ${100 - e.pctUsado > 0 ? `Queda libre el ${100 - e.pctUsado} %.` : 'Todo va a metas.'}</p>
         <ul class="metas">${abiertas.map(tarjeta).join('')}</ul>`
     : `<div class="empty-state">
@@ -221,7 +221,7 @@ export function renderAhorro(root) {
       </div>`}
     </section>
     ${usadas.length ? `<section class="seccion">
-      <h2 class="seccion-t">Cumplidas</h2>
+      <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('check', 'ic-sm')}</span>Cumplidas</h2>
       <ul class="list">${usadas.map((x) => `<li class="row">
         <span class="estado pagado" aria-hidden="true">${icon('pagado')}</span>
         <div class="row-txt"><div class="row-t">${esc(x.meta.n)}</div><div class="row-s num">Usaste ${money(x.meta.usada.monto)} el ${fechaCorta(x.meta.usada.fecha)}</div></div>

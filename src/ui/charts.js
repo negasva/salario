@@ -24,12 +24,12 @@ function donut(trozos) {
   </svg>`;
 }
 
-export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite = Infinity, grafica = true } = {}) {
+export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite = Infinity } = {}) {
   const trozos = arcos(segmentos, C);
   const total = segmentos.reduce((t, s) => t + s.monto, 0);
   const mayor = trozos[0]?.pct || 0;
   return `<div class="donut-bloque">
-    ${grafica ? `<div class="donut-wrap">${donut(trozos)}<div class="donut-centro"><span>${rotulo}</span><b class="num" title="${money(total)}">${moneyCorto(total, 12)}</b></div></div>` : ''}
+    <div class="donut-wrap">${donut(trozos)}<div class="donut-centro"><span>${rotulo}</span><b class="num" title="${money(total)}">${moneyCorto(total, 12)}</b></div></div>
     ${!lista ? '' : trozos.length ? `<ul class="lista-cat">${trozos.slice(0, limite).map((s) => `<li class="fila-cat">
         <span class="dot" style="background:${s.color}"></span>
         <span class="fc-n">${esc(s.nombre)}</span>
@@ -48,15 +48,15 @@ export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite
 export function graficaBarras(serie, resaltar = serie.length - 1, W = serie.length * 48) {
   const ALTO = W > 420 ? 160 : 120;
   const b = barras(serie, ALTO);
-  const ancho = W / b.length; const bw = Math.min(10, ancho * 0.2);
+  const ancho = W / b.length; const bw = Math.min(16, ancho * 0.28);
   return `<svg class="barras" viewBox="0 0 ${W} ${ALTO + 22}" role="img" aria-label="Ingresos y gastos de los últimos ${b.length} meses">
     ${[0.25, 0.5, 0.75].map((f) => `<line x1="0" x2="${W}" y1="${ALTO * f}" y2="${ALTO * f}" class="rejilla" />`).join('')}
     <line x1="0" x2="${W}" y1="${ALTO}" y2="${ALTO}" class="base" />
     ${b.map((x, i) => {
     const cx = i * ancho + ancho / 2;
     return `<g class="hit ${i === resaltar ? 'actual' : 'pasado'}" style="--i:${i}">
-      <rect class="barra-in" x="${(cx - bw - 1).toFixed(1)}" y="${ALTO - x.ingresos}" width="${bw.toFixed(1)}" height="${x.ingresos}" rx="5" fill="var(--pos-fill)"></rect>
-      <rect class="barra-in" x="${(cx + 1).toFixed(1)}" y="${ALTO - x.gastos}" width="${bw.toFixed(1)}" height="${x.gastos}" rx="5" fill="var(--neg-fill)"></rect>
+      <rect class="barra-in" x="${(cx - bw - 1).toFixed(1)}" y="${ALTO - x.ingresos}" width="${bw.toFixed(1)}" height="${x.ingresos}" rx="3" fill="var(--pos-fill)"></rect>
+      <rect class="barra-in" x="${(cx + 1).toFixed(1)}" y="${ALTO - x.gastos}" width="${bw.toFixed(1)}" height="${x.gastos}" rx="3" fill="var(--neg-fill)"></rect>
       <text x="${cx.toFixed(1)}" y="${ALTO + 16}" text-anchor="middle" class="eje">${mesCorto(x.periodo)}</text>
       <rect class="zona" x="${(i * ancho).toFixed(1)}" y="0" width="${ancho.toFixed(1)}" height="${ALTO + 22}" data-tip="${mesCorto(x.periodo)}\nEntró ${money(serie[i].ingresos)}\nSalió ${money(serie[i].gastos)}"></rect>
     </g>`;
@@ -96,7 +96,7 @@ export function graficaLinea(serie, Wtotal = 308) {
     <path d="${area}" fill="var(--brand)" fill-opacity=".10" class="area-in" />
     <line x1="0" x2="${W}" y1="${cero}" y2="${cero}" class="cero" />
     <path d="${d}" pathLength="1" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="trazo-in" />
-    ${puntos.map((pt, i) => `<g class="hit"><circle class="punto" cx="${pt.x}" cy="${pt.y}" r="${i === ult ? 5.5 : 4}" fill="${pt.final < 0 ? 'var(--neg-fill)' : 'var(--brand)'}" stroke="var(--surface)" stroke-width="2"></circle>
+    ${puntos.map((pt, i) => `<g class="hit"><circle class="punto" cx="${pt.x}" cy="${pt.y}" r="${i === ult ? 5.5 : 4}" fill="${pt.final < 0 ? 'var(--neg-fill)' : 'var(--pos-fill)'}" stroke="var(--surface)" stroke-width="2"></circle>
       <text x="${pt.x}" y="${H + 22}" text-anchor="middle" class="eje ${i === ult ? 'eje-actual' : ''}">${mesCorto(pt.periodo)}</text>
       <circle class="zona" cx="${pt.x}" cy="${pt.y}" r="16" data-tip="${mesCorto(pt.periodo)}\nTerminó con ${moneySigno(pt.final)}"></circle></g>`).join('')}
   </svg>`;

@@ -226,7 +226,7 @@ function hojaPagos(rec, per, alGuardar) {
 function seccionDeudas(deudas, p, per) {
   const falta = deudas.reduce((t, r) => t + estadoDeuda(r, p.movs, per).falta, 0);
   return `<section class="seccion">
-    <div class="seccion-head"><h2 class="seccion-t">Deudas</h2><span class="sub num">Te faltan <b>${money(falta)}</b></span></div>
+    <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('tarjeta', 'ic-sm')}</span>Deudas</h2><span class="sub num">Te faltan <b>${money(falta)}</b></span></div>
     <ul class="list">${deudas.map((r) => {
     const d = estadoDeuda(r, p.movs, per);
     const pct = d.deuda ? Math.min(100, Math.round((d.pagado / d.deuda) * 100)) : 0;
@@ -238,7 +238,7 @@ function seccionDeudas(deudas, p, per) {
     }[d.estado];
     return `<li class="row row-link deuda ${d.estado === 'pagada' ? 'pagada' : ''}">
       <button class="row-main" data-deuda="${r.id}"><span class="sr-only">Editar </span>
-        <span class="av-ic" style="--c:${colorDe(p.cats, r.catId)}" aria-hidden="true">${icon('tarjeta', 'ic-sm')}</span>
+        <span class="av" style="--c:${colorDe(p.cats, r.catId)}" aria-hidden="true">${icon('tarjeta', 'ic-sm')}</span>
         <span class="row-txt">
           <span class="row-top"><span class="row-t">${esc(r.n)}</span><span class="num row-monto">${d.falta ? `faltan ${money(d.falta)}` : icon('check', 'ic-sm')}</span></span>
           <span class="barra" aria-hidden="true"><i style="width:${pct}%;background:var(--pos-fill)"></i></span>
@@ -322,11 +322,11 @@ export function renderRecurrentes(root) {
     </div>
     ${p.recurrentes.length ? `
       <section class="seccion">
-        <h2 class="seccion-t">Gastos</h2>
+        <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2>
         ${lista('gasto').length ? `<ul class="list">${lista('gasto').map(fila).join('')}</ul>` : '<div class="empty">Ninguno todavía.</div>'}
       </section>
       ${lista('ingreso').length ? `<section class="seccion">
-        <h2 class="seccion-t">Ingresos</h2>
+        <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2>
         <ul class="list">${lista('ingreso').map(fila).join('')}</ul>
       </section>` : ''}
       ${deudas.length ? seccionDeudas(deudas, p, per) : ''}`

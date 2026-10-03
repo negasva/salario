@@ -6,7 +6,7 @@ import { COLORES_AVATAR, iniciales, textoSobre } from '../engine/persona.js';
 
 // El título de una tarjeta con su ícono: se lee más rápido que una palabra sola.
 export function titulo(ic, texto, nivel = 2) {
-  return `<h${nivel} class="card-title">${texto}</h${nivel}>`;
+  return `<h${nivel} class="card-title"><span class="ct-ic" aria-hidden="true">${icon(ic, 'ic-sm')}</span>${texto}</h${nivel}>`;
 }
 
 // El círculo con las iniciales. `tam` es 'sm' | 'md' | 'xl'.

@@ -82,6 +82,7 @@ export function renderAjustes(root) {
         </div>
       </section>
       <a class="card ajuste-perfil" href="#perfil">
+        <span class="ct-ic" aria-hidden="true">${icon('usuario', 'ic-sm')}</span>
         <span class="ajuste-perfil-txt"><b>Tu perfil</b><small>Nombre, contraseña y sesión</small></span>
         <span class="mas-flecha" aria-hidden="true">${icon('der', 'ic-sm')}</span>
       </a>

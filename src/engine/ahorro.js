@@ -17,14 +17,30 @@
 import { clave, nuevoId, OTROS_ING } from './categorias.js';
 import { periodoDe, sumarMeses } from './movimientos.js';
 
+/* Ahorro y Ahorros (como la escribe quien la crea a mano) son la misma cosa:
+   toda categoría de gasto con ese nombre cuenta como ahorro. */
+const esNombreAhorro = (n) => ['ahorro', 'ahorros'].includes(clave(n));
+
+export function catsAhorro(cats) {
+  return (cats || []).filter((c) => c.tipo === 'gasto' && esNombreAhorro(c.n));
+}
+
+// La categoría principal, donde se registra al ahorrar: prefiere "Ahorro" exacta.
 export function catAhorro(cats) {
-  return (cats || []).find((c) => c.tipo === 'gasto' && clave(c.n) === 'ahorro') || null;
+  const todas = catsAhorro(cats);
+  return todas.find((c) => clave(c.n) === 'ahorro') || todas[0] || null;
+}
+
+// Los ids de todas las categorías de ahorro, para sumar lo guardado en cualquiera.
+export function idsAhorro(cats) {
+  return catsAhorro(cats).map((c) => c.id);
 }
 
 // Lo guardado cada mes: { 'AAAA-MM': monto }.
 export function ahorroPorMes(movs, catId) {
+  const ids = [].concat(catId);
   return (movs || []).reduce((acc, m) => {
-    if (m.tipo === 'gasto' && m.catId === catId) {
+    if (m.tipo === 'gasto' && ids.includes(m.catId)) {
       const p = periodoDe(m.fecha);
       acc[p] = (acc[p] || 0) + m.monto;
     }
@@ -89,8 +105,9 @@ export function ritmoMensual(porMes, periodo, n = 3) {
 export function estadoAhorro(p, periodo) {
   const cat = catAhorro(p.cats);
   if (!cat) return null;
-  const porMes = ahorroPorMes(p.movs, cat.id);
-  const total = ahorroTotal(p.movs, cat.id);
+  const ids = idsAhorro(p.cats);
+  const porMes = ahorroPorMes(p.movs, ids);
+  const total = ahorroTotal(p.movs, ids);
   const ritmo = ritmoMensual(porMes, periodo);
   const metas = (p.metas || []).map((m) => {
     const llevado = progresoMeta(m, porMes, periodo);

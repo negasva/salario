@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  catAhorro, ahorroPorMes, ahorroTotal, nuevaMeta, progresoMeta, ritmoMensual, estadoAhorro,
+  catAhorro, idsAhorro, ahorroPorMes, ahorroTotal, nuevaMeta, progresoMeta, ritmoMensual, estadoAhorro,
   inicialSugerido, retiro,
 } from './ahorro.js';
 
@@ -68,5 +68,29 @@ describe('metas', () => {
 
   it('sin categoría Ahorro no hay estado', () => {
     expect(estadoAhorro({ cats: [], movs: [], metas: [] }, '2026-09')).toBeNull();
+  });
+});
+
+describe('Ahorro y Ahorros', () => {
+  const cats = [
+    { id: 'aho', n: 'Ahorro', tipo: 'gasto' },
+    { id: 'ahos', n: 'Ahorros', tipo: 'gasto' },
+    { id: 'x', n: 'Mercado', tipo: 'gasto' },
+  ];
+  const movs = [
+    { id: 1, tipo: 'gasto', catId: 'ahos', monto: 500000, fecha: '2026-10-03' },
+    { id: 2, tipo: 'gasto', catId: 'aho', monto: 100000, fecha: '2026-10-04' },
+    { id: 3, tipo: 'gasto', catId: 'x', monto: 70000, fecha: '2026-10-05' },
+  ];
+  it('suma lo guardado en las dos categorías', () => {
+    expect(catAhorro(cats).id).toBe('aho');
+    expect(idsAhorro(cats)).toEqual(['aho', 'ahos']);
+    expect(ahorroTotal(movs, idsAhorro(cats))).toBe(600000);
+    expect(estadoAhorro({ cats, movs, metas: [] }, '2026-10').total).toBe(600000);
+  });
+  it('con solo Ahorros también cuenta', () => {
+    const solo = [cats[1]];
+    expect(catAhorro(solo).id).toBe('ahos');
+    expect(estadoAhorro({ cats: solo, movs, metas: [] }, '2026-10').total).toBe(500000);
   });
 });

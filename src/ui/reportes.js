@@ -3,7 +3,7 @@ import { sumarMeses, periodoActual, gastoPorCategoria, hoyISO } from '../engine/
 import { segmentosPorCategoria } from '../engine/graficas.js';
 import { flujoDiario, acumulado, porDiaSemana, calor, topGastos, resumenReporte,
   tendenciaCategorias, resumenAnual, insights } from '../engine/reportes.js';
-import { catAhorro } from '../engine/ahorro.js';
+import { idsAhorro } from '../engine/ahorro.js';
 import { nombreDe, colorDe } from '../engine/categorias.js';
 import { money, moneySigno, esc, fechaCorta, nombreMes, MESES } from '../format.js';
 import { selectorMes, enlazarMes, mesElegido, setMes } from './mes.js';
@@ -76,7 +76,7 @@ function datosSemana(t) {
 
 function vistaMes(p, per) {
   const hoy = hoyISO();
-  const ahorroId = catAhorro(p.cats)?.id;
+  const ahorroId = idsAhorro(p.cats);
   const r = resumenReporte(p.movs, per, { hoy, ahorroId });
   if (!r.gastos && !r.ingresos) {
     return { montar() {}, html: `<div class="empty-state"><span class="empty-ic">${icon('reportes')}</span>

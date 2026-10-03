@@ -1,8 +1,7 @@
-import '@fontsource/instrument-sans/latin-400.css';
-import '@fontsource/instrument-sans/latin-500.css';
-import '@fontsource/instrument-sans/latin-600.css';
-import '@fontsource/instrument-sans/latin-700.css';
-import '@fontsource-variable/fraunces/wght.css';
+import '@fontsource/poppins/latin-400.css';
+import '@fontsource/poppins/latin-500.css';
+import '@fontsource/poppins/latin-600.css';
+import '@fontsource/poppins/latin-700.css';
 import { mountIconSprite } from './ui/icons.js';
 import { renderLogin } from './ui/login.js';
 import { renderNuevaClave } from './ui/nuevaclave.js';

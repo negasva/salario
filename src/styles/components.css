@@ -77,11 +77,9 @@
 .hero{position:relative;overflow:hidden;isolation:isolate;background:var(--hero-bg);color:var(--hero-text);
   border:1px solid var(--hero-line);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5) var(--space-5);margin-bottom:var(--space-5)}
 .hero :focus-visible{outline-color:var(--brand)}
-.hero{--text:var(--hero-text);--text-2:var(--hero-text-2);--text-3:var(--hero-text-2);--border:var(--hero-line);--border-strong:var(--hero-line);
-  --surface-2:color-mix(in srgb,var(--hero-text) 6%,transparent);--surface-3:color-mix(in srgb,var(--hero-text) 12%,transparent)}
 .hero-label{display:block;font-size:11px;font-weight:var(--fw-bold);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--hero-text-2)}
-.hero-monto{display:block;margin-top:var(--space-2);font-family:var(--font-display);font-size:clamp(34px,10vw,52px);font-weight:var(--fw-semibold);
-  letter-spacing:-0.02em;line-height:1.05;white-space:nowrap}
+.hero-monto{display:block;margin-top:var(--space-2);font-size:clamp(32px,9.4vw,44px);font-weight:var(--fw-semibold);
+  letter-spacing:-0.03em;line-height:1.05;white-space:nowrap}
 .hero .pos{color:var(--hero-pos)}
 .hero .neg{color:var(--hero-neg)}
 .hero-cuenta{display:flex;flex-direction:column;gap:var(--space-2);margin:var(--space-5) 0 0;padding-top:var(--space-4);border-top:1px solid var(--hero-line)}
@@ -130,7 +128,7 @@
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
   padding:var(--space-5);margin-bottom:var(--space-4);box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-4)}
-.card-title{font-family:var(--font-display);font-size:var(--text-h3);font-weight:var(--fw-semibold);letter-spacing:-0.01em}
+.card-title{font-size:var(--text-base);font-weight:var(--fw-bold);letter-spacing:-0.02em}
 .card-meta{font-size:var(--text-xs);color:var(--text-3);white-space:nowrap}
 .grid-2{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-4)}
 .grid-2>.card,.stack>.card{margin:0}
@@ -231,7 +229,7 @@ input.monto{min-height:56px;font-size:26px;font-weight:var(--fw-bold);letter-spa
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3) var(--space-4)}
 @media (min-width:720px){.stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
 .stat-label{display:block;margin-bottom:2px;font-size:var(--text-xs);font-weight:var(--fw-medium);color:var(--text-2)}
-.stat b{font-family:var(--font-display);font-size:clamp(17px,4.8vw,22px);font-weight:var(--fw-semibold);letter-spacing:-0.01em}
+.stat b{font-size:clamp(16px,4.6vw,21px);font-weight:var(--fw-semibold);letter-spacing:-0.02em}
 .progreso{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid var(--border)}
 .progreso-txt{display:flex;justify-content:space-between;gap:var(--space-3);font-size:var(--text-sm);color:var(--text-2)}
 .progreso-txt b{color:var(--text)}

@@ -9,8 +9,8 @@
 export const OTROS = 'otros';
 export const OTROS_ING = 'otros-ingreso';
 
-export const COLORES = ['#C8553D', '#E8B44C', '#5E8C61', '#3E6D8E', '#8A5A83',
-  '#D98C5F', '#2F7F7A', '#A67B2D', '#6B6FA8', '#9C3B3B', '#7A7466'];
+export const COLORES = ['#E5484D', '#F5A524', '#1FA971', '#0EA5E9', '#8B5CF6',
+  '#EC4899', '#0D9488', '#A16207', '#6366F1', '#B91C1C', '#64748B'];
 
 // Las de fábrica, en el orden en que se muestran.
 export const BASE_GASTO = ['Vivienda', 'Servicios', 'Mercado', 'Comida fuera', 'Transporte',

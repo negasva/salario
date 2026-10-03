@@ -56,6 +56,7 @@
   --neg-soft:     #261112;
   --neg-line:     #532526;
 
+  --warn:         #F5A524;
   --focus:        #FF9EC2;
   --scrim:        rgba(0,0,0,.72);
   --glass:        rgba(10,10,10,.82);
@@ -133,6 +134,7 @@
   --neg-fill:     #E5484D;
   --neg-soft:     #FEF0F0;
   --neg-line:     #F5C2C2;
+  --warn:         #B45309;
   --focus:        #C21F5C;
   --scrim:        rgba(0,0,0,.45);
   --glass:        rgba(250,250,250,.86);

@@ -10,6 +10,8 @@ import { selectorMes, enlazarMes, mesElegido, setMes } from './mes.js';
 import { donutBloque, graficaBarras, graficaNeto, lineaAcumulada, barrasSemana, calendarioCalor,
   sparkline, enlazarTips, responsiva } from './charts.js';
 import { icon } from './icons.js';
+import { animarSegmentos } from './efectos.js';
+import { titulo } from './piezas.js';
 
 /* Reportes: lo que los movimientos dicen más allá del saldo. Dos vistas, el
    mes y el año, con el mismo ritmo: cuatro cifras arriba y las gráficas
@@ -28,12 +30,12 @@ function variacion(actual, antes, etiqueta) {
   return `<span class="var ${pct > 0 ? 'mal' : 'bien'}">${icon(pct > 0 ? 'sube' : 'baja', 'ic-sm')}${pct > 0 ? '+' : '−'}${Math.abs(pct)} % ${etiqueta}</span>`;
 }
 
-const kpi = (rot, valor, nota, clase = '') => `<div class="kpi">
-  <span class="stat-label">${rot}</span><b class="num ${clase}">${valor}</b><span class="kpi-nota">${nota}</span></div>`;
+const kpi = (ic, rot, valor, nota, clase = '') => `<div class="kpi">
+  <span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon(ic, 'ic-sm')}</span>${rot}</span><b class="num ${clase}">${valor}</b><span class="kpi-nota">${nota}</span></div>`;
 
 function cabecera(per, anio) {
   const controles = `<div class="rep-barra">
-    <div class="chips chips-base" role="group" aria-label="Periodo del reporte">
+    <div class="chips chips-base" role="group" aria-label="Periodo del reporte" data-seg="rep-vista">
       <button class="chip ${vista === 'mes' ? 'on' : ''}" data-vista="mes" aria-pressed="${vista === 'mes'}">Mes</button>
       <button class="chip ${vista === 'anio' ? 'on' : ''}" data-vista="anio" aria-pressed="${vista === 'anio'}">Año</button>
     </div>
@@ -53,7 +55,7 @@ function cabecera(per, anio) {
 function resumenFrases(lista) {
   if (!lista.length) return '';
   return `<section class="card insights" aria-label="Lo que dicen tus números">
-    <ul class="ins-lista">${lista.map((i) => `<li class="ins ins-${i.tono}">
+    <ul class="ins-lista">${lista.map((i, k) => `<li class="ins ins-${i.tono}" style="--i:${k}">
       <span class="ins-ic" aria-hidden="true">${icon(i.ic, 'ic-sm')}</span><span>${esc(i.texto)}</span></li>`).join('')}</ul></section>`;
 }
 
@@ -79,7 +81,7 @@ function vistaMes(p, per) {
   if (!r.gastos && !r.ingresos) {
     return { montar() {}, html: `<div class="empty-state"><span class="empty-ic">${icon('reportes')}</span>
       <b>Sin movimientos en ${nombreMes(per).split(' de ')[0]}</b>
-      <span class="sub">Cuando registres ingresos y gastos, aquí aparece el reporte del mes.</span></div>` };
+      <span class="sub">Registra algo y aquí aparece tu reporte.</span></div>` };
   }
   const prev = sumarMeses(per, -1);
   const dias = flujoDiario(p.movs, per);
@@ -113,34 +115,34 @@ function vistaMes(p, per) {
 
   const html = `
     <div class="kpis">
-      ${kpi('Gastaste', money(r.gastos), variacion(r.gastos, r.pasados < r.total ? antes : rPrev.gastos, r.pasados < r.total ? 'a esta altura' : 'vs mes anterior') || `${r.diasConGasto} días con gasto`)}
-      ${kpi('Gasto por día', money(r.promedioDiario), r.proyeccion !== null ? `Cierras el mes en ${money(r.proyeccion)}` : 'Sin recurrentes ni ahorro')}
-      ${kpi('Tasa de ahorro', r.tasaAhorro === null ? 'Sin ingresos' : `${r.tasaAhorro} %`, r.tasaAhorro === null ? 'No entró plata este mes' : r.apartado ? `Apartaste ${money(r.apartado)}` : r.neto >= 0 ? `Te sobró ${money(r.neto)}` : `Te faltó ${money(-r.neto)}`, r.tasaAhorro !== null && r.tasaAhorro < 0 ? 'neg' : '')}
-      ${kpi('Día más caro', r.diaMasCaro ? fechaCorta(`${per}-${dia2(r.diaMasCaro.dia)}`) : 'Ninguno', r.diaMasCaro ? `Salieron ${money(r.diaMasCaro.gasto)}` : 'Sin gastos este mes')}
+      ${kpi('sale', 'Gastaste', money(r.gastos), variacion(r.gastos, r.pasados < r.total ? antes : rPrev.gastos, r.pasados < r.total ? 'a esta altura' : 'vs mes anterior') || `${r.diasConGasto} días con gasto`)}
+      ${kpi('reloj', 'Gasto por día', money(r.promedioDiario), r.proyeccion !== null ? `Cierras el mes en ${money(r.proyeccion)}` : 'Sin recurrentes ni ahorro')}
+      ${kpi('ahorro', 'Tasa de ahorro', r.tasaAhorro === null ? 'Sin ingresos' : `${r.tasaAhorro} %`, r.tasaAhorro === null ? 'No entró plata este mes' : r.apartado ? `Apartaste ${money(r.apartado)}` : r.neto >= 0 ? `Te sobró ${money(r.neto)}` : `Te faltó ${money(-r.neto)}`, r.tasaAhorro !== null && r.tasaAhorro < 0 ? 'neg' : '')}
+      ${kpi('calendario', 'Día más caro', r.diaMasCaro ? fechaCorta(`${per}-${dia2(r.diaMasCaro.dia)}`) : 'Ninguno', r.diaMasCaro ? `Salieron ${money(r.diaMasCaro.gasto)}` : 'Sin gastos este mes')}
     </div>
 
     ${resumenFrases(frases)}
 
     <section class="card">
-      <div class="card-head"><h2 class="card-title">Gasto acumulado</h2><span class="card-meta">Contra el mes anterior</span></div>
+      <div class="card-head">${titulo('sube', 'Gasto acumulado')}<span class="card-meta">Contra el mes anterior</span></div>
       <div class="graf" id="gAcum"></div>
       <div class="leyenda"><span><i class="raya" style="background:var(--brand)"></i>Este mes</span><span><i class="raya raya-previo"></i>Mes anterior</span>${r.proyeccion !== null ? '<span><i class="raya raya-proy"></i>Ritmo actual</span>' : ''}</div>
     </section>
 
     <div class="grid-2">
       <section class="card">
-        <div class="card-head"><h2 class="card-title">Calendario de gasto</h2><span class="card-meta">Más oscuro, más gasto</span></div>
+        <div class="card-head">${titulo('calendario', 'Calendario de gasto')}<span class="card-meta">Más oscuro, más gasto</span></div>
         ${calendarioCalor(calor(p.movs, per), per === periodoActual() ? Number(hoy.slice(8, 10)) : 0)}
       </section>
       <section class="card">
-        <div class="card-head"><h2 class="card-title">Por día de la semana</h2><span class="card-meta">Sin recurrentes ni ahorro</span></div>
+        <div class="card-head">${titulo('reloj', 'Por día de la semana')}<span class="card-meta">Sin recurrentes ni ahorro</span></div>
         <div class="graf" id="gSemana"></div>
         ${datosSemana(semana)}
       </section>
     </div>
 
     <section class="card">
-      <div class="card-head"><h2 class="card-title">A dónde se fue</h2><span class="card-meta">Tendencia de 6 meses</span></div>
+      <div class="card-head">${titulo('categorias', 'A dónde se fue')}<span class="card-meta">Tendencia de 6 meses</span></div>
       <div class="rep-cats-card">
         ${donutBloque(segs, 'Salió', { lista: false })}
         ${segs.length ? `<ul class="rep-cats">${segs.slice(0, 8).map(fila).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}
@@ -148,7 +150,7 @@ function vistaMes(p, per) {
     </section>
 
     <section class="seccion">
-      <h2 class="seccion-t">Mayores gastos</h2>
+      <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('alerta', 'ic-sm')}</span>Mayores gastos</h2>
       ${top.length ? `<ul class="list">${top.map((m) => `<li class="row mov gasto">
         <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombreDe(p.cats, m.catId).trim().charAt(0).toUpperCase())}</span>
         <span class="row-txt"><span class="row-t">${esc(nombreDe(p.cats, m.catId))}</span>
@@ -169,7 +171,7 @@ function vistaAnio(p, anio) {
   const a = resumenAnual(p.movs, anio);
   if (!a.mejor) {
     return { montar() {}, html: `<div class="empty-state"><span class="empty-ic">${icon('reportes')}</span>
-      <b>Sin movimientos en ${anio}</b><span class="sub">Cambia de año con las flechas o registra tu primer movimiento.</span></div>` };
+      <b>Sin movimientos en ${anio}</b><span class="sub">Prueba con otro año.</span></div>` };
   }
   const nombre = (m) => MESES[Number(m.periodo.slice(5, 7)) - 1];
   const segs = segmentosPorCategoria(p.cats, a.porCat);
@@ -177,25 +179,25 @@ function vistaAnio(p, anio) {
   const idx = Number(mesElegido().slice(0, 4)) === anio ? Number(mesElegido().slice(5, 7)) - 1 : -1;
   const html = `
     <div class="kpis">
-      ${kpi('Entró en el año', money(a.ingresos), `${a.meses.filter((m) => m.ingresos > 0).length} meses con ingresos`, 'pos')}
-      ${kpi('Salió en el año', money(a.gastos), `Promedio de ${money(Math.round(a.gastos / Math.max(1, a.meses.filter((m) => m.activo).length)))} al mes`, 'neg')}
-      ${kpi('Te quedó', moneySigno(a.neto), tasa === null ? 'Sin ingresos' : `${tasa} % de lo que entró`, a.neto < 0 ? 'neg' : 'pos')}
-      ${kpi('Mejor mes', nombre(a.mejor), `${moneySigno(a.mejor.neto)} · el peor fue ${nombre(a.peor)}`)}
+      ${kpi('entra', 'Entró en el año', money(a.ingresos), `${a.meses.filter((m) => m.ingresos > 0).length} meses con ingresos`, 'pos')}
+      ${kpi('sale', 'Salió en el año', money(a.gastos), `Promedio de ${money(Math.round(a.gastos / Math.max(1, a.meses.filter((m) => m.activo).length)))} al mes`, 'neg')}
+      ${kpi('billetera', 'Te quedó', moneySigno(a.neto), tasa === null ? 'Sin ingresos' : `${tasa} % de lo que entró`, a.neto < 0 ? 'neg' : 'pos')}
+      ${kpi('chispa', 'Mejor mes', nombre(a.mejor), `${moneySigno(a.mejor.neto)} · el peor fue ${nombre(a.peor)}`)}
     </div>
     <div class="grid-2">
       <section class="card">
-        <div class="card-head"><h2 class="card-title">Entró y salió</h2><span class="card-meta">${anio}</span></div>
+        <div class="card-head">${titulo('comparar', 'Entró y salió')}<span class="card-meta">${anio}</span></div>
         <div class="graf" id="gAnio"></div>
         <div class="leyenda"><span><i class="dot" style="background:var(--pos-fill)"></i>Entró</span><span><i class="dot" style="background:var(--neg-fill)"></i>Salió</span></div>
       </section>
       <section class="card">
-        <div class="card-head"><h2 class="card-title">Lo que sobró cada mes</h2><span class="card-meta">${anio}</span></div>
+        <div class="card-head">${titulo('billetera', 'Lo que sobró cada mes')}<span class="card-meta">${anio}</span></div>
         <div class="graf" id="gNeto"></div>
         <div class="leyenda"><span><i class="dot" style="background:var(--pos-fill)"></i>Sobró</span><span><i class="dot" style="background:var(--neg-fill)"></i>Faltó</span></div>
       </section>
     </div>
     <section class="card">
-      <div class="card-head"><h2 class="card-title">A dónde se fue el año</h2></div>
+      <div class="card-head">${titulo('categorias', 'A dónde se fue el año')}</div>
       ${donutBloque(segs)}
     </section>`;
 
@@ -220,6 +222,7 @@ export function renderReportes(root) {
   root.classList.add('anima');
   cuerpo.montar(root);
 
+  animarSegmentos(root);
   const repintar = () => renderReportes(root);
   enlazarMes(root, repintar);
   enlazarTips(root);

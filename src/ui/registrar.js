@@ -5,6 +5,7 @@ import { deTipo, fallbackDe, nuevoId } from '../engine/categorias.js';
 import { abrirModal } from './modal.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
+import { fijarSegmento, destacar } from './efectos.js';
 
 /* La hoja de registro: Ingreso/Gasto · Monto · Categoría · Fecha · Nota.
    Con `movId` edita uno existente; `catId` y `nota` llenan uno nuevo (Ahorrar
@@ -21,7 +22,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, catId = null, nota
     .map((c) => `<option value="${c.id}" ${catInicial === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
 
   cuerpo.innerHTML = `
-    <div class="chips chips-tipo" id="regTipo">
+    <div class="chips chips-tipo" id="regTipo" data-seg="reg-tipo" data-v="gasto">
       <button class="chip chip-gasto" data-tipo="gasto">${icon('sale', 'ic-sm')}Gasto</button>
       <button class="chip chip-ingreso" data-tipo="ingreso">${icon('entra', 'ic-sm')}Ingreso</button>
     </div>
@@ -39,6 +40,8 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, catId = null, nota
   const $ = (s) => cuerpo.querySelector(s);
   function setTipo(t) {
     tipo = t;
+    $('#regTipo').dataset.v = t;
+    fijarSegmento($('#regTipo'), t === 'ingreso' ? 1 : 0);
     cuerpo.querySelectorAll('#regTipo .chip').forEach((b) => {
       b.classList.toggle('on', b.dataset.tipo === t);
       b.setAttribute('aria-pressed', String(b.dataset.tipo === t));
@@ -60,6 +63,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, catId = null, nota
     let mov = previo;
     if (previo) Object.assign(previo, datos);
     else { mov = { id: nuevoId(), ...datos }; p.movs.push(mov); }
+    destacar.id = mov.id;
     store.save();
     cerrar();
     alGuardar(mov);

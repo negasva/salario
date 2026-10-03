@@ -72,13 +72,13 @@ export function renderCategorias(root) {
 
   root.innerHTML = `
     ${selectorMes('Categorías')}
-    <p class="sub intro">Toca una para editarla. Borrar una pasa sus movimientos a Otros.</p>
+    <p class="sub intro">Toca una para editarla. Al borrarla, sus movimientos pasan a Otros.</p>
     <section class="seccion">
-      <div class="seccion-head"><h2 class="seccion-t">Gastos</h2><button class="mini" data-nueva="gasto">${icon('mas', 'ic-sm')}Nueva</button></div>
+      <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2><button class="mini" data-nueva="gasto">${icon('mas', 'ic-sm')}Nueva</button></div>
       <ul class="list">${deTipo(p.cats, 'gasto').map(fila).join('')}</ul>
     </section>
     <section class="seccion">
-      <div class="seccion-head"><h2 class="seccion-t">Ingresos</h2><button class="mini" data-nueva="ingreso">${icon('mas', 'ic-sm')}Nueva</button></div>
+      <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2><button class="mini" data-nueva="ingreso">${icon('mas', 'ic-sm')}Nueva</button></div>
       <ul class="list">${deTipo(p.cats, 'ingreso').map(fila).join('')}</ul>
     </section>`;
 

@@ -2,6 +2,7 @@ import { supabase } from './auth.js';
 import { categoriasBase, normalizarCats } from './engine/categorias.js';
 import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/migrar.js';
 import { normalizarMetas } from './engine/ahorro.js';
+import { normalizarPersona } from './engine/persona.js';
 
 /* Un perfil, un blob. localStorage es la caché y Supabase la fuente de verdad:
    la UI nunca espera al servidor. El perfil es
@@ -14,6 +15,7 @@ const KEYS_V8 = ['reparto:v8', 'reparto:v7', 'reparto:v6', 'reparto:v5'];
 let perfil = null;
 let remoteId = null;
 let userId = null;
+let correoUsuario = '';
 let pushPendiente = false;
 let pushTimer = null;
 
@@ -25,7 +27,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [] };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], persona: normalizarPersona() };
 }
 
 /* El perfil de antes de la auditoría, si sigue en este navegador. Es de donde
@@ -62,6 +64,7 @@ function normalizar(p) {
   n.recurrentes = Array.isArray(n.recurrentes) ? n.recurrentes : [];
   n.arranques = n.arranques && typeof n.arranques === 'object' ? n.arranques : {};
   n.metas = normalizarMetas(n.metas);
+  n.persona = normalizarPersona(n.persona);
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');
   n.v = VERSION;
@@ -180,3 +183,30 @@ export function borrarConDeshacer(quitar, restaurar, segundos = 6) {
 export function exportarJSON() {
   return JSON.stringify(perfil, null, 2);
 }
+
+/* ---------- la persona ---------- */
+
+export const persona = () => perfil.persona;
+
+export function setPersona(cambios) {
+  perfil.persona = normalizarPersona({ ...perfil.persona, ...cambios });
+  save();
+}
+
+// Si lo último ya subió, si hay cambios esperando, o si esta cuenta no tiene nube todavía.
+export function estadoSync() {
+  if (!userId) return 'local';
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'sin-red';
+  return pushPendiente ? 'subiendo' : 'al-dia';
+}
+
+/* Borra todo lo que se registró y deja la cuenta como nueva. Se queda el
+   nombre de la persona y el del presupuesto: lo que se vacía son los números. */
+export function reiniciar() {
+  perfil = { ...freshProfile(perfil.name), persona: perfil.persona };
+  save();
+}
+
+// El correo de quien entró: lo guarda main al abrir la sesión y lo leen Inicio y el perfil.
+export const correo = () => correoUsuario;
+export function setCorreo(c) { correoUsuario = String(c || ''); }

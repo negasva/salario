@@ -29,7 +29,7 @@ function editorFicha(rec, alGuardar) {
       <input id="reNombre" value="${esc(r.n)}" placeholder="Ej: Arriendo, Internet" autocomplete="off"></div>
     <div class="fld"><label for="reMonto">Estimado al mes <span class="opcional">(opcional)</span></label>
       <input id="reMonto" class="num monto" inputmode="numeric" placeholder="0" value="${r.monto ? plain(r.monto) : ''}">
-      <p class="sub">Es solo una referencia. Al marcarlo como pagado escribes lo que de verdad costó, y este número se queda igual. Déjalo vacío si nunca es el mismo.</p></div>
+      <p class="sub">Solo una referencia: al pagar escribes lo real. Vacío si cambia cada mes.</p></div>
     <div class="fld" id="reCatWrap"><label for="reCat">Categoría</label>
       <select id="reCat">${deTipo(p.cats, 'gasto').map((c) => `<option value="${c.id}" ${(r.catId || OTROS) === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>
     <div class="fld"><label for="reDia">Día del mes</label>
@@ -226,7 +226,7 @@ function hojaPagos(rec, per, alGuardar) {
 function seccionDeudas(deudas, p, per) {
   const falta = deudas.reduce((t, r) => t + estadoDeuda(r, p.movs, per).falta, 0);
   return `<section class="seccion">
-    <div class="seccion-head"><h2 class="seccion-t">Deudas</h2><span class="sub num">Te faltan <b>${money(falta)}</b></span></div>
+    <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('tarjeta', 'ic-sm')}</span>Deudas</h2><span class="sub num">Te faltan <b>${money(falta)}</b></span></div>
     <ul class="list">${deudas.map((r) => {
     const d = estadoDeuda(r, p.movs, per);
     const pct = d.deuda ? Math.min(100, Math.round((d.pagado / d.deuda) * 100)) : 0;
@@ -311,29 +311,29 @@ export function renderRecurrentes(root) {
         <div class="stat"><span class="stat-label">Estimado de ingresos</span><b class="num">${money(ingresos.estimado)}</b></div>` : ''}
       </div>
       ${total ? `<div class="progreso">
-        <div class="progreso-txt"><span>${faltan ? `Faltan <b>${faltan}</b> sin ningún pago` : 'Todos tienen al menos un pago este mes'}</span><span class="num">${marcados} de ${total}</span></div>
+        <div class="progreso-txt"><span>${faltan ? `Faltan <b>${faltan}</b> por pagar` : 'Todos al día este mes'}</span><span class="num">${marcados} de ${total}</span></div>
         <div class="barra" role="progressbar" aria-label="Recurrentes con algún pago" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${marcados}"><i style="width:${Math.round((marcados / total) * 100)}%"></i></div>
         ${conEstimado ? `<button class="mini" id="reTodos">${icon('check', 'ic-sm')}Pagar ${conEstimado} por su estimado</button>` : ''}
       </div>` : ''}
     </section>
     <div class="section-bar">
-      ${p.recurrentes.length ? '<span></span>' : '<p class="sub">Cada uno guarda su nombre y su estimado. Págalo de una vez o por partes: el mercado en el Éxito, luego en el D1, y ves cuánto te queda.</p>'}
+      ${p.recurrentes.length ? '<span></span>' : '<p class="sub">Págalos de una vez o por partes.</p>'}
       <button class="btn-primary" id="reNuevo">${icon('mas')}Nuevo</button>
     </div>
     ${p.recurrentes.length ? `
       <section class="seccion">
-        <h2 class="seccion-t">Gastos</h2>
+        <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2>
         ${lista('gasto').length ? `<ul class="list">${lista('gasto').map(fila).join('')}</ul>` : '<div class="empty">Ninguno todavía.</div>'}
       </section>
       ${lista('ingreso').length ? `<section class="seccion">
-        <h2 class="seccion-t">Ingresos</h2>
+        <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2>
         <ul class="list">${lista('ingreso').map(fila).join('')}</ul>
       </section>` : ''}
       ${deudas.length ? seccionDeudas(deudas, p, per) : ''}`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('recurrente')}</span>
         <b>Todavía no tienes recurrentes</b>
-        <span class="sub">El arriendo, el internet, el sueldo: lo que se repite cada mes. Toca Nuevo para agregar el primero.</span>
+        <span class="sub">Arriendo, internet, sueldo. Toca Nuevo para el primero.</span>
       </div>`}`;
 
   const repintar = () => renderRecurrentes(root);

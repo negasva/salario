@@ -45,3 +45,18 @@ export function recoverPassword(email) {
     redirectTo: window.location.origin,
   });
 }
+
+// El usuario de la sesión: correo, fecha de alta y si confirmó el correo.
+export async function usuario() {
+  const sesion = await getSession();
+  return sesion?.user || null;
+}
+
+export function cambiarClave(clave) {
+  return supabase.auth.updateUser({ password: clave });
+}
+
+// Cierra la sesión en este y en todos los demás dispositivos.
+export function cerrarEnTodos() {
+  return supabase.auth.signOut({ scope: 'global' });
+}

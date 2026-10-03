@@ -32,11 +32,11 @@ function editorMeta(meta, e, per, alGuardar) {
     <div class="fld"><label for="mtPct">Qué parte de tu ahorro se lleva</label>
       <div class="pct-campo"><input id="mtPct" class="num" type="number" min="1" max="${disponible}" inputmode="numeric" value="${meta?.pct || Math.min(30, disponible)}"><span>%</span></div>
       <input id="mtRango" type="range" min="0" max="100" value="${meta?.pct || Math.min(30, disponible)}" aria-label="Porcentaje">
-      <p class="sub">${otras ? `Tus otras metas se llevan ${otras} %: puedes usar hasta ${disponible} %.` : 'Cada mes, este porcentaje de lo que ahorres va a esta meta.'}</p></div>
+      <p class="sub">${otras ? `Otras metas usan ${otras} %: te quedan ${disponible} %.` : 'Cada mes, ese % de lo que ahorres va a esta meta.'}</p></div>
     ${nueva ? `<label class="check-chip"><input type="checkbox" id="mtArranca" ${e.libreAntes > 0 ? 'checked' : 'disabled'}> <span id="mtArrancaTxt"></span></label>`
     : `<div class="fld"><label for="mtInicial">Con cuánto arrancó</label>
       <input id="mtInicial" class="num" inputmode="numeric" value="${plain(meta.inicial || 0)}">
-      <p class="sub">Lo que tomó de tu ahorro al crearla. Desde ${nombreMes(meta.desde)} suma su porcentaje de cada mes.</p></div>`}
+      <p class="sub">Lo que tomó al crearla. Suma su % mes a mes desde ${nombreMes(meta.desde)}.</p></div>`}
     <p class="sub meta-cuenta" id="mtCuenta"></p>
     <div id="mtErr" class="auth-err"></div>
     <button class="wide btn-primary" id="mtSave">${nueva ? 'Crear meta' : 'Guardar'}</button>
@@ -106,8 +106,8 @@ function sacar(x, e, alGuardar) {
   const { cuerpo, cerrar } = abrirModal({ titulo: meta ? `Usar ${esc(meta.n)}` : 'Sacar del ahorro' });
   cuerpo.innerHTML = `
     <p class="sub">${meta
-    ? `Sale de tu ahorro y vuelve a tu saldo del mes. Luego registra la compra como un gasto normal. La meta queda como cumplida.`
-    : `Sale de lo que tienes libre (${money(tope)}) y vuelve a tu saldo del mes. Las metas no se tocan.`}</p>
+    ? `Sale de tu ahorro y vuelve a tu saldo. Después registra la compra como gasto. La meta queda cumplida.`
+    : `Sale de lo libre (${money(tope)}) y vuelve a tu saldo. Las metas no se tocan.`}</p>
     <div class="fld" style="margin-top:var(--space-4)"><label for="scMonto">Cuánto</label>
       <input id="scMonto" class="num monto" inputmode="numeric" value="${plain(tope)}"></div>
     ${meta ? '' : `<div class="fld"><label for="scNota">Para qué <span class="opcional">(opcional)</span></label>
@@ -153,7 +153,7 @@ export function renderAhorro(root) {
       <div class="empty-state">
         <span class="empty-ic">${icon('ahorro')}</span>
         <b>Falta la categoría Ahorro</b>
-        <span class="sub">Lo que registras en Ahorro es lo que se suma aquí y se reparte en tus metas.</span>
+        <span class="sub">Lo que registras en Ahorro se suma aquí.</span>
         <button class="btn-primary" id="ahCrear" style="margin-top:var(--space-4)">${icon('mas')}Crear Ahorro</button>
       </div>`;
     enlazarMes(root, repintar);
@@ -211,17 +211,17 @@ export function renderAhorro(root) {
     </section>
 
     <section class="seccion">
-      <div class="seccion-head"><h2 class="seccion-t">Metas</h2><button class="mini" id="ahNueva" ${e.pctUsado >= 100 ? 'disabled' : ''}>${icon('mas', 'ic-sm')}Nueva meta</button></div>
-      ${abiertas.length ? `<p class="sub intro">Cada mes, cada meta se lleva su porcentaje de lo que ahorres. ${100 - e.pctUsado > 0 ? `El ${100 - e.pctUsado} % restante queda libre.` : 'Todo lo que ahorras va a metas.'}</p>
+      <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('meta', 'ic-sm')}</span>Metas</h2><button class="mini" id="ahNueva" ${e.pctUsado >= 100 ? 'disabled' : ''}>${icon('mas', 'ic-sm')}Nueva meta</button></div>
+      ${abiertas.length ? `<p class="sub intro">Cada meta se lleva un % de lo que ahorras. ${100 - e.pctUsado > 0 ? `Queda libre el ${100 - e.pctUsado} %.` : 'Todo va a metas.'}</p>
         <ul class="metas">${abiertas.map(tarjeta).join('')}</ul>`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('meta')}</span>
         <b>Ninguna meta todavía</b>
-        <span class="sub">Ponle nombre y cifra: “Llantas, 2.000.000, el 30 % de lo que ahorre”. Tu ahorro se sigue viendo entero y la meta va mostrando su avance.</span>
+        <span class="sub">Ej.: Llantas, 2.000.000, el 30 % de lo que ahorres.</span>
       </div>`}
     </section>
     ${usadas.length ? `<section class="seccion">
-      <h2 class="seccion-t">Cumplidas</h2>
+      <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('check', 'ic-sm')}</span>Cumplidas</h2>
       <ul class="list">${usadas.map((x) => `<li class="row">
         <span class="estado pagado" aria-hidden="true">${icon('pagado')}</span>
         <div class="row-txt"><div class="row-t">${esc(x.meta.n)}</div><div class="row-s num">Usaste ${money(x.meta.usada.monto)} el ${fechaCorta(x.meta.usada.fecha)}</div></div>

@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import { gastoPorCategoria, serieMensual } from '../engine/movimientos.js';
 import { segmentosPorCategoria } from '../engine/graficas.js';
 import { resumenReporte } from '../engine/reportes.js';
-import { catAhorro, estadoAhorro } from '../engine/ahorro.js';
+import { idsAhorro, estadoAhorro } from '../engine/ahorro.js';
 import { colorPara } from '../engine/categorias.js';
 import { money, esc, fechaCorta } from '../format.js';
 import { abrirRegistro } from './registrar.js';
@@ -70,7 +70,7 @@ function bienvenida() {
 
 /* Tres cifras del mes y la puerta a los reportes completos. */
 function resumenRapido(p, per) {
-  const r = resumenReporte(p.movs, per, { ahorroId: catAhorro(p.cats)?.id });
+  const r = resumenReporte(p.movs, per, { ahorroId: idsAhorro(p.cats) });
   if (!r.gastos && !r.ingresos) return '';
   const dato = (rot, valor, nota) => `<div class="kpi-mini"><span class="stat-label">${rot}</span><b class="num">${valor}</b><span class="sub">${nota}</span></div>`;
   return `<section class="pulso">

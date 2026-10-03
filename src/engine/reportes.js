@@ -44,7 +44,7 @@ const lunesPrimero = (fecha) => {
 /* El gasto de todos los días y no el de las cuotas: lo que sale de un
    recurrente (arriendo, servicios) o va a ahorro es plata que ya estaba
    decidida, y un solo pago grande tapa los hábitos que se quieren ver. */
-export const esVariable = (m, ahorroId = null) => m.tipo === 'gasto' && !m.recId && !(ahorroId && m.catId === ahorroId);
+export const esVariable = (m, ahorroId = null) => m.tipo === 'gasto' && !m.recId && !(ahorroId && [].concat(ahorroId).includes(m.catId));
 
 // Gasto variable del mes por día de la semana, de lunes (0) a domingo (6).
 export function porDiaSemana(movs, periodo, ahorroId = null) {
@@ -82,7 +82,7 @@ export function resumenReporte(movs, periodo, { hoy = hoyISO(), ahorroId = null 
   const dias = flujoDiario(movs, periodo);
   const { ingresos, gastos } = resumenFlujo(movs, periodo);
   const apartado = enPeriodo(movs, periodo)
-    .filter((m) => m.tipo === 'gasto' && m.catId === ahorroId).reduce((t, m) => t + m.monto, 0);
+    .filter((m) => m.tipo === 'gasto' && [].concat(ahorroId ?? []).includes(m.catId)).reduce((t, m) => t + m.monto, 0);
   const variable = enPeriodo(movs, periodo).filter((m) => esVariable(m, ahorroId)).reduce((t, m) => t + m.monto, 0);
   const pasados = diasTranscurridos(periodo, hoy);
   const promedioDiario = pasados ? Math.round(variable / pasados) : 0;
@@ -149,7 +149,7 @@ export function insights(movs, periodo, { cats = [], hoy = hoyISO(), ahorroId = 
         : { tono: 'info', ic: 'meta', texto: `Vas igual que el mes pasado${enCurso ? ' a esta altura' : ''}.` });
   }
   const c = compararMeses(movs, cats, periodo, 'anterior', { hastaDia: enCurso ? r.pasados : 31 });
-  const sube = c.filas.find((f) => f.tipo === 'gasto' && f.id !== ahorroId && f.delta > 0);
+  const sube = c.filas.find((f) => f.tipo === 'gasto' && ![].concat(ahorroId ?? []).includes(f.id) && f.delta > 0);
   if (sube) out.push({ tono: 'mal', ic: 'sube', texto: `Lo que más subió fue ${sube.nombre}: ${money(sube.delta)} más${sube.pct !== null ? ` (+${sube.pct} %)` : ''}.` });
   const rPrev = resumenReporte(movs, prev, { hoy, ahorroId });
   if (r.proyeccion !== null && rPrev.gastos > 0) {

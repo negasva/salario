@@ -67,13 +67,12 @@ export function mountIconSprite() {
   document.body.prepend(svg);
 }
 
-// El logo de la app, a color: no sale del sprite porque lleva dos tintas.
+// El logo de la app: una moneda partida en dos, el reparto. Va a color, no sale del sprite.
 export function logo(cls = 'logo') {
   return `<svg class="${cls}" viewBox="0 0 512 512" aria-hidden="true">
-    <rect width="512" height="512" rx="112" fill="#17151A"/>
-    <circle cx="256" cy="256" r="150" fill="#FC90B6"/>
-    <path d="M196 340V172h74a52 52 0 0 1 0 104h-32l52 64" fill="none" stroke="#17151A"
-      stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    <rect width="512" height="512" rx="112" fill="#15110D"/>
+    <path d="M246 116a140 140 0 0 0 0 280z" fill="#E8B44C"/>
+    <path d="M266 116a140 140 0 0 1 0 280z" fill="#F1E9DC"/></svg>`;
 }
 
 export function icon(name, cls = '') {

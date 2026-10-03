@@ -2,7 +2,7 @@
 
 /* ── título de tarjeta con su ícono ───────────────────────────────────── */
 .card-title,.seccion-t{display:inline-flex;align-items:center;gap:var(--space-3)}
-.ct-ic{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-2);
+.ct-ic{display:none;place-items:center;flex:none;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-2);
   box-shadow:inset 0 0 0 1px var(--border)}
 .ct-ic svg{width:15px;height:15px}
 .seccion-t .ct-ic{width:22px;height:22px;background:transparent;box-shadow:none}

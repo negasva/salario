@@ -91,6 +91,7 @@
 .reparto-ley li i{width:8px;height:8px;border-radius:3px;flex:none}
 .reparto-ley li.libre i{box-shadow:inset 0 0 0 1px var(--text-3)}
 .reparto-ley b{font-weight:var(--fw-semibold);color:var(--text)}
+.reparto-ley+.donut-bloque{margin-top:var(--space-5)}
 .reparto-pie{margin:0;font-size:var(--text-xs);color:var(--text-3)}
 .reparto-aviso{margin:var(--space-3) 0 0;font-size:var(--text-xs);color:var(--neg)}
 

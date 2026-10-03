@@ -198,7 +198,7 @@ function vistaAnio(p, anio) {
     </div>
     <section class="card">
       <div class="card-head">${titulo('categorias', 'A dónde se fue el año')}</div>
-      ${franja(segs, a.ingresos, { n: 4, vacio: 'Sin gastos este año.' })}
+      ${franja(segs, a.ingresos, { n: 0, vacio: 'Sin gastos este año.' })}
       ${donutBloque(segs, '', { grafica: false })}
     </section>`;
 

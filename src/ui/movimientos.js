@@ -102,7 +102,7 @@ function pintar(root, p, per, repintar) {
     const nota = rec && m.nota && m.nota !== rec.n ? `${rec.n} · ${m.nota}` : m.nota;
     return `<li class="row row-link mov ${m.tipo}${m.id === destacar.id ? ' nuevo' : ''}">
         <button class="row-main" data-edit="${m.id}"><span class="sr-only">Editar </span>
-          <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true"></span>
+          <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombre.trim().charAt(0).toUpperCase())}</span>
           <span class="row-txt">
             <span class="row-t">${esc(nombre)}</span>
             ${nota ? `<span class="row-s">${esc(nota)}</span>` : ''}

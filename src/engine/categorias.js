@@ -9,8 +9,13 @@
 export const OTROS = 'otros';
 export const OTROS_ING = 'otros-ingreso';
 
-export const COLORES = ['#FC90B6', '#7C8CFF', '#F5B25A', '#3FC7B0', '#B28CFF',
-  '#FF7A66', '#8CCB6B', '#58B4F0', '#E0709A', '#C9A2B5', '#D4A24E', '#6FD1C8'];
+// Pastel, como los tiles de la referencia: se leen igual sobre blanco y sobre negro.
+export const COLORES = ['#9FD3B8', '#F6CACA', '#F9D98B', '#BFD7F6', '#C9B8F0', '#F4B183',
+  '#A8D8E0', '#E7A6C2', '#B9D58C', '#D8C3A5', '#8C8A5E', '#B5B8BD'];
+
+// La paleta anterior: un color de fábrica de ahí se cambia por su pastel.
+const VIEJOS = ['#E5484D', '#F5A524', '#1FA971', '#0EA5E9', '#8B5CF6',
+  '#EC4899', '#0D9488', '#A16207', '#6366F1', '#B91C1C', '#64748B'];
 
 // Las de fábrica, en el orden en que se muestran.
 export const BASE_GASTO = ['Vivienda', 'Servicios', 'Mercado', 'Comida fuera', 'Transporte',
@@ -53,7 +58,7 @@ export function normalizarCats(cats) {
     ...c,
     tipo: c.tipo === 'ingreso' ? 'ingreso' : 'gasto',
     m: Math.max(0, Math.round(Number(c.m) || 0)),
-    c: /^#/.test(c.c || '') ? c.c : colorPara(i),
+    c: VIEJOS.includes(c.c) ? COLORES[VIEJOS.indexOf(c.c)] : /^#/.test(c.c || '') ? c.c : colorPara(i),
   }));
   if (!lista.some((c) => c.id === OTROS)) {
     lista.push({ id: OTROS, n: 'Otros', m: 0, c: colorPara(lista.length), tipo: 'gasto' });

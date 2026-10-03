@@ -31,21 +31,6 @@ export function segmentosPorCategoria(cats, porCat) {
     .sort((a, b) => b.monto - a.monto);
 }
 
-/* La franja de reparto: lo que entró en el mes partido en lo que se fue a cada categoría y lo que queda.
-   Si se gastó más de lo que había, la franja es solo el gasto y `exceso` dice
-   cuánto. Los porcentajes salen sobre la franja entera. */
-export function franjaReparto(segmentos, disponible) {
-  const gastado = segmentos.reduce((t, s) => t + s.monto, 0);
-  const base = Math.max(disponible, gastado);
-  if (base <= 0) return null;
-  const pct = (m) => Math.round((m / base) * 1000) / 10;
-  return {
-    partes: segmentos.map((s) => ({ ...s, pct: pct(s.monto) })),
-    libre: disponible > gastado ? { monto: disponible - gastado, pct: pct(disponible - gastado) } : null,
-    exceso: gastado > disponible ? gastado - Math.max(disponible, 0) : 0,
-  };
-}
-
 /* Barras de ingreso contra gasto: alto de cada barra en píxeles sobre el
    máximo de la serie, para que las dos escalas sean la misma. */
 export function barras(serie, alto) {

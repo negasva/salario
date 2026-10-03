@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { franjaReparto, arcos, segmentosPorCategoria, barras, linea, escala, trazo } from './graficas.js';
+import { arcos, segmentosPorCategoria, barras, linea, escala, trazo } from './graficas.js';
 
 describe('donut', () => {
   it('reparte la circunferencia en proporción y los porcentajes suman 100', () => {
@@ -55,24 +55,5 @@ describe('escala y trazo', () => {
   });
   it('trazo reparte en x, invierte y y respeta los null', () => {
     expect(trazo([0, 50, null, 100], 90, 100, 100)).toEqual([{ x: 0, y: 100 }, { x: 30, y: 50 }, null, { x: 90, y: 0 }]);
-  });
-});
-
-describe('franja de reparto', () => {
-  const segs = [{ id: 'a', nombre: 'Casa', color: '#111', monto: 600 }, { id: 'b', nombre: 'Mercado', color: '#222', monto: 200 }];
-  it('parte lo disponible entre las categorías y lo libre', () => {
-    const f = franjaReparto(segs, 1000);
-    expect(f.partes.map((x) => x.pct)).toEqual([60, 20]);
-    expect(f.libre).toEqual({ monto: 200, pct: 20 });
-    expect(f.exceso).toBe(0);
-  });
-  it('si se gastó más de lo que había, no hay libre y se dice el exceso', () => {
-    const f = franjaReparto(segs, 500);
-    expect(f.libre).toBeNull();
-    expect(f.exceso).toBe(300);
-    expect(f.partes.reduce((t, x) => t + x.pct, 0)).toBeCloseTo(100, 0);
-  });
-  it('sin nada que repartir no hay franja', () => {
-    expect(franjaReparto([], 0)).toBeNull();
   });
 });

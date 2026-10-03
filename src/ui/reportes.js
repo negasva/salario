@@ -11,7 +11,7 @@ import { donutBloque, graficaBarras, graficaNeto, lineaAcumulada, barrasSemana, 
   sparkline, enlazarTips, responsiva } from './charts.js';
 import { icon } from './icons.js';
 import { animarSegmentos } from './efectos.js';
-import { titulo, franja } from './piezas.js';
+import { titulo } from './piezas.js';
 
 /* Reportes: lo que los movimientos dicen más allá del saldo. Dos vistas, el
    mes y el año, con el mismo ritmo: cuatro cifras arriba y las gráficas
@@ -126,7 +126,7 @@ function vistaMes(p, per) {
     <section class="card">
       <div class="card-head">${titulo('sube', 'Gasto acumulado')}<span class="card-meta">Contra el mes anterior</span></div>
       <div class="graf" id="gAcum"></div>
-      <div class="leyenda"><span><i class="raya" style="background:var(--brand)"></i>Este mes</span><span><i class="raya raya-previo"></i>Mes anterior</span>${r.proyeccion !== null ? '<span><i class="raya raya-proy"></i>Ritmo actual</span>' : ''}</div>
+      <div class="leyenda"><span><i class="raya" style="background:var(--chart-line)"></i>Este mes</span><span><i class="raya raya-previo"></i>Mes anterior</span>${r.proyeccion !== null ? '<span><i class="raya raya-proy"></i>Ritmo actual</span>' : ''}</div>
     </section>
 
     <div class="grid-2">
@@ -144,15 +144,15 @@ function vistaMes(p, per) {
     <section class="card">
       <div class="card-head">${titulo('categorias', 'A dónde se fue')}<span class="card-meta">Tendencia de 6 meses</span></div>
       <div class="rep-cats-card">
-        ${franja(segs, r.ingresos, { n: 4, vacio: 'Sin gastos este mes.' })}
+        ${donutBloque(segs, 'Salió', { lista: false })}
         ${segs.length ? `<ul class="rep-cats">${segs.slice(0, 8).map(fila).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}
       </div>
     </section>
 
     <section class="seccion">
-      <h2 class="seccion-t">Mayores gastos</h2>
+      <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('alerta', 'ic-sm')}</span>Mayores gastos</h2>
       ${top.length ? `<ul class="list">${top.map((m) => `<li class="row mov gasto">
-        <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true"></span>
+        <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombreDe(p.cats, m.catId).trim().charAt(0).toUpperCase())}</span>
         <span class="row-txt"><span class="row-t">${esc(nombreDe(p.cats, m.catId))}</span>
           <span class="row-s">${fechaCorta(m.fecha)}${m.nota ? ` · ${esc(m.nota)}` : ''}</span></span>
         <b class="num row-monto">−${money(m.monto)}</b></li>`).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}
@@ -182,7 +182,7 @@ function vistaAnio(p, anio) {
       ${kpi('entra', 'Entró en el año', money(a.ingresos), `${a.meses.filter((m) => m.ingresos > 0).length} meses con ingresos`, 'pos')}
       ${kpi('sale', 'Salió en el año', money(a.gastos), `Promedio de ${money(Math.round(a.gastos / Math.max(1, a.meses.filter((m) => m.activo).length)))} al mes`, 'neg')}
       ${kpi('billetera', 'Te quedó', moneySigno(a.neto), tasa === null ? 'Sin ingresos' : `${tasa} % de lo que entró`, a.neto < 0 ? 'neg' : 'pos')}
-      ${kpi('sube', 'Mejor mes', nombre(a.mejor), `${moneySigno(a.mejor.neto)} · el peor fue ${nombre(a.peor)}`)}
+      ${kpi('chispa', 'Mejor mes', nombre(a.mejor), `${moneySigno(a.mejor.neto)} · el peor fue ${nombre(a.peor)}`)}
     </div>
     <div class="grid-2">
       <section class="card">
@@ -198,8 +198,7 @@ function vistaAnio(p, anio) {
     </div>
     <section class="card">
       <div class="card-head">${titulo('categorias', 'A dónde se fue el año')}</div>
-      ${franja(segs, a.ingresos, { n: 0, vacio: 'Sin gastos este año.' })}
-      ${donutBloque(segs, '', { grafica: false })}
+      ${donutBloque(segs)}
     </section>`;
 
   return {

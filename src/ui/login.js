@@ -1,22 +1,13 @@
 import { signIn, signUp, recoverPassword } from '../auth.js';
 import { mensajeEnlace } from '../engine/persona.js';
-import { logo } from './icons.js';
+import { icon, logo } from './icons.js';
 
 let mode = 'login'; // login | registro | recuperar
 
-/* Un mes de ejemplo con la franja de reparto: lo que la app hace, a la vista antes de entrar. */
-const EJEMPLO = [['Arriendo', 1600000, 'var(--cat-1)'], ['Mercado', 880000, 'var(--cat-2)'], ['Transporte', 380000, 'var(--cat-3)'], ['Salidas', 290000, 'var(--cat-4)']];
-const ENTRO = 4200000;
-const DEMO = (() => {
-  const gastado = EJEMPLO.reduce((t, x) => t + x[1], 0);
-  const m = (n) => `$ ${n.toLocaleString('es-CO')}`;
-  const tramos = [...EJEMPLO.map(([, v, c]) => ({ v, c })), { v: ENTRO - gastado, libre: true }];
-  return `<div class="auth-demo" aria-hidden="true">
-    <div class="reparto">${tramos.map((t, k) => `<i class="${t.libre ? 'libre' : ''}" style="--w:${(t.v / ENTRO) * 100};--k:${k}${t.libre ? '' : `;--c:${t.c}`}"></i>`).join('')}</div>
-    <ul class="reparto-ley">${EJEMPLO.map(([n, v, c]) => `<li><i style="background:${c}"></i><span>${n}</span><b class="num">${m(v)}</b></li>`).join('')}<li class="libre"><i></i><span>Libre</span><b class="num">${m(ENTRO - gastado)}</b></li></ul>
-    <p class="auth-demo-pie">Así se ve un mes con $ ${ENTRO.toLocaleString('es-CO')}.</p>
-  </div>`;
-})();
+const PUNTOS = `
+  <li>${icon('entra')}Lo que entra y lo que sale, con su categoría</li>
+  <li>${icon('recurrente')}El saldo se arrastra de un mes al siguiente</li>
+  <li>${icon('check')}Los pagos fijos, marcados uno a uno</li>`;
 
 // El marco de las pantallas de acceso: marca a un lado, la tarjeta al otro.
 export function marcoAuth(tarjeta) {
@@ -27,7 +18,7 @@ export function marcoAuth(tarjeta) {
         ${marca}
         <div class="auth-pitch">
           <p class="auth-claim">A dónde se va la plata, mes a mes.</p>
-          ${DEMO}
+          <ul class="auth-puntos">${PUNTOS}</ul>
         </div>
       </section>
       <main class="auth-main">

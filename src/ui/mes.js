@@ -1,7 +1,5 @@
 import * as store from '../store.js';
-import { resumenMes, periodoActual, sumarMeses, gastoPorCategoria } from '../engine/movimientos.js';
-import { segmentosPorCategoria } from '../engine/graficas.js';
-import { franja } from './piezas.js';
+import { resumenMes, periodoActual, sumarMeses } from '../engine/movimientos.js';
 import { proyeccion } from '../engine/recurrentes.js';
 import { money, moneySigno, nombreMes, plain, digits, MESES } from '../format.js';
 import { abrirModal } from './modal.js';
@@ -65,27 +63,7 @@ function abrirArranque(per, repintar) {
   cuerpo.querySelector('#arrMonto').focus();
 }
 
-/* El saldo rueda de la cifra que tenías a la nueva cuando cambia (otro mes,
-   un movimiento guardado): así se ve cuánto se movió. 450 ms, ease-out, y
-   nada con "reducir movimiento". La primera pintada no rueda. */
-let cifraPrevia = null;
-function rodarCifra(root) {
-  const el = root.querySelector('.hero-monto[data-v]');
-  if (!el) return;
-  const a = cifraPrevia; const z = Number(el.dataset.v);
-  cifraPrevia = z;
-  if (a === null || a === z || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  const t0 = performance.now();
-  const paso = (t) => {
-    const k = Math.min(1, (t - t0) / 450);
-    el.textContent = moneySigno(Math.round(a + (z - a) * (1 - (1 - k) ** 3)));
-    if (k < 1 && el.isConnected) requestAnimationFrame(paso);
-  };
-  requestAnimationFrame(paso);
-}
-
 export function enlazarMes(root, repintar) {
-  rodarCifra(root);
   root.querySelectorAll('[data-mes]').forEach((b) => {
     b.onclick = () => { periodo = sumarMeses(periodo, Number(b.dataset.mes)); repintar(); };
   });
@@ -103,14 +81,14 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
   const clase = (v) => (v < 0 ? 'neg' : v > 0 ? 'pos' : '');
   return `<section class="hero ${compacta ? 'hero-compacta' : ''}" aria-label="Saldo del mes">
     <div class="hero-main">
-      <span class="hero-label">${per < periodoActual() ? 'Terminaste con' : 'Terminas con'}</span>
-      <b class="hero-monto num ${clase(r.final)}" data-v="${r.final}">${moneySigno(r.final)}</b>
+      <span class="hero-label">Terminas con</span>
+      <b class="hero-monto num">${moneySigno(r.final)}</b>
+      <span class="hero-cambio num ${clase(r.final - r.inicial)}">${moneySigno(r.final - r.inicial)} este mes</span>
     </div>
-    ${compacta ? '' : franja(segmentosPorCategoria(p.cats, gastoPorCategoria(p.movs, per)), r.ingresos)}
     <dl class="hero-cuenta">
-      <div class="hc"><dt>Empezaste con</dt><dd class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</dd></div>
-      <div class="hc"><dt>Entró</dt><dd class="num ${clase(r.ingresos)}">${moneySigno(r.ingresos)}</dd></div>
-      <div class="hc"><dt>Salió</dt><dd class="num ${clase(-r.gastos)}">${moneySigno(-r.gastos)}</dd></div>
+      <div class="hc"><dt>${icon('billetera')}Empezaste</dt><dd class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</dd></div>
+      <div class="hc"><dt>${icon('entra')}Entró</dt><dd class="num ${clase(r.ingresos)}">${moneySigno(r.ingresos)}</dd></div>
+      <div class="hc"><dt>${icon('sale')}Salió</dt><dd class="num ${clase(-r.gastos)}">${moneySigno(-r.gastos)}</dd></div>
     </dl>
     ${proyeccionHTML(p, per, r.final, clase)}
     <button class="hero-arranque" id="mesArranque">${icon('reiniciar')}${arrancado
@@ -129,7 +107,7 @@ function proyeccionHTML(p, per, final, clase) {
   const partes = [pr.porPagar ? `−${money(pr.porPagar)} por pagar` : '', pr.porRecibir ? `+${money(pr.porRecibir)} por recibir` : '']
     .filter(Boolean).join(' · ');
   return `<a class="hero-proy" href="#recurrentes">
-    <span class="hp-txt"><span>Si pagas lo que falta<small class="num">${partes}</small></span></span>
+    <span class="hp-txt">${icon('reloj')}<span>Si pagas lo que falta<small class="num">${partes}</small></span></span>
     <b class="num ${clase(pr.final)}">terminas con ${moneySigno(pr.final)}</b>
   </a>`;
 }

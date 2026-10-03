@@ -3,7 +3,7 @@ html,body{width:100%;max-width:100%}
 html{background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%;
   overscroll-behavior:none;scrollbar-color:var(--border-strong) transparent;caret-color:var(--brand)}
 ::selection{background:var(--accent-line);color:var(--text)}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);
+body{margin:0;background:var(--page,var(--bg)) fixed;color:var(--text);font-family:var(--font-sans);
   font-size:var(--text-base);line-height:1.55;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
 h1,h2,h3,p{margin:0}
@@ -14,7 +14,7 @@ button,.navlink{-webkit-user-select:none;user-select:none}
 
 button{cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);
   min-height:40px;padding:0 var(--space-4);background:var(--surface);color:var(--text);
-  border:1px solid var(--border-strong);border-radius:var(--radius-pill);
+  border:1px solid var(--border-strong);border-radius:var(--radius-sm);
   font-size:var(--text-sm);font-weight:var(--fw-semibold);line-height:1.2;white-space:nowrap;
   transition:background-color var(--t-fast),border-color var(--t-fast),color var(--t-fast),box-shadow var(--t-fast),transform var(--t-press)}
 @media (hover:hover) and (pointer:fine){button:hover{background:var(--surface-2)}}

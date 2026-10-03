@@ -182,7 +182,7 @@ function vistaAnio(p, anio) {
       ${kpi('entra', 'Entró en el año', money(a.ingresos), `${a.meses.filter((m) => m.ingresos > 0).length} meses con ingresos`, 'pos')}
       ${kpi('sale', 'Salió en el año', money(a.gastos), `Promedio de ${money(Math.round(a.gastos / Math.max(1, a.meses.filter((m) => m.activo).length)))} al mes`, 'neg')}
       ${kpi('billetera', 'Te quedó', moneySigno(a.neto), tasa === null ? 'Sin ingresos' : `${tasa} % de lo que entró`, a.neto < 0 ? 'neg' : 'pos')}
-      ${kpi('chispa', 'Mejor mes', nombre(a.mejor), `${moneySigno(a.mejor.neto)} · el peor fue ${nombre(a.peor)}`)}
+      ${kpi('sube', 'Mejor mes', nombre(a.mejor), `${moneySigno(a.mejor.neto)} · el peor fue ${nombre(a.peor)}`)}
     </div>
     <div class="grid-2">
       <section class="card">

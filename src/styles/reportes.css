@@ -1,8 +1,8 @@
 /* ── cifras de arriba ─────────────────────────────────────────────────── */
 .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);margin-bottom:var(--space-4)}
 @media (min-width:760px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.kpi{display:flex;flex-direction:column;gap:2px;min-width:0;padding:var(--space-4);background:var(--surface);
-  border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+.kpi{display:flex;flex-direction:column;gap:2px;min-width:0;padding:var(--space-3) 0 0;background:transparent;
+  border:0;border-top:1px solid var(--border-strong);border-radius:0;box-shadow:none}
 .kpi b{font-family:var(--font-display);font-size:clamp(19px,5.4vw,26px);font-weight:var(--fw-semibold);letter-spacing:-0.015em;line-height:1.25;overflow-wrap:anywhere}
 .kpi-nota{display:flex;flex-wrap:wrap;font-size:var(--text-xs);color:var(--text-2);line-height:1.45}
 .kpi .var{white-space:normal;font-size:var(--text-xs)}
@@ -149,11 +149,11 @@
 .ins-lista{list-style:none;margin:0;padding:0}
 .ins{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) 0;font-size:var(--text-sm);line-height:1.45}
 .ins+.ins{border-top:1px solid var(--border)}
-.ins-ic{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-2)}
-.ins-mal .ins-ic{background:var(--neg-soft);color:var(--neg)}
-.ins-bien .ins-ic{background:var(--pos-soft);color:var(--pos)}
+.ins-ic{display:grid;place-items:center;flex:none;width:24px;height:24px;color:var(--text-3)}
+.ins-ic svg{width:20px;height:20px}
+.ins-mal .ins-ic{color:var(--neg)}
+.ins-bien .ins-ic{color:var(--pos)}
 
 /* el ícono de cada cifra va al lado de su rótulo, no encima */
 .kpi-rot{display:flex;align-items:center;gap:var(--space-2)}
-.kpi-ic{display:grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;background:var(--surface-2);color:var(--text-2)}
-.kpi-ic svg{width:13px;height:13px}
+.kpi-ic{display:none}

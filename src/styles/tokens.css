@@ -1,86 +1,78 @@
-/* Sistema de diseño, quinta versión: libro de cuentas.
+/* Sistema de diseño, sexta versión: Reparto.
 
-   Papel cálido y tinta en vez de negro y gris de plantilla. Las cifras van en
-   serif (Fraunces), el texto en Instrument Sans. El saldo es una hoja de
-   papel clara sobre la noche —o tinta sobre el papel en el tema claro—, no
-   una tarjeta más. Una sola marca, el amarillo de marcador, para lo activo y
-   el foco. Verde salvia entra, ladrillo sale: el color significa plata y
-   nunca va solo, siempre con signo o texto.
+   Poppins en todo, con el peso y el tamaño haciendo la jerarquía. Grises
+   fríos de una sola familia, un acento (cobalto) para lo activo y el foco,
+   y plata que se lee por color y por signo: verde entra, rojo sale, nunca
+   solo. La firma es la franja de reparto: el mes entero partido en lo que se
+   fue a cada categoría.
 
    Los componentes solo usan tokens semánticos, nunca un hex suelto. */
 :root{
   color-scheme:dark;
 
-  /* marca: el marcador amarillo de quien repasa cuentas */
-  --brand:        #E8B44C;
-  --brand-strong: #F2C25F;
-  --on-brand:     #1A1510;
+  --brand:        #5B77FF;
+  --brand-strong: #7C93FF;
+  --on-brand:     #FFFFFF;
 
-  /* botón principal: papel sobre tinta */
-  --primary:      #F1E9DC;
-  --primary-hover:#FFF8EA;
-  --on-primary:   #1A1510;
+  --primary:      #ECEEF1;
+  --primary-hover:#FFFFFF;
+  --on-primary:   #0B0D10;
 
-  /* superficies y texto: tinta tibia, nunca gris neutro */
-  --bg:           #15110D;
-  --surface:      #1C1712;
-  --surface-2:    #231D17;
-  --surface-3:    #2C251D;
-  --border:       #2E271F;
-  --border-strong:#40372C;
-  --text:         #F1E9DC;
-  --text-2:       #B8AC9A;
-  --text-3:       #9D917F;
-  --hairline:     inset 0 1px 0 rgba(255,244,225,.04);
+  --bg:           #0B0D10;
+  --surface:      #12151A;
+  --surface-2:    #181C22;
+  --surface-3:    #20252C;
+  --border:       #1E232A;
+  --border-strong:#2C333C;
+  --text:         #ECEEF1;
+  --text-2:       #A4ABB5;
+  --text-3:       #8A929D;
+  --hairline:     inset 0 1px 0 rgba(255,255,255,.05);
 
-  --accent-text:  #F0C46A;
-  --accent-soft:  rgba(232,180,76,.11);
-  --accent-line:  rgba(232,180,76,.32);
+  --accent-text:  #93A6FF;
+  --accent-soft:  rgba(91,119,255,.12);
+  --accent-line:  rgba(124,147,255,.36);
 
-  /* el saldo: una hoja de papel sobre la noche */
-  --hero-bg:      #F1E9DC;
-  --hero-text:    #1A1510;
-  --hero-text-2:  #5E5446;
-  --hero-line:    #D6CAB5;
-  --hero-pos:     #2D6A3E;
-  --hero-neg:     #A8371F;
+  /* el saldo vive sobre el fondo, sin tarjeta */
+  --hero-bg:      transparent;
+  --hero-text:    #ECEEF1;
+  --hero-text-2:  #A4ABB5;
+  --hero-line:    #1E232A;
+  --hero-pos:     #3DD6A0;
+  --hero-neg:     #FF7D74;
 
-  --pos:          #93C9A0;
-  --pos-fill:     #5FA474;
-  --pos-soft:     #141F18;
-  --pos-line:     #284534;
-  --neg:          #EE8A73;
-  --neg-fill:     #D0553D;
-  --neg-soft:     #26150F;
-  --neg-line:     #55291D;
+  --pos:          #3DD6A0;
+  --pos-fill:     #1FB886;
+  --pos-soft:     #0E1D18;
+  --pos-line:     #1B4A39;
+  --neg:          #FF7D74;
+  --neg-fill:     #E5483F;
+  --neg-soft:     #25120F;
+  --neg-line:     #55241F;
 
-  --warn:         #E8B44C;
-  --focus:        #F0C46A;
-  --scrim:        rgba(10,7,4,.72);
-  --glass:        rgba(21,17,13,.84);
-  --seg-on:       #332B21;
+  --warn:         #F2B04A;
+  --focus:        #93A6FF;
+  --scrim:        rgba(4,6,9,.72);
+  --glass:        rgba(11,13,16,.80);
+  --seg-on:       #262C35;
 
-  /* tipografía */
-  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
-  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:600;
-  --tracking-tight:-0.02em; --tracking-wide:0.1em;
-  --text-hero:44px; --text-h1:30px; --text-h2:22px; --text-h3:17px;
-  --text-base:15px; --text-sm:13px; --text-xs:12px;
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-sans);
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:700;
+  --tracking-tight:-0.03em; --tracking-wide:0.04em;
+  --text-hero:56px; --text-h1:32px; --text-h2:22px; --text-h3:16px;
+  --text-base:14px; --text-sm:13px; --text-xs:12px;
 
-  /* espacio (ritmo de 4) */
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
-  --space-6:24px; --space-8:32px; --space-10:40px;
+  --space-6:24px; --space-8:32px; --space-10:40px; --space-12:56px;
 
-  --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --radius-xl:12px; --radius-pill:9999px;
+  /* un solo sistema: contenedores 20, piezas dentro 12, controles en píldora */
+  --radius-sm:10px; --radius-md:12px; --radius-lg:20px; --radius-xl:24px; --radius-pill:9999px;
 
-  /* en oscuro la sombra no se ve: la profundidad la dan superficie y borde */
   --shadow-sm:var(--hairline);
   --shadow-md:none;
-  --shadow-lg:0 24px 48px rgba(0,0,0,.55);
+  --shadow-lg:0 24px 56px rgba(0,0,0,.6);
 
-  /* movimiento (Emil Kowalski): ease-out fuerte para entrar y salir,
-     la curva de iOS para hojas que suben, nunca ease-in en la interfaz */
   --ease-out:cubic-bezier(.23,1,.32,1);
   --ease-in-out:cubic-bezier(.77,0,.175,1);
   --ease-drawer:cubic-bezier(.32,.72,0,1);
@@ -88,54 +80,50 @@
   --t-fast:.15s var(--ease-out);
   --t-med:.24s var(--ease-out);
 
-  /* capas */
   --z-nav:30; --z-modal:80; --z-toast:90;
 
   --tabbar-h:64px;
   --sidebar-w:248px;
 }
 
-/* Tema claro: el papel. El amarillo de marca se vuelve ocre para el texto,
-   porque el amarillo no llega a 4,5:1 sobre papel. */
 :root[data-theme=light]{
   color-scheme:light;
-  --brand:        #D79A1E;
-  --brand-strong: #BF8410;
-  --on-brand:     #1F1810;
-  --primary:      #231D15;
+  --brand:        #3550E8;
+  --brand-strong: #2640D0;
+  --on-brand:     #FFFFFF;
+  --primary:      #0E1116;
   --primary-hover:#000000;
-  --on-primary:   #F6F0E4;
-  --bg:           #F4EEE2;
-  --surface:      #FBF8F1;
-  --surface-2:    #EFE8D9;
-  --surface-3:    #E5DCC9;
-  --border:       #DDD3BE;
-  --border-strong:#C7BBA1;
-  --text:         #231D15;
-  --text-2:       #5B5244;
-  --text-3:       #70664F;
-  --hairline:     inset 0 1px 0 rgba(255,255,255,.8);
-  --accent-text:  #84570A;
-  --accent-soft:  rgba(215,154,30,.14);
-  --accent-line:  rgba(180,125,15,.42);
-  --hero-bg:      #231D15;
-  --hero-text:    #F6F0E4;
-  --hero-text-2:  #B8AC9A;
-  --hero-line:    #3B3328;
-  --hero-pos:     #8FD3A0;
-  --hero-neg:     #F29B85;
-  --pos:          #2D6A3E;
-  --pos-fill:     #3F8A55;
-  --pos-soft:     #E7F0E3;
-  --pos-line:     #B5D2B9;
-  --neg:          #A8371F;
-  --neg-fill:     #C2432A;
-  --neg-soft:     #F8E6DE;
-  --neg-line:     #E3B7A8;
-  --warn:         #8A5A0B;
-  --focus:        #84570A;
-  --scrim:        rgba(35,29,21,.45);
-  --glass:        rgba(244,238,226,.86);
-  --seg-on:       #FBF8F1;
-  --shadow-lg:    0 24px 48px rgba(60,40,10,.18);
+  --on-primary:   #FFFFFF;
+  --bg:           #F1F3F6;
+  --surface:      #FFFFFF;
+  --surface-2:    #F6F7F9;
+  --surface-3:    #E9ECF1;
+  --border:       #E1E5EB;
+  --border-strong:#CBD1DA;
+  --text:         #0E1116;
+  --text-2:       #4A525E;
+  --text-3:       #626B78;
+  --hairline:     inset 0 1px 0 rgba(255,255,255,.9);
+  --accent-text:  #2A44D4;
+  --accent-soft:  rgba(53,80,232,.09);
+  --accent-line:  rgba(53,80,232,.38);
+  --hero-text:    #0E1116;
+  --hero-text-2:  #4A525E;
+  --hero-line:    #E1E5EB;
+  --hero-pos:     #0B7A55;
+  --hero-neg:     #C7372F;
+  --pos:          #0B7A55;
+  --pos-fill:     #17A074;
+  --pos-soft:     #E6F5EE;
+  --pos-line:     #B3DDC9;
+  --neg:          #C7372F;
+  --neg-fill:     #E0473D;
+  --neg-soft:     #FCEAE8;
+  --neg-line:     #F2BDB8;
+  --warn:         #96600A;
+  --focus:        #2A44D4;
+  --scrim:        rgba(14,17,22,.45);
+  --glass:        rgba(241,243,246,.86);
+  --seg-on:       #FFFFFF;
+  --shadow-lg:    0 24px 56px rgba(20,30,60,.18);
 }

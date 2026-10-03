@@ -45,7 +45,12 @@
    Pantallas que se abren pocas veces: los pasos de bienvenida, las frases de
    Reportes. 30 a 60ms entre una y otra, nunca bloquean tocar. */
 .entrada .paso,.anima .ins{animation:entrar .32s var(--ease-out) both;animation-delay:calc(var(--i,0) * 55ms + 120ms)}
+/* la franja se reparte: cada tramo crece desde la izquierda, uno tras otro.
+   Solo al abrir la app; cambiar de mes la deja quieta. */
+.entrada .reparto i{animation:repartir .7s var(--ease-out) both;animation-delay:calc(var(--k) * 70ms + 80ms)}
+@keyframes repartir{from{transform:scaleX(0);opacity:0}}
 @media (prefers-reduced-motion:reduce){
+  .entrada .reparto i{animation:none}
   /* el relleno de mantener presionado es un temporizador, no adorno: sigue llenándose */
   .mantener .mantener-relleno{transition-property:clip-path!important}
   .chips[data-seg]::before{transition:none}

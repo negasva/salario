@@ -24,12 +24,12 @@ function donut(trozos) {
   </svg>`;
 }
 
-export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite = Infinity } = {}) {
+export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite = Infinity, grafica = true } = {}) {
   const trozos = arcos(segmentos, C);
   const total = segmentos.reduce((t, s) => t + s.monto, 0);
   const mayor = trozos[0]?.pct || 0;
   return `<div class="donut-bloque">
-    <div class="donut-wrap">${donut(trozos)}<div class="donut-centro"><span>${rotulo}</span><b class="num" title="${money(total)}">${moneyCorto(total, 12)}</b></div></div>
+    ${grafica ? `<div class="donut-wrap">${donut(trozos)}<div class="donut-centro"><span>${rotulo}</span><b class="num" title="${money(total)}">${moneyCorto(total, 12)}</b></div></div>` : ''}
     ${!lista ? '' : trozos.length ? `<ul class="lista-cat">${trozos.slice(0, limite).map((s) => `<li class="fila-cat">
         <span class="dot" style="background:${s.color}"></span>
         <span class="fc-n">${esc(s.nombre)}</span>

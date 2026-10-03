@@ -5,6 +5,7 @@ import { resumenReporte } from '../engine/reportes.js';
 import { catAhorro, estadoAhorro } from '../engine/ahorro.js';
 import { colorPara } from '../engine/categorias.js';
 import { money, esc, fechaCorta } from '../format.js';
+import { abrirRegistro } from './registrar.js';
 import { donutBloque, graficaBarras, graficaLinea, enlazarTips, responsiva } from './charts.js';
 import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
 import { vencimientos, cuandoVence } from '../engine/recurrentes.js';
@@ -39,6 +40,22 @@ function ahorroResumen(p, per) {
   </section>`;
 }
 
+/* Primera vez: una cuenta sin un solo movimiento no tiene nada que graficar,
+   así que en vez de gráficas vacías se muestra por dónde empezar. */
+function bienvenida() {
+  const paso = (n, t, d, accion) => `<li class="paso"><span class="paso-n" aria-hidden="true">${n}</span>
+    <div class="paso-txt"><b>${t}</b><span class="sub">${d}</span></div>${accion}</li>`;
+  return `<section class="card bienvenida">
+    <div class="card-head"><h2 class="card-title">Empieza por aquí</h2></div>
+    <p class="sub">Tres pasos y el mes se arma solo. Puedes hacerlos en el orden que quieras.</p>
+    <ol class="pasos">
+      ${paso(1, 'Dile con cuánto empiezas', 'El saldo de hoy, para que el arrastre de cada mes salga exacto.', '<button class="mini" data-ir="ajustes">Ir a Ajustes</button>')}
+      ${paso(2, 'Registra un movimiento', 'Un gasto o un ingreso: monto, categoría y fecha.', '<button class="mini btn-primary" id="biRegistrar">Registrar</button>')}
+      ${paso(3, 'Agrega lo que se repite', 'El arriendo, los servicios, el sueldo: se pagan o se reciben por partes.', '<button class="mini" data-ir="recurrentes">Ir a Recurrentes</button>')}
+    </ol>
+  </section>`;
+}
+
 /* Tres cifras del mes y la puerta a los reportes completos. */
 function resumenRapido(p, per) {
   const r = resumenReporte(p.movs, per, { ahorroId: catAhorro(p.cats)?.id });
@@ -59,6 +76,16 @@ export function renderInicio(root) {
   const per = mesElegido();
   const segmentos = segmentosPorCategoria(p.cats, gastoPorCategoria(p.movs, per));
   const serie = serieMensual(p.saldoInicial, p.movs, per, 6, p.arranques);
+
+  if (!p.movs.length) {
+    root.innerHTML = `${selectorMes('Inicio')}${cabeceraMes(p, per)}${bienvenida()}`;
+    enlazarMes(root, () => renderInicio(root));
+    root.querySelector('#biRegistrar').onclick = () => abrirRegistro({ alGuardar: () => renderInicio(root) });
+    root.querySelectorAll('[data-ir]').forEach((b) => {
+      b.onclick = () => window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: b.dataset.ir } }));
+    });
+    return;
+  }
 
   root.innerHTML = `
     ${selectorMes('Inicio')}

@@ -4,6 +4,8 @@
    apartado sale del saldo, así que `tasaAhorro` lo suma de vuelta. */
 
 import { enPeriodo, hoyISO, periodoDe, resumenFlujo, gastoPorCategoria, sumarMeses } from './movimientos.js';
+import { compararMeses } from './comparar.js';
+import { money } from '../format.js';
 
 export function diasDelMes(periodo) {
   const [a, m] = periodo.split('-').map(Number);
@@ -121,4 +123,38 @@ export function resumenAnual(movs, anio) {
     mejor: activos.reduce((b, m) => (!b || m.neto > b.neto ? m : b), null),
     peor: activos.reduce((b, m) => (!b || m.neto < b.neto ? m : b), null),
   };
+}
+
+/* Lo que se le diría a alguien mirando el mes, en frases. Cada una lleva un
+   `tono` ('mal' si cuesta plata, 'bien' si la ahorra, 'info') y un `ic` para
+   la vista. Salen primero los avisos de presupuesto, que son lo accionable. */
+export function insights(movs, periodo, { cats = [], hoy = hoyISO(), ahorroId = null } = {}) {
+  const r = resumenReporte(movs, periodo, { hoy, ahorroId });
+  if (!r.gastos && !r.ingresos) return [];
+  const out = [];
+  const porCat = gastoPorCategoria(movs, periodo);
+  cats.filter((c) => c.tipo === 'gasto' && c.m > 0).forEach((c) => {
+    const gastado = porCat[c.id] || 0;
+    if (gastado > c.m) out.push({ tono: 'mal', ic: 'alerta', texto: `Te pasaste del presupuesto de ${c.n} por ${money(gastado - c.m)}.` });
+    else if (gastado >= c.m * 0.8) out.push({ tono: 'info', ic: 'meta', texto: `${c.n} ya va en ${Math.round((gastado / c.m) * 100)} % de su presupuesto.` });
+  });
+  const prev = sumarMeses(periodo, -1);
+  const enCurso = r.pasados > 0 && r.pasados < r.total;
+  const acPrev = acumulado(flujoDiario(movs, prev));
+  const antes = r.pasados ? acPrev[Math.min(r.pasados, acPrev.length) - 1] : 0;
+  if (antes > 0 && r.pasados > 0) {
+    const pct = Math.round(((r.gastos - antes) / antes) * 100);
+    out.push(pct > 0 ? { tono: 'mal', ic: 'sube', texto: `Llevas ${pct} % más gastado que el mes pasado${enCurso ? ' a esta altura' : ''}.` }
+      : pct < 0 ? { tono: 'bien', ic: 'baja', texto: `Llevas ${-pct} % menos gastado que el mes pasado${enCurso ? ' a esta altura' : ''}.` }
+        : { tono: 'info', ic: 'meta', texto: `Vas igual que el mes pasado${enCurso ? ' a esta altura' : ''}.` });
+  }
+  const c = compararMeses(movs, cats, periodo, 'anterior', { hastaDia: enCurso ? r.pasados : 31 });
+  const sube = c.filas.find((f) => f.tipo === 'gasto' && f.id !== ahorroId && f.delta > 0);
+  if (sube) out.push({ tono: 'mal', ic: 'sube', texto: `Lo que más subió fue ${sube.nombre}: ${money(sube.delta)} más${sube.pct !== null ? ` (+${sube.pct} %)` : ''}.` });
+  const rPrev = resumenReporte(movs, prev, { hoy, ahorroId });
+  if (r.proyeccion !== null && rPrev.gastos > 0) {
+    const d = r.proyeccion - rPrev.gastos;
+    out.push({ tono: d > 0 ? 'mal' : 'bien', ic: d > 0 ? 'sube' : 'baja', texto: `Al ritmo de hoy cerrarías ${money(Math.abs(d))} ${d > 0 ? 'por encima' : 'por debajo'} del mes pasado.` });
+  }
+  return out.slice(0, 4);
 }

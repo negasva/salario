@@ -117,7 +117,7 @@ function pintar(root, p, per, repintar) {
       <span class="empty-ic">${icon(buscando ? 'buscar' : 'movimientos')}</span>
       <b>${buscando ? `Nada con “${esc(texto.trim())}”` : filtro ? 'Nada en esta categoría este mes' : 'Nada registrado este mes'}</b>
       <span class="sub">${buscando ? (todosLosMeses ? 'Prueba con otra palabra o un monto.' : 'Prueba con otra palabra, o busca en todos los meses.')
-    : filtro ? 'Prueba con otra o vuelve a ver todas.' : 'Toca el + para anotar lo que entra y lo que sale.'}</span>
+    : filtro ? 'Prueba con otra o vuelve a ver todas.' : 'Usa Registrar para anotar lo que entra y lo que sale.'}</span>
     </div>`}`;
 
   root.querySelectorAll('[data-edit]').forEach((b) => {

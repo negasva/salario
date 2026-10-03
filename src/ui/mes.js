@@ -109,7 +109,7 @@ function franjaHTML(p, per, r) {
   const resumen = tramos.map((t) => `${t.nombre} ${money(t.monto)}`).join(', ');
   const leyenda = f.partes.slice(0, 3).concat(f.libre ? [{ nombre: 'Libre', monto: f.libre.monto, libre: true }] : []);
   return `<div class="reparto" role="img" aria-label="Cómo se reparte el mes: ${esc(resumen)}">
-    ${tramos.map((t, k) => `<i class="${t.libre ? 'libre' : ''}" style="--w:${t.pct};--k:${k}${t.libre ? '' : `;--c:${t.color}`}"></i>`).join('')}
+    ${tramos.map((t, k) => `<i class="${t.libre ? 'libre' : ''}" data-tip="${esc(t.nombre)}\n${money(t.monto)} · ${String(t.pct).replace('.', ',')} %" style="--w:${t.pct};--k:${k}${t.libre ? '' : `;--c:${t.color}`}"></i>`).join('')}
   </div>
   <ul class="reparto-ley">${leyenda.map((t) => `<li class="${t.libre ? 'libre' : ''}"><i style="${t.libre ? '' : `background:${t.color}`}"></i><span>${esc(t.nombre)}</span><b class="num">${money(t.monto)}</b></li>`).join('')}</ul>
   ${f.exceso ? `<p class="reparto-aviso">Gastaste ${money(f.exceso)} más de lo que entró este mes.</p>` : ''}`;

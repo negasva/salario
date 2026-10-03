@@ -12,7 +12,7 @@
 
   --brand:        #5B77FF;
   --brand-strong: #7C93FF;
-  --on-brand:     #FFFFFF;
+  --on-brand:     #0B0D10;
 
   --primary:      #ECEEF1;
   --primary-hover:#FFFFFF;
@@ -81,6 +81,9 @@
   --t-med:.24s var(--ease-out);
 
   --z-nav:30; --z-modal:80; --z-toast:90;
+
+  /* las cuatro primeras categorías, para la muestra de la entrada */
+  --cat-1:#5B77FF; --cat-2:#2DB5A3; --cat-3:#F2B04A; --cat-4:#E5604F;
 
   --tabbar-h:64px;
   --sidebar-w:248px;

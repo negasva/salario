@@ -6,19 +6,9 @@ import { toast } from './shell.js';
 import { titulo } from './piezas.js';
 import { confirmarBoton, animarSegmentos, fijarSegmento } from './efectos.js';
 import { aCSV } from '../engine/csv.js';
-import { calendarioICS } from '../engine/recurrentes.js';
 import { abrirImportar } from './importar.js';
 import { tema, elegir } from './tema.js';
-import { avisosSoportados, avisosActivos, activarAvisos, desactivarAvisos } from './avisos.js';
-
-function descargar(nombre, contenido, tipo) {
-  const blob = new Blob([contenido], { type: tipo });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = nombre;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
+import { descargar, tarjetaAvisos, enlazarAvisos } from './avisos.js';
 
 const hoyArchivo = () => new Date().toISOString().slice(0, 10);
 
@@ -69,18 +59,7 @@ export function renderAjustes(root) {
           <button class="btn-primary" id="ajImportar">${icon('subir')}Importar</button>
         </div>
       </section>
-      <section class="card ajuste">
-        <div class="ajuste-txt">
-          ${titulo('campana', 'Avisos de pagos')}
-          <p class="sub">${avisosSoportados()
-    ? `Te avisa cuando algo vence hoy o mañana. ${avisosActivos() ? '<b class="pos">Activos.</b>' : ''}`
-    : 'Este navegador no muestra avisos.'}</p>
-        </div>
-        <div class="field-row">
-          ${avisosSoportados() ? `<button id="ajAvisos">${icon('campana')}${avisosActivos() ? 'Apagar' : 'Activar'}</button>` : ''}
-          <button id="ajCalendario" ${p.recurrentes.some((r) => r.tipo === 'gasto') ? '' : 'disabled'}>${icon('calendario')}Al calendario</button>
-        </div>
-      </section>
+      ${tarjetaAvisos(p)}
       <a class="card ajuste-perfil" href="#perfil">
         <span class="ct-ic" aria-hidden="true">${icon('usuario', 'ic-sm')}</span>
         <span class="ajuste-perfil-txt"><b>Tu perfil</b><small>Nombre, contraseña y sesión</small></span>
@@ -116,15 +95,5 @@ export function renderAjustes(root) {
   root.querySelector('#ajCSV').onclick = () => descargar(`movimientos-${hoyArchivo()}.csv`,
     `\uFEFF${aCSV(p.movs, p.cats, p.recurrentes)}`, 'text/csv;charset=utf-8');
   root.querySelector('#ajImportar').onclick = () => abrirImportar(() => renderAjustes(root));
-  root.querySelector('#ajCalendario').onclick = () => {
-    descargar('pagos-del-mes.ics', calendarioICS(p.recurrentes), 'text/calendar;charset=utf-8');
-    toast('Abre el archivo para agregar tus pagos al calendario.');
-  };
-  root.querySelector('#ajAvisos')?.addEventListener('click', async () => {
-    if (avisosActivos()) { desactivarAvisos(); toast('Avisos apagados en este dispositivo.'); } else {
-      const ok = await activarAvisos();
-      toast(ok ? 'Listo: te avisará cuando algo venza hoy o mañana.' : 'El navegador no dio permiso para avisos.');
-    }
-    renderAjustes(root);
-  });
+  enlazarAvisos(root, p, () => renderAjustes(root));
 }

@@ -10,6 +10,7 @@ import { selectorMes, enlazarMes, mesElegido } from './mes.js';
 import { abrirModal } from './modal.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
+import { tarjetaAvisos, enlazarAvisos } from './avisos.js';
 
 /* Lo que se repite todos los meses. Están todos siempre; lo que cambia es
    cuánto llevas pagado de cada uno este mes, de una vez o por partes. */
@@ -329,7 +330,8 @@ export function renderRecurrentes(root) {
         <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2>
         <ul class="list">${lista('ingreso').map(fila).join('')}</ul>
       </section>` : ''}
-      ${deudas.length ? seccionDeudas(deudas, p, per) : ''}`
+      ${deudas.length ? seccionDeudas(deudas, p, per) : ''}
+      ${tarjetaAvisos(p)}`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('recurrente')}</span>
         <b>Todavía no tienes recurrentes</b>
@@ -339,6 +341,7 @@ export function renderRecurrentes(root) {
   const repintar = () => renderRecurrentes(root);
   enlazarMes(root, repintar);
   root.querySelector('#reNuevo').onclick = () => editorFicha(null, repintar);
+  enlazarAvisos(root, p, repintar);
   root.querySelectorAll('[data-pago]').forEach((b) => {
     b.onclick = () => hojaPagos(p.recurrentes.find((r) => r.id === b.dataset.pago), per, repintar);
   });

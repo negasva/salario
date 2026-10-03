@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import { sumarMeses, periodoActual, gastoPorCategoria, hoyISO } from '../engine/movimientos.js';
 import { segmentosPorCategoria } from '../engine/graficas.js';
 import { flujoDiario, acumulado, porDiaSemana, calor, topGastos, resumenReporte,
-  tendenciaCategorias, resumenAnual } from '../engine/reportes.js';
+  tendenciaCategorias, resumenAnual, insights } from '../engine/reportes.js';
 import { catAhorro } from '../engine/ahorro.js';
 import { nombreDe, colorDe } from '../engine/categorias.js';
 import { money, moneySigno, esc, fechaCorta, nombreMes, MESES } from '../format.js';
@@ -49,6 +49,14 @@ function cabecera(per, anio) {
     </div></header>${controles}`;
 }
 
+/* Las frases de arriba: lo accionable primero, sin tener que leer las gráficas. */
+function resumenFrases(lista) {
+  if (!lista.length) return '';
+  return `<section class="card insights" aria-label="Lo que dicen tus números">
+    <ul class="ins-lista">${lista.map((i) => `<li class="ins ins-${i.tono}">
+      <span class="ins-ic" aria-hidden="true">${icon(i.ic, 'ic-sm')}</span><span>${esc(i.texto)}</span></li>`).join('')}</ul></section>`;
+}
+
 /* Debajo de las barras de la semana: los datos que se leen sin descifrar la gráfica. */
 function datosSemana(t) {
   const total = t.reduce((a, b) => a + b, 0);
@@ -88,6 +96,7 @@ function vistaMes(p, per) {
   const totalCat = segs.reduce((t, s) => t + s.monto, 0);
   const top = topGastos(p.movs, per, 5);
   const semana = porDiaSemana(p.movs, per, ahorroId);
+  const frases = insights(p.movs, per, { cats: p.cats, hoy, ahorroId });
   const fila = (s) => {
     const prevMonto = (tend[s.id] || [])[4] ?? 0;
     const tope = p.cats.find((c) => c.id === s.id)?.m || 0;
@@ -109,6 +118,8 @@ function vistaMes(p, per) {
       ${kpi('Tasa de ahorro', r.tasaAhorro === null ? 'Sin ingresos' : `${r.tasaAhorro} %`, r.tasaAhorro === null ? 'No entró plata este mes' : r.apartado ? `Apartaste ${money(r.apartado)}` : r.neto >= 0 ? `Te sobró ${money(r.neto)}` : `Te faltó ${money(-r.neto)}`, r.tasaAhorro !== null && r.tasaAhorro < 0 ? 'neg' : '')}
       ${kpi('Día más caro', r.diaMasCaro ? fechaCorta(`${per}-${dia2(r.diaMasCaro.dia)}`) : 'Ninguno', r.diaMasCaro ? `Salieron ${money(r.diaMasCaro.gasto)}` : 'Sin gastos este mes')}
     </div>
+
+    ${resumenFrases(frases)}
 
     <section class="card">
       <div class="card-head"><h2 class="card-title">Gasto acumulado</h2><span class="card-meta">Contra el mes anterior</span></div>

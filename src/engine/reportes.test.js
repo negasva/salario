@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { diasDelMes, diasTranscurridos, flujoDiario, acumulado, porDiaSemana, calor, topGastos,
-  resumenReporte, tendenciaCategorias, resumenAnual } from './reportes.js';
+  resumenReporte, tendenciaCategorias, resumenAnual, insights } from './reportes.js';
 
 const m = (fecha, tipo, monto, catId = 'x') => ({ id: fecha + monto + tipo, fecha, tipo, monto, catId });
 // septiembre 2026 empieza en martes
@@ -88,5 +88,26 @@ describe('tendencias y año', () => {
   });
   it('año sin movimientos no tiene mejor ni peor', () => {
     expect(resumenAnual([], 2026).mejor).toBeNull();
+  });
+});
+
+describe('insights', () => {
+  const cats = [{ id: 'x', n: 'Mercado', m: 400, tipo: 'gasto' }, { id: 'ah', n: 'Ahorro', m: 0, tipo: 'gasto' }];
+  it('avisa del presupuesto pasado, del cambio contra el mes anterior y de lo que más subió', () => {
+    const lista = insights(movs, '2026-09', { cats, hoy: '2026-09-10', ahorroId: 'ah' });
+    expect(lista[0]).toMatchObject({ tono: 'mal', ic: 'alerta' });
+    expect(lista[0].texto).toMatch(/Te pasaste del presupuesto de Mercado/);
+    expect(lista.some((i) => /más gastado que el mes pasado a esta altura/.test(i.texto))).toBe(true);
+    expect(lista.length).toBeLessThanOrEqual(4);
+  });
+  it('un mes cerrado no dice "a esta altura" y sin movimientos no dice nada', () => {
+    const lista = insights(movs, '2026-09', { cats: [], hoy: '2026-10-20' });
+    expect(lista.every((i) => !/a esta altura/.test(i.texto))).toBe(true);
+    expect(insights([], '2026-09')).toEqual([]);
+  });
+  it('avisa cuando una categoría llega al 80 % del presupuesto', () => {
+    const lista = insights([m('2026-09-02', 'gasto', 90, 'x')], '2026-09', { cats: [{ id: 'x', n: 'Café', m: 100, tipo: 'gasto' }], hoy: '2026-10-01' });
+    expect(lista[0]).toMatchObject({ tono: 'info' });
+    expect(lista[0].texto).toBe('Café ya va en 90 % de su presupuesto.');
   });
 });

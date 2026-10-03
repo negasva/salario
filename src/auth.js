@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { enlaceDeCorreo } from './engine/persona.js';
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -8,9 +9,12 @@ export const supabase = createClient(
 let currentSession = null;
 const listeners = [];
 
-supabase.auth.onAuthStateChange((_event, session) => {
+// Qué trajo el enlace del correo, leído antes de que el cliente limpie la URL.
+export const enlaceInicial = enlaceDeCorreo(window.location.hash, window.location.search);
+
+supabase.auth.onAuthStateChange((event, session) => {
   currentSession = session;
-  listeners.forEach((cb) => cb(session));
+  listeners.forEach((cb) => cb(session, event));
 });
 
 export function onAuthChange(cb) {
@@ -40,10 +44,15 @@ export function signOut() {
   return supabase.auth.signOut();
 }
 
+// El enlace del correo vuelve a la app. VITE_SITE_URL fija el dominio de producción
+// (así un correo pedido desde una vista previa de Vercel no apunta a otra dirección);
+// Supabase solo respeta esta URL si está en Authentication → URL Configuration → Redirect URLs.
+export function urlDeLaApp() {
+  return (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, '');
+}
+
 export function recoverPassword(email) {
-  return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
-  });
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo: urlDeLaApp() });
 }
 
 // El usuario de la sesión: correo, fecha de alta y si confirmó el correo.

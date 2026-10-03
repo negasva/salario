@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizarPersona, nombreVisible, iniciales, textoSobre, saludo, desde, fuerzaClave, problemaClave, COLORES_AVATAR } from './persona.js';
+import { normalizarPersona, nombreVisible, iniciales, textoSobre, saludo, desde, fuerzaClave, problemaClave, mensajeClave, mensajeEnlace, enlaceDeCorreo, COLORES_AVATAR } from './persona.js';
 
 describe('persona', () => {
   it('normaliza nombre y color', () => {
@@ -35,5 +35,23 @@ describe('persona', () => {
     expect(problemaClave('sololetras', 'sololetras')).toBe('Mezcla letras y números.');
     expect(problemaClave('clave12345', 'clave1234')).toBe('Las dos no coinciden.');
     expect(problemaClave('clave12345', 'clave12345')).toBe('');
+  });
+
+  it('traduce los errores de la clave y del enlace', () => {
+    expect(mensajeClave({ message: 'New password should be different from the old password.' })).toBe('Usa una contraseña distinta a la actual.');
+    expect(mensajeClave({ message: 'Password is too weak' })).toBe('Esa contraseña es muy débil.');
+    expect(mensajeClave({ message: 'Auth session missing!' })).toBe('Vuelve a entrar y prueba de nuevo.');
+    expect(mensajeClave({ message: 'Auth session missing!' }, true)).toBe('El enlace venció. Pide otro.');
+    expect(mensajeClave({ message: 'boom' })).toBe('No se pudo cambiar. Intenta de nuevo.');
+    expect(mensajeEnlace({ message: 'email rate limit exceeded' })).toMatch(/Espera/);
+    expect(mensajeEnlace({ message: 'Unable to validate email address: invalid format' })).toMatch(/correo/);
+    expect(mensajeEnlace(null)).toMatch(/No pudimos/);
+  });
+  it('reconoce el enlace del correo', () => {
+    expect(enlaceDeCorreo('#access_token=a&refresh_token=b&type=recovery')).toBe('nueva');
+    expect(enlaceDeCorreo('#error=access_denied&error_code=otp_expired&error_description=x')).toBe('vencido');
+    expect(enlaceDeCorreo('', '?error=access_denied&error_code=otp_expired')).toBe('vencido');
+    expect(enlaceDeCorreo('#perfil')).toBe('');
+    expect(enlaceDeCorreo('')).toBe('');
   });
 });

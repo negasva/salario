@@ -69,3 +69,31 @@ export function problemaClave(clave, repetida) {
   if (clave !== repetida) return 'Las dos no coinciden.';
   return '';
 }
+
+// Los mensajes de Supabase vienen en inglés: se traducen los que una persona puede resolver.
+export function mensajeClave(error, porEnlace = false) {
+  const m = String(error?.message || '');
+  if (/same|different/i.test(m)) return 'Usa una contraseña distinta a la actual.';
+  if (/weak|short|least|characters/i.test(m)) return 'Esa contraseña es muy débil.';
+  if (/reauth|recent|session|expired|jwt/i.test(m)) return porEnlace ? 'El enlace venció. Pide otro.' : 'Vuelve a entrar y prueba de nuevo.';
+  return 'No se pudo cambiar. Intenta de nuevo.';
+}
+
+// Lo mismo para el envío del enlace de recuperación.
+export function mensajeEnlace(error) {
+  const m = String(error?.message || '');
+  if (/rate|seconds|too many|limit/i.test(m)) return 'Pediste muchos enlaces. Espera unos minutos.';
+  if (/invalid|valid email/i.test(m)) return 'Revisa que el correo esté bien escrito.';
+  return 'No pudimos enviarlo. Intenta de nuevo.';
+}
+
+// Qué trae el # de la URL al volver de un enlace del correo: 'nueva' (enlace bueno),
+// 'vencido' (Supabase lo rechazó) o '' (nada que ver con recuperar).
+export function enlaceDeCorreo(hash, search = '') {
+  const h = new URLSearchParams(String(hash).replace(/^#/, ''));
+  if (h.get('error') || h.get('error_code')) return 'vencido';
+  if (h.get('type') === 'recovery') return 'nueva';
+  const q = new URLSearchParams(search);
+  if (q.get('error') || q.get('error_code')) return 'vencido';
+  return '';
+}

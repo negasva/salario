@@ -607,3 +607,17 @@ kbd{padding:1px 6px;border:1px solid var(--border-strong);border-radius:6px;back
   .navlink-txt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
   .navlink-ic,.navlink-add .navlink-ic{height:32px}
 }
+
+/* acceso: olvidé la clave, volver, sello de las pantallas del correo */
+.auth-olvide,.auth-volver{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:0;border:0;background:none;color:var(--text-2);font-size:var(--text-sm);font-weight:var(--fw-medium)}
+.auth-olvide{margin:calc(var(--space-1) * -1) 0 var(--space-2)}
+.auth-volver{margin-bottom:var(--space-5)}
+.auth-volver svg{width:16px;height:16px}
+.auth-volver-fin{margin:var(--space-3) 0 0}
+@media (hover:hover) and (pointer:fine){.auth-olvide:hover,.auth-volver:hover{color:var(--text);background:none}}
+.auth-form-gap{margin-top:var(--space-6)}
+.auth-sello{display:grid;place-items:center;width:48px;height:48px;margin-bottom:var(--space-5);border-radius:14px;background:var(--surface-2);border:1px solid var(--border);color:var(--brand)}
+.auth-sello svg{width:22px;height:22px}
+.auth-card .wide:disabled{opacity:.6}
+.auth-card #authReenviar{margin-top:var(--space-2)}
+.sub + .auth-err{margin-top:var(--space-4)}

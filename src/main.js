@@ -4,6 +4,7 @@ import '@fontsource/poppins/latin-600.css';
 import '@fontsource/poppins/latin-700.css';
 import { mountIconSprite } from './ui/icons.js';
 import { renderLogin } from './ui/login.js';
+import { renderNuevaClave } from './ui/nuevaclave.js';
 import { renderShell, toast } from './ui/shell.js';
 import { renderInicio } from './ui/inicio.js';
 import { renderMovimientos } from './ui/movimientos.js';
@@ -16,7 +17,7 @@ import { renderReportes } from './ui/reportes.js';
 import { renderPerfil } from './ui/perfil.js';
 import { renderMas } from './ui/mas.js';
 import { avisarVencimientos } from './ui/avisos.js';
-import { getSession, onAuthChange } from './auth.js';
+import { getSession, onAuthChange, enlaceInicial, signOut } from './auth.js';
 import * as store from './store.js';
 import { montarTema } from './ui/tema.js';
 import { montarPaleta } from './ui/paleta.js';
@@ -79,8 +80,30 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('ir-a-vista', (e) => navegar(e.detail?.route));
 montarPaleta({ activa: () => conSesion, salir });
 
+// El enlace del correo no es una pantalla: se limpia la URL y se pide la contraseña nueva.
+let recuperando = enlaceInicial === 'nueva';
+let vencido = enlaceInicial === 'vencido';
+const limpiarUrl = () => history.replaceState(null, '', location.pathname);
+
+function pedirNuevaClave() {
+  recuperando = true;
+  conSesion = false;
+  limpiarUrl();
+  renderNuevaClave(app, {
+    listo: async () => { recuperando = false; await boot(); toast('Contraseña cambiada.'); },
+    cancelar: async () => { recuperando = false; await signOut(); },
+  });
+}
+
 async function boot() {
+  if (vencido) {
+    vencido = false;
+    limpiarUrl();
+    renderLogin(app, boot, 'El enlace venció. Pide otro.', true);
+    return;
+  }
   const session = await getSession();
+  if (session && recuperando) { pedirNuevaClave(); return; }
   if (!session) { conSesion = false; renderLogin(app, boot); return; }
   store.setCorreo(session.user.email);
   const res = await store.bootAuth(session.user.id);
@@ -96,8 +119,10 @@ document.addEventListener('visibilitychange', () => {
   if (conSesion && document.visibilityState === 'visible') avisarVencimientos();
 });
 
-onAuthChange((session) => {
-  if (!session) { conSesion = false; store.signOutLocal(); renderLogin(app, boot); }
+onAuthChange((session, evento) => {
+  if (evento === 'PASSWORD_RECOVERY') { pedirNuevaClave(); return; }
+  if (!session && recuperando) return;
+  if (!session && evento === 'SIGNED_OUT') { conSesion = false; store.signOutLocal(); renderLogin(app, boot); }
 });
 
 boot();

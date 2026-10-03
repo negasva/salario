@@ -13,6 +13,7 @@ import { renderAjustes } from './ui/ajustes.js';
 import { renderAhorro } from './ui/ahorro.js';
 import { renderComparar } from './ui/comparar.js';
 import { renderReportes } from './ui/reportes.js';
+import { renderPerfil } from './ui/perfil.js';
 import { renderMas } from './ui/mas.js';
 import { avisarVencimientos } from './ui/avisos.js';
 import { getSession, onAuthChange } from './auth.js';
@@ -33,6 +34,7 @@ const ROUTES = {
   recurrentes: renderRecurrentes,
   ahorro: renderAhorro,
   reportes: renderReportes,
+  perfil: renderPerfil,
   comparar: renderComparar,
   categorias: renderCategorias,
   ajustes: renderAjustes,
@@ -45,7 +47,7 @@ let route = deHash();
 let conSesion = false;
 
 const TITULOS = { inicio: 'Inicio', movimientos: 'Movimientos', recurrentes: 'Recurrentes', ahorro: 'Ahorro',
-  reportes: 'Reportes', comparar: 'Comparar', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
+  reportes: 'Reportes', perfil: 'Perfil', comparar: 'Comparar', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
 
 function paintRoute({ entrada = false } = {}) {
   const content = renderShell(app, route, navegar);
@@ -68,7 +70,8 @@ window.addEventListener('hashchange', () => {
   if (!conSesion || !ROUTES[location.hash.slice(1)]) return;
   const antes = route;
   route = deHash();
-  paintRoute();
+  // al perfil se llega pocas veces al día y desde un toque: entra en cascada, como al abrir la app
+  paintRoute({ entrada: route === 'perfil' && antes !== 'perfil' });
   if (route !== antes) window.scrollTo(0, 0);
 });
 
@@ -79,6 +82,7 @@ montarPaleta({ activa: () => conSesion, salir });
 async function boot() {
   const session = await getSession();
   if (!session) { conSesion = false; renderLogin(app, boot); return; }
+  store.setCorreo(session.user.email);
   const res = await store.bootAuth(session.user.id);
   if (res?.migrated) toast('Tus datos locales se subieron a tu cuenta.');
   conSesion = true;

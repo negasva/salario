@@ -7,6 +7,7 @@ import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
 import { abrirRegistro } from './registrar.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
+import { destacar } from './efectos.js';
 
 let filtro = ''; // '' = todo | catId
 let texto = ''; // lo que se está buscando
@@ -35,9 +36,9 @@ export function renderMovimientos(root) {
     ${cabeceraMes(p, per, { compacta: true })}
     ${faltan.length ? `<div class="callout">
       <span class="callout-ic">${icon('campana')}</span>
-      <div class="callout-txt"><b>${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} sin ningún pago este mes</b>
+      <div class="callout-txt"><b>${faltan.length} recurrente${faltan.length === 1 ? '' : 's'} sin pagar</b>
         <span class="sub">${esc(faltan.slice(0, 4).map((r) => r.n).join(', '))}${faltan.length > 4 ? '…' : ''}</span></div>
-      <button id="mvRec">Ir a pagarlos</button></div>` : ''}
+      <button id="mvRec">Pagarlos</button></div>` : ''}
     <div class="toolbar toolbar-mov">
       <label class="buscador">${icon('buscar', 'ic-sm')}<span class="sr-only">Buscar</span>
         <input type="search" id="mvBuscar" placeholder="Buscar: Éxito, D1, 130.000…" value="${esc(texto)}" autocomplete="off" enterkeyhint="search"></label>
@@ -99,7 +100,7 @@ function pintar(root, p, per, repintar) {
     // un pago por partes dice de qué recurrente es: "Mercado · Éxito"
     const rec = m.recId && recs.get(m.recId);
     const nota = rec && m.nota && m.nota !== rec.n ? `${rec.n} · ${m.nota}` : m.nota;
-    return `<li class="row row-link mov ${m.tipo}">
+    return `<li class="row row-link mov ${m.tipo}${m.id === destacar.id ? ' nuevo' : ''}">
         <button class="row-main" data-edit="${m.id}"><span class="sr-only">Editar </span>
           <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombre.trim().charAt(0).toUpperCase())}</span>
           <span class="row-txt">
@@ -120,6 +121,7 @@ function pintar(root, p, per, repintar) {
     : filtro ? 'Prueba con otra o vuelve a ver todas.' : 'Usa Registrar para anotar lo que entra y lo que sale.'}</span>
     </div>`}`;
 
+  destacar.id = null; // el destello es de una sola vez
   root.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => abrirRegistro({ movId: b.dataset.edit, alGuardar: repintar });
   });

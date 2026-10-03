@@ -2,7 +2,9 @@ import * as store from '../store.js';
 import { saldoActual } from '../engine/movimientos.js';
 import { money, moneySigno, plain, esc, digits } from '../format.js';
 import { icon } from './icons.js';
-import { toast, salir } from './shell.js';
+import { toast } from './shell.js';
+import { titulo } from './piezas.js';
+import { confirmarBoton, animarSegmentos, fijarSegmento } from './efectos.js';
 import { aCSV } from '../engine/csv.js';
 import { calendarioICS } from '../engine/recurrentes.js';
 import { abrirImportar } from './importar.js';
@@ -20,7 +22,7 @@ function descargar(nombre, contenido, tipo) {
 
 const hoyArchivo = () => new Date().toISOString().slice(0, 10);
 
-/* Saldo inicial · nombre · datos (exportar e importar) · avisos · salir. */
+/* Saldo inicial · apariencia · nombre · datos · avisos. La cuenta y la sesión viven en el perfil. */
 export function renderAjustes(root) {
   const p = store.active();
   const hoy = saldoActual(p.saldoInicial, p.movs, p.arranques);
@@ -29,8 +31,8 @@ export function renderAjustes(root) {
     <div class="ajustes">
       <section class="card ajuste">
         <div class="ajuste-txt">
-          <h2 class="card-title">Saldo inicial</h2>
-          <p class="sub">Con cuánta plata empezaste antes del primer movimiento registrado. Puede ser negativo. Hoy tienes <b class="num ${hoy < 0 ? 'neg' : 'pos'}">${moneySigno(hoy)}</b>.</p>
+          ${titulo('billetera', 'Saldo inicial')}
+          <p class="sub">Con cuánto empezaste. Hoy tienes <b class="num ${hoy < 0 ? 'neg' : 'pos'}">${moneySigno(hoy)}</b>.</p>
         </div>
         <div class="field-row">
           <input id="ajSaldo" class="num" inputmode="numeric" value="${p.saldoInicial < 0 ? '-' : ''}${plain(Math.abs(p.saldoInicial))}" aria-label="Saldo inicial">
@@ -39,17 +41,17 @@ export function renderAjustes(root) {
       </section>
       <section class="card ajuste">
         <div class="ajuste-txt">
-          <h2 class="card-title">Apariencia</h2>
-          <p class="sub">Claro, oscuro o el de tu dispositivo. Al imprimir un reporte siempre sale claro.</p>
+          ${titulo('paleta', 'Apariencia')}
+          <p class="sub">Claro, oscuro o el del dispositivo.</p>
         </div>
-        <div class="chips chips-3" role="group" aria-label="Tema">
+        <div class="chips chips-3" role="group" aria-label="Tema" data-seg="tema">
           ${[['sistema', 'Sistema'], ['claro', 'Claro'], ['oscuro', 'Oscuro']].map(([v, t]) => `<button class="chip ${tema() === v ? 'on' : ''}" data-tema="${v}" aria-pressed="${tema() === v}">${t}</button>`).join('')}
         </div>
       </section>
       <section class="card ajuste">
         <div class="ajuste-txt">
-          <h2 class="card-title">Nombre</h2>
-          <p class="sub">Cómo se llama este presupuesto.</p>
+          ${titulo('lapiz', 'Nombre del presupuesto')}
+          <p class="sub">Para distinguirlo en tus archivos.</p>
         </div>
         <div class="field-row">
           <input id="ajNombre" value="${esc(p.name)}" aria-label="Nombre del presupuesto" autocomplete="off">
@@ -58,54 +60,56 @@ export function renderAjustes(root) {
       </section>
       <section class="card ajuste">
         <div class="ajuste-txt">
-          <h2 class="card-title">Tus datos</h2>
-          <p class="sub">${p.movs.length} movimientos, ${p.cats.length} categorías y ${p.recurrentes.length} recurrentes. Para Excel, el CSV trae tus movimientos; el JSON trae todo lo que la app sabe de ti. Del banco puedes traer el extracto en CSV y revisarlo antes de que entre.</p>
+          ${titulo('datos', 'Tus datos')}
+          <p class="sub num">${p.movs.length} movimientos · ${p.cats.length} categorías · ${p.recurrentes.length} recurrentes</p>
         </div>
         <div class="field-row">
-          <button id="ajCSV">${icon('descargar')}Excel (CSV)</button>
+          <button id="ajCSV">${icon('descargar')}Excel</button>
           <button id="ajExportar">${icon('descargar')}JSON</button>
-          <button class="btn-primary" id="ajImportar">${icon('subir')}Importar extracto</button>
+          <button class="btn-primary" id="ajImportar">${icon('subir')}Importar</button>
         </div>
       </section>
       <section class="card ajuste">
         <div class="ajuste-txt">
-          <h2 class="card-title">Avisos de pagos</h2>
+          ${titulo('campana', 'Avisos de pagos')}
           <p class="sub">${avisosSoportados()
-    ? `Un aviso en este dispositivo cuando un recurrente vence hoy o mañana, al abrir la app. ${avisosActivos() ? '<b class="pos">Activos.</b>' : ''}`
-    : 'Este navegador no deja mostrar avisos.'} Para que te avise aunque no abras la app, agrega tus pagos al calendario del teléfono: te recuerda la víspera.</p>
+    ? `Te avisa cuando algo vence hoy o mañana. ${avisosActivos() ? '<b class="pos">Activos.</b>' : ''}`
+    : 'Este navegador no muestra avisos.'}</p>
         </div>
         <div class="field-row">
-          ${avisosSoportados() ? `<button id="ajAvisos">${icon('campana')}${avisosActivos() ? 'Apagar avisos' : 'Activar avisos'}</button>` : ''}
+          ${avisosSoportados() ? `<button id="ajAvisos">${icon('campana')}${avisosActivos() ? 'Apagar' : 'Activar'}</button>` : ''}
           <button id="ajCalendario" ${p.recurrentes.some((r) => r.tipo === 'gasto') ? '' : 'disabled'}>${icon('calendario')}Al calendario</button>
         </div>
       </section>
-      <section class="card ajuste">
-        <div class="ajuste-txt">
-          <h2 class="card-title">Sesión</h2>
-          <p class="sub">Tus datos quedan guardados en tu cuenta.</p>
-        </div>
-        <div class="field-row"><button class="btn-borrar" id="ajSalir">${icon('salir')}Cerrar sesión</button></div>
-      </section>
+      <a class="card ajuste-perfil" href="#perfil">
+        <span class="ct-ic" aria-hidden="true">${icon('usuario', 'ic-sm')}</span>
+        <span class="ajuste-perfil-txt"><b>Tu perfil</b><small>Nombre, contraseña y sesión</small></span>
+        <span class="mas-flecha" aria-hidden="true">${icon('der', 'ic-sm')}</span>
+      </a>
     </div>`;
 
-  root.querySelector('#ajSaldoSave').onclick = () => {
+  animarSegmentos(root);
+  root.querySelector('#ajSaldoSave').onclick = (e) => {
     p.saldoInicial = Math.round(digits(root.querySelector('#ajSaldo').value));
     store.save();
-    renderAjustes(root);
-    toast(`Saldo inicial: ${money(p.saldoInicial)}.`);
+    const boton = e.currentTarget;
+    root.querySelector('.ajuste-txt .sub').innerHTML = `Con cuánto empezaste. Hoy tienes <b class="num ${saldoActual(p.saldoInicial, p.movs, p.arranques) < 0 ? 'neg' : 'pos'}">${moneySigno(saldoActual(p.saldoInicial, p.movs, p.arranques))}</b>.`;
+    confirmarBoton(boton);
   };
   root.querySelectorAll('[data-tema]').forEach((b) => {
     b.onclick = () => {
       elegir(b.dataset.tema);
-      root.querySelectorAll('[data-tema]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      const todos = [...root.querySelectorAll('[data-tema]')];
+      todos.forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      fijarSegmento(b.closest('.chips'), todos.indexOf(b));
     };
   });
-  root.querySelector('#ajNombreSave').onclick = () => {
+  root.querySelector('#ajNombreSave').onclick = (e) => {
     const n = root.querySelector('#ajNombre').value.trim();
     if (!n) return;
     p.name = n;
     store.save();
-    toast('Nombre guardado.');
+    confirmarBoton(e.currentTarget);
   };
   root.querySelector('#ajExportar').onclick = () => descargar(`reparto-${hoyArchivo()}.json`, store.exportarJSON(), 'application/json');
   // con BOM, para que Excel lea las tildes
@@ -123,5 +127,4 @@ export function renderAjustes(root) {
     }
     renderAjustes(root);
   });
-  root.querySelector('#ajSalir').onclick = salir;
 }

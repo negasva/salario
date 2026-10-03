@@ -5,6 +5,7 @@ import { sumarMeses, periodoActual } from '../engine/movimientos.js';
 import { money, esc, nombreMes } from '../format.js';
 import { selectorMes, enlazarMes, mesElegido } from './mes.js';
 import { icon } from './icons.js';
+import { animarSegmentos } from './efectos.js';
 
 /* Cada categoría contra el mes anterior o contra el promedio de los tres
    anteriores. En gastos subir es malo y en ingresos es bueno, salvo el
@@ -49,12 +50,12 @@ export function renderComparar(root) {
       <div class="cmp-pie num"><span class="sub">Antes ${money(f.antes)}</span>${variacion(f, subirEsBueno(f))}</div>
     </li>`;
 
-  const total = (titulo, x, tipo) => `<div class="stat"><span class="stat-label">${titulo}</span><b class="num">${money(x.actual)}</b>
+  const total = (titulo, x, tipo) => `<div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon(tipo === 'ingreso' ? 'entra' : 'sale', 'ic-sm')}</span>${titulo}</span><b class="num">${money(x.actual)}</b>
     <span class="sub num">antes ${money(x.antes)}</span>${variacion(x, tipo === 'ingreso')}</div>`;
 
   root.innerHTML = `
     ${selectorMes('Comparar')}
-    <div class="chips chips-base" role="group" aria-label="Comparar contra">
+    <div class="chips chips-base" role="group" aria-label="Comparar contra" data-seg="cmp-base">
       <button class="chip ${base === 'anterior' ? 'on' : ''}" data-base="anterior" aria-pressed="${base === 'anterior'}">Mes anterior</button>
       <button class="chip ${base === 'promedio' ? 'on' : ''}" data-base="promedio" aria-pressed="${base === 'promedio'}">Promedio 3 meses</button>
     </div>
@@ -67,15 +68,16 @@ export function renderComparar(root) {
         ${bajo ? `<li>${icon('baja', 'ic-sm')}Lo que más bajó: <b>${esc(bajo.nombre)}</b>, ${money(-bajo.delta)} menos (${bajo.pct}\u00a0%).</li>` : ''}
       </ul>` : ''}
     </section>
-    ${gastos.length ? `<section class="seccion"><h2 class="seccion-t">Gastos</h2><ul class="cmp-lista">${gastos.map(fila).join('')}</ul></section>` : ''}
-    ${ingresos.length ? `<section class="seccion"><h2 class="seccion-t">Ingresos</h2><ul class="cmp-lista">${ingresos.map(fila).join('')}</ul></section>` : ''}
-    <p class="leyenda">Barra de arriba: antes. Barra de abajo, en el color de la categoría: ${nombreMes(per).split(' de ')[0]}.</p>`
+    ${gastos.length ? `<section class="seccion"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2><ul class="cmp-lista">${gastos.map(fila).join('')}</ul></section>` : ''}
+    ${ingresos.length ? `<section class="seccion"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2><ul class="cmp-lista">${ingresos.map(fila).join('')}</ul></section>` : ''}
+    <p class="leyenda">Arriba, antes. Abajo, ${nombreMes(per).split(' de ')[0]}.</p>`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('comparar')}</span>
         <b>Nada que comparar</b>
-        <span class="sub">Ni este mes ni el de antes tienen movimientos.</span>
+        <span class="sub">Sin movimientos en estos meses.</span>
       </div>`}`;
 
+  animarSegmentos(root);
   const repintar = () => renderComparar(root);
   enlazarMes(root, repintar);
   root.querySelectorAll('[data-base]').forEach((b) => {

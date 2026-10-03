@@ -1,6 +1,10 @@
 import { icon, logo } from './icons.js';
 import { abrirRegistro } from './registrar.js';
-import { signOut } from '../auth.js';
+import { signOut, cerrarEnTodos } from '../auth.js';
+import * as store from '../store.js';
+import { avatar } from './piezas.js';
+import { nombreVisible } from '../engine/persona.js';
+import { esc } from '../format.js';
 
 /* En el teléfono caben cinco pestañas: Inicio, Movimientos, Registrar (en el
    centro, donde el pulgar llega y no tapa ninguna cifra), Ahorro y Más, que
@@ -10,6 +14,7 @@ export const NAV = [
   { id: 'inicio', label: 'Inicio', ic: 'inicio', tel: true },
   { id: 'movimientos', label: 'Movimientos', corto: 'Movim.', ic: 'movimientos', tel: true },
   { id: 'registrar', label: 'Registrar', ic: 'mas', soloTel: true, accion: true },
+  { id: 'perfil', label: 'Perfil', ic: 'usuario', soloMas: true },
   { id: 'recurrentes', label: 'Recurrentes', ic: 'recurrente' },
   { id: 'ahorro', label: 'Ahorro', ic: 'ahorro', tel: true },
   { id: 'reportes', label: 'Reportes', ic: 'reportes' },
@@ -21,6 +26,14 @@ export const NAV = [
 
 // Las pantallas que en el teléfono viven dentro de Más.
 export const EN_MAS = NAV.filter((n) => !n.tel && !n.soloTel);
+
+// La fila de cuenta de la barra lateral: avatar, nombre y correo; lleva al perfil.
+function cuentaHTML(actual) {
+  const p = store.active();
+  const correo = store.correo();
+  return `<a class="cuenta" href="#perfil" ${actual ? 'aria-current="page"' : ''} aria-label="Tu perfil">${avatar(p.persona, correo, 'sm')}
+    <span class="cuenta-txt"><b>${esc(nombreVisible(p.persona.nombre, correo) || 'Tu perfil')}</b><small>${esc(correo || 'Sin correo')}</small></span>${icon('der', 'ic-sm')}</a>`;
+}
 
 /* Un solo menú: barra lateral en escritorio y barra de pestañas abajo en el
    teléfono, donde alcanza el pulgar. Cada pestaña es un enlace con su #, así
@@ -36,6 +49,7 @@ export function renderShell(root, currentRoute, onNavigate) {
         <nav class="nav" aria-label="Secciones">
           ${NAV.map((n) => {
     // Más se enciende cuando la pantalla es una de las que viven dentro de él
+    if (n.soloMas) return '';
     if (n.accion) {
       return `<button class="navlink navlink-add solo-tel" id="navAdd" aria-label="Registrar movimiento"><span class="navlink-ic">${icon(n.ic)}</span><span class="navlink-txt">${n.label}</span></button>`;
     }
@@ -44,6 +58,7 @@ export function renderShell(root, currentRoute, onNavigate) {
             <span class="navlink-ic">${icon(n.ic)}</span><span class="navlink-txt">${n.corto ? `<span class="navlink-largo">${n.label}</span><span class="navlink-corto" aria-hidden="true">${n.corto}</span>` : n.label}</span></a>`;
   }).join('')}
         </nav>
+        ${cuentaHTML(currentRoute === 'perfil')}
         <button class="navlink logout" id="btnLogout">${icon('salir')}<span>Cerrar sesión</span></button>
       </aside>
       <main class="content" id="main" tabindex="-1"><div class="content-in" id="content"></div></main>
@@ -52,7 +67,7 @@ export function renderShell(root, currentRoute, onNavigate) {
 
   const registrar = () => abrirRegistro({ alGuardar: () => onNavigate(currentRoute) });
   root.querySelector('.skip').onclick = (e) => { e.preventDefault(); root.querySelector('#main').focus(); };
-  root.querySelector('#btnLogout').onclick = salir;
+  root.querySelector('#btnLogout').onclick = () => salir();
   root.querySelector('#navAdd').onclick = registrar;
   root.querySelector('#sideRegistrar').onclick = registrar;
   root.querySelector('#sideCmd').onclick = () => window.dispatchEvent(new CustomEvent('abrir-paleta'));
@@ -60,8 +75,8 @@ export function renderShell(root, currentRoute, onNavigate) {
 }
 
 // sale y vuelve a la entrada sin #: al entrar de nuevo se empieza por Inicio
-export async function salir() {
-  await signOut();
+export async function salir(todos = false) {
+  await (todos ? cerrarEnTodos() : signOut());
   history.replaceState(null, '', location.pathname);
   location.reload();
 }

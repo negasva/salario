@@ -1,0 +1,71 @@
+/* La persona detrás de la cuenta: cómo se llama, qué iniciales lleva su
+   avatar y con qué color. Todo puro; el correo y la fecha de alta vienen del
+   usuario de Supabase y el nombre y el color viven en el perfil. */
+
+import { nombreMes } from '../format.js';
+
+export const COLORES_AVATAR = ['#FC90B6', '#8B5CF6', '#0EA5E9', '#1FA971', '#F5A524', '#E5484D', '#EC4899', '#64748B'];
+
+export function normalizarPersona(x) {
+  const color = Number(x?.color);
+  return {
+    nombre: String(x?.nombre || '').trim().slice(0, 40),
+    color: Number.isInteger(color) && color >= 0 && color < COLORES_AVATAR.length ? color : 0,
+  };
+}
+
+// camila.perez@correo.co → "Camila Perez" cuando todavía no hay nombre
+function delCorreo(correo) {
+  return String(correo || '').split('@')[0].replace(/[._-]+/g, ' ').trim()
+    .replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+}
+
+export function nombreVisible(nombre, correo) {
+  return String(nombre || '').trim() || delCorreo(correo);
+}
+
+export function iniciales(nombre, correo = '') {
+  const partes = nombreVisible(nombre, correo).split(/\s+/).filter(Boolean);
+  if (!partes.length) return '?';
+  const dos = partes.length > 1 ? partes[0][0] + partes[partes.length - 1][0] : partes[0][0];
+  return dos.toUpperCase();
+}
+
+// Texto oscuro o blanco, el que más contraste dé sobre el color del avatar.
+export function textoSobre(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? '#0A0A0A' : '#FFFFFF';
+}
+
+export const saludo = (hora) => (hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches');
+
+// '2026-03-02T10:00:00Z' → 'marzo de 2026'
+export function desde(iso) {
+  const f = String(iso || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(f) ? nombreMes(f) : '';
+}
+
+/* Fuerza de una contraseña de 0 a 4: largo y variedad. No promete seguridad,
+   solo le dice a quien escribe si va por buen camino. */
+export function fuerzaClave(c) {
+  const t = String(c || '');
+  if (!t) return { nivel: 0, texto: '' };
+  let n = 0;
+  if (t.length >= 8) n += 1;
+  if (t.length >= 12) n += 1;
+  if (/[a-z]/.test(t) && /[A-Z]/.test(t)) n += 1;
+  if (/\d/.test(t) && /[^\p{L}\d]/u.test(t)) n += 1;
+  else if (/\d/.test(t) || /[^\p{L}\d]/u.test(t)) n += 0.5;
+  const nivel = Math.max(1, Math.min(4, Math.floor(n)));
+  return { nivel, texto: ['', 'Débil', 'Regular', 'Buena', 'Fuerte'][nivel] };
+}
+
+// Qué le falta a una contraseña nueva para poder guardarse; '' si está bien.
+export function problemaClave(clave, repetida) {
+  if (clave.length < 8) return 'Mínimo 8 caracteres.';
+  if (!/\d/.test(clave) || !/\p{L}/u.test(clave)) return 'Mezcla letras y números.';
+  if (clave !== repetida) return 'Las dos no coinciden.';
+  return '';
+}

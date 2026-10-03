@@ -1,0 +1,122 @@
+/* ── avatar ───────────────────────────────────────────────────────────── */
+.avatar{display:grid;place-items:center;flex:none;border-radius:var(--radius-pill);background:var(--av,var(--brand));color:var(--av-t,var(--on-brand));
+  font-weight:var(--fw-semibold);letter-spacing:-0.02em;line-height:1;user-select:none;transition:background-color var(--t-med),color var(--t-med)}
+.avatar-sm{width:32px;height:32px;font-size:12px}
+.avatar-md{width:40px;height:40px;font-size:14px}
+.avatar-lg{width:48px;height:48px;font-size:16px}
+.avatar-xl{width:72px;height:72px;font-size:26px}
+
+/* saludo de Inicio con el acceso al perfil */
+.saludo-fila{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin:var(--space-1) 0 var(--space-4)}
+.saludo-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.saludo{font-size:var(--text-sm);color:var(--text-2)}
+.saludo-nombre{font-size:var(--text-h3);font-weight:var(--fw-semibold);letter-spacing:-0.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.avatar-btn{position:relative;display:grid;place-items:center;flex:none;min-width:44px;min-height:44px;border-radius:var(--radius-pill);
+  text-decoration:none;transition:transform var(--t-press)}
+.avatar-btn::after{content:'';position:absolute;inset:2px;border-radius:inherit;box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--border-strong);pointer-events:none;transition:box-shadow var(--t-fast)}
+.avatar-btn:active{transform:scale(.94)}
+@media (hover:hover) and (pointer:fine){.avatar-btn:hover::after{box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text-3)}}
+@media (min-width:960px){.saludo-fila{margin-bottom:var(--space-5)}}
+
+/* fila de cuenta en la barra lateral */
+.cuenta{display:none}
+@media (min-width:960px){
+  .cuenta{display:flex;align-items:center;gap:var(--space-3);margin-top:auto;padding:var(--space-2);border-radius:var(--radius-md);
+    border:1px solid var(--border);background:var(--surface);color:var(--text);text-decoration:none;min-width:0;
+    transition:background-color var(--t-fast),border-color var(--t-fast),transform var(--t-press)}
+  .cuenta:active{transform:scale(.98)}
+  .cuenta:hover{background:var(--surface-2);border-color:var(--border-strong)}
+  .cuenta[aria-current=page]{border-color:var(--accent-line);background:var(--accent-soft)}
+  .cuenta-txt{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.3}
+  .cuenta-txt b{font-size:var(--text-sm);font-weight:var(--fw-semibold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cuenta-txt small{font-size:var(--text-xs);color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cuenta>svg{color:var(--text-3)}
+  .sidebar .logout{margin-top:var(--space-1)}
+}
+
+/* fila de perfil en Más (teléfono) */
+.mas-perfil{display:flex;align-items:center;gap:var(--space-4);text-decoration:none;color:inherit;margin-bottom:var(--space-4);transition:background-color var(--t-fast),transform var(--t-press)}
+.mas-perfil:active{transform:scale(.99);background:var(--surface-2)}
+.mas-perfil-txt{display:flex;flex-direction:column;flex:1;min-width:0;line-height:1.35}
+.mas-perfil-txt b{font-size:var(--text-base);font-weight:var(--fw-semibold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mas-perfil-txt small{font-size:var(--text-xs);color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── página de perfil ─────────────────────────────────────────────────── */
+.pf-cab{display:flex;align-items:center;gap:var(--space-5);margin-bottom:var(--space-4)}
+.pf-cab-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pf-nombre{font-size:var(--text-h2);font-weight:var(--fw-semibold);letter-spacing:-0.03em;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-correo{font-size:var(--text-sm);color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-2)}
+.pf-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:var(--radius-pill);border:1px solid var(--border-strong);
+  font-size:var(--text-xs);color:var(--text-2)}
+.pf-chip svg{width:14px;height:14px}
+.pf-chip.ok{color:var(--pos);border-color:var(--pos-line);background:var(--pos-soft)}
+.pf-chip.aviso{color:var(--neg);border-color:var(--neg-line);background:var(--neg-soft)}
+@media (max-width:479px){.pf-cab{align-items:flex-start;gap:var(--space-4)}.avatar-xl{width:60px;height:60px;font-size:22px}}
+
+.pf-card{margin-bottom:0}
+.pf-head{display:flex;flex-direction:column;gap:2px;margin-bottom:var(--space-4)}
+.pf-head .card-title{margin:0}
+.pf-head .sub{font-size:var(--text-xs);padding-left:calc(28px + var(--space-3))}
+.pf-card .fld:last-of-type{margin-bottom:var(--space-4)}
+.fld-l{display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--text-2);margin-bottom:6px}
+.pf-card .btn-primary{min-width:140px}
+
+.swatches{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.swatch{width:36px;height:36px;min-height:36px;min-width:36px;padding:0;border-radius:var(--radius-pill);background:var(--sw);border:2px solid var(--surface);
+  box-shadow:0 0 0 1px var(--border-strong);transition:transform var(--t-press),box-shadow var(--t-fast)}
+.swatch:hover{background:var(--sw)}
+.swatch:active{background:var(--sw)}
+.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--text)}
+@media (pointer:coarse){.swatch{width:44px;height:44px}}
+
+.clave-in{position:relative}
+.clave-in input{width:100%;padding-right:48px}
+.clave-ojo{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:40px;height:40px;min-height:40px;min-width:40px;padding:0;
+  border-color:transparent;background:transparent;color:var(--text-3)}
+.clave-ojo:active{transform:translateY(-50%) scale(.94)}
+.clave-ojo svg{width:18px;height:18px}
+.fuerza{display:flex;align-items:center;gap:var(--space-3);min-height:20px;margin-top:var(--space-2)}
+.fuerza-barra{display:flex;gap:4px;flex:1}
+.fuerza-barra i{flex:1;height:4px;border-radius:2px;background:var(--surface-3);transition:background-color var(--t-med)}
+.fuerza-barra[data-n="1"] i:nth-child(-n+1){background:var(--neg-fill)}
+.fuerza-barra[data-n="2"] i:nth-child(-n+2){background:var(--warn)}
+.fuerza-barra[data-n="3"] i:nth-child(-n+3){background:var(--pos-fill)}
+.fuerza-barra[data-n="4"] i{background:var(--pos-fill)}
+.fuerza-txt{min-width:48px;font-size:var(--text-xs);color:var(--text-2);text-align:right}
+
+.pf-datos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);margin-bottom:var(--space-4)}
+.pf-dato{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:var(--space-3);align-items:center;padding:var(--space-3);
+  border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-2)}
+.pf-dato-ic{grid-row:1/3;display:grid;place-items:center;width:32px;height:32px;border-radius:var(--radius-sm);background:var(--surface-3);color:var(--text-2)}
+.pf-dato b{font-size:var(--text-h3);font-weight:var(--fw-semibold);line-height:1.2}
+.pf-dato span:last-child{font-size:var(--text-xs);color:var(--text-2)}
+.pf-sync{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius-md);border:1px dashed var(--border-strong)}
+.pf-sync>div{display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.pf-sync b{font-size:var(--text-sm);font-weight:var(--fw-semibold)}
+.pf-sync .sub{font-size:var(--text-xs)}
+.pf-sync-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:var(--radius-sm);background:var(--surface-3);color:var(--text-2);flex:none}
+.pf-sync[data-estado=al-dia] .pf-sync-ic{background:var(--pos-soft);color:var(--pos)}
+.pf-sync[data-estado=sin-red] .pf-sync-ic,.pf-sync[data-estado=local] .pf-sync-ic{background:var(--neg-soft);color:var(--neg)}
+
+.pf-botones{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.pf-botones button{flex:1 1 140px}
+
+.atajo{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) 0;font-size:var(--text-sm);color:var(--text-2)}
+.atajo+.atajo{border-top:1px solid var(--border)}
+.teclas{display:flex;gap:4px}
+@media (pointer:coarse){.solo-teclado{display:none}}
+
+.pf-peligro{margin-top:var(--space-4);border-color:var(--neg-line)}
+.pf-peligro .card-title .ct-ic{background:var(--neg-soft);color:var(--neg)}
+.pf-peligro .btn-borrar{width:100%;min-height:48px;margin-bottom:var(--space-2)}
+.pf-peligro .sub{display:block;text-align:center;font-size:var(--text-xs)}
+.pf-pie{margin:var(--space-6) 0 var(--space-2);text-align:center;font-size:var(--text-xs);color:var(--text-3)}
+
+/* acceso al perfil al final de Ajustes */
+.ajuste-perfil{display:flex;align-items:center;gap:var(--space-3);color:inherit;text-decoration:none;margin:0;transition:background-color var(--t-fast),transform var(--t-press)}
+.ajuste-perfil:active{transform:scale(.99);background:var(--surface-2)}
+@media (hover:hover) and (pointer:fine){.ajuste-perfil:hover{background:var(--surface-2)}}
+.ajuste-perfil-txt{display:flex;flex-direction:column;flex:1;min-width:0;line-height:1.35}
+.ajuste-perfil-txt b{font-size:var(--text-base);font-weight:var(--fw-semibold)}
+.ajuste-perfil-txt small{font-size:var(--text-xs);color:var(--text-2)}

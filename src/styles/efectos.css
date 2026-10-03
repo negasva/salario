@@ -1,0 +1,54 @@
+/* Movimiento con función. Cada bloque dice qué responde y a cuánta frecuencia. */
+
+/* ── título de tarjeta con su ícono ───────────────────────────────────── */
+.card-title,.seccion-t{display:inline-flex;align-items:center;gap:var(--space-3)}
+.ct-ic{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--border)}
+.ct-ic svg{width:15px;height:15px}
+.seccion-t .ct-ic{width:22px;height:22px;background:transparent;box-shadow:none}
+.seccion-t .ct-ic svg{width:14px;height:14px}
+
+/* ── control segmentado con la pastilla que viaja ─────────────────────────
+   Estado: qué opción está activa. Ocasional: 260ms, curva de hoja de iOS. */
+.chips[data-seg]{position:relative;--n:2;--i:0}
+.chips[data-seg]::before{content:'';position:absolute;top:var(--space-1);bottom:var(--space-1);left:var(--space-1);
+  width:calc((100% - 2 * var(--space-1) - (var(--n) - 1) * var(--space-1)) / var(--n));
+  border-radius:10px;background:var(--thumb,var(--seg-on));box-shadow:inset 0 0 0 1px var(--thumb-line,var(--border-strong));
+  transform:translateX(calc(var(--i) * (100% + var(--space-1))));
+  transition:transform .26s var(--ease-drawer),background-color .2s var(--ease-out),box-shadow .2s var(--ease-out)}
+.chips[data-seg] .chip{position:relative;z-index:1;transition:color var(--t-fast)}
+.chips[data-seg] .chip.on{background:transparent!important;box-shadow:none!important}
+.chips-tipo[data-v=gasto]{--thumb:var(--neg-soft);--thumb-line:var(--neg-line)}
+.chips-tipo[data-v=ingreso]{--thumb:var(--pos-soft);--thumb-line:var(--pos-line)}
+
+/* ── botón que confirma ───────────────────────────────────────────────────
+   Estado: se guardó. Ocasional: el texto cruza con un desenfoque de 3px para
+   no verse doble; dura 220ms y el botón vuelve solo a los 1,4 s. */
+.morph{color:var(--pos)!important;border-color:var(--pos-line)!important;background:var(--pos-soft)!important}
+.morph-in{display:inline-flex;align-items:center;gap:var(--space-2);animation:morph .22s var(--ease-out)}
+@keyframes morph{from{opacity:0;filter:blur(3px);transform:scale(.96)}}
+
+/* ── mantener presionado ──────────────────────────────────────────────────
+   Feedback de algo irreversible. Lento al decidir (lineal, lo que dure), rápido
+   al soltar (200ms): la cancelación no se hace esperar. */
+.mantener{position:relative;overflow:hidden;isolation:isolate;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.mantener-relleno{position:absolute;inset:0;z-index:-1;background:var(--neg-line);clip-path:inset(0 100% 0 0);transition:clip-path .2s var(--ease-out)}
+.mantener.presionando .mantener-relleno{clip-path:inset(0);transition:clip-path var(--mantener,2s) linear}
+.mantener:active{transform:none}
+
+/* ── destello de la fila nueva ────────────────────────────────────────────
+   Feedback: aquí quedó lo que acabas de guardar. 1,4 s, solo color. */
+.row.nuevo{animation:destello 1.4s var(--ease-out)}
+@keyframes destello{from{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--brand)}}
+
+/* ── entradas en cascada ──────────────────────────────────────────────────
+   Pantallas que se abren pocas veces: los pasos de bienvenida, las frases de
+   Reportes. 30 a 60ms entre una y otra, nunca bloquean tocar. */
+.entrada .paso,.anima .ins{animation:entrar .32s var(--ease-out) both;animation-delay:calc(var(--i,0) * 55ms + 120ms)}
+@media (prefers-reduced-motion:reduce){
+  /* el relleno de mantener presionado es un temporizador, no adorno: sigue llenándose */
+  .mantener .mantener-relleno{transition-property:clip-path!important}
+  .chips[data-seg]::before{transition:none}
+  .morph-in{animation:aparecer .2s ease}
+  .row.nuevo{animation:none}
+}

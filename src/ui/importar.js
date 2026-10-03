@@ -27,7 +27,7 @@ export function abrirImportar(alGuardar = () => {}) {
 
   const paso1 = () => {
     cuerpo.innerHTML = `
-      <p class="sub">Descarga el extracto de tu banco en <b>CSV</b> (en Excel: Guardar como → CSV). La app adivina las columnas y tú revisas cada movimiento antes de que entre.</p>
+      <p class="sub">Sube el extracto de tu banco en <b>CSV</b>. Revisas todo antes de importar.</p>
       <label class="subir-archivo">
         <input type="file" id="imArchivo" accept=".csv,.txt,text/csv">
         ${icon('subir')}<b>Elegir archivo</b><span class="sub">.csv o .txt</span>
@@ -66,7 +66,7 @@ export function abrirImportar(alGuardar = () => {}) {
           ${sel('fecha', 'Fecha')}${sel('descripcion', 'Descripción')}
           ${sel('monto', 'Valor (con signo)', true)}${sel('debito', 'Débitos (salidas)', true)}${sel('credito', 'Créditos (entradas)', true)}
         </div>
-        <p class="sub">Si el valor viene en una sola columna, los negativos son gastos.</p>
+        <p class="sub">En una sola columna, los negativos son gastos.</p>
       </details>
       ${candidatos.length ? `
       <p class="sub im-resumen num" id="imResumen"></p>

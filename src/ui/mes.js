@@ -39,10 +39,10 @@ function abrirArranque(per, repintar) {
   const tiene = actual !== undefined;
   const { cuerpo, cerrar } = abrirModal({ titulo: `Empezar ${nombreMes(per)}` });
   cuerpo.innerHTML = `
-    <p class="sub">Borra lo que viene arrastrado de los meses anteriores y arranca este con la cifra que pongas. Sirve cuando pagaste una deuda por fuera o te sobró plata que ya no cuenta. Los meses de atrás quedan como están.</p>
+    <p class="sub">Borra el arrastre de los meses anteriores y arranca con la cifra que pongas. Lo de atrás no cambia.</p>
     <div class="fld" style="margin-top:var(--space-4)"><label for="arrMonto">Empezar con</label>
       <input id="arrMonto" class="num monto" inputmode="numeric" value="${tiene ? plain(actual) : '0'}"></div>
-    <p class="sub">Déjalo en cero para empezar limpio. Puedes poner un número negativo si arrancas debiendo.</p>
+    <p class="sub">Cero para empezar limpio, negativo si debes.</p>
     <button class="wide btn-primary" id="arrSave" style="margin-top:var(--space-4)">Guardar</button>
     ${tiene ? '<button class="wide" id="arrQuitar" style="margin-top:var(--space-2)">Quitar y volver al arrastre normal</button>' : ''}`;
 
@@ -106,7 +106,7 @@ function proyeccionHTML(p, per, final, clase) {
   const partes = [pr.porPagar ? `−${money(pr.porPagar)} por pagar` : '', pr.porRecibir ? `+${money(pr.porRecibir)} por recibir` : '']
     .filter(Boolean).join(' · ');
   return `<a class="hero-proy" href="#recurrentes">
-    <span class="hp-txt">${icon('reloj')}<span>Con lo que falta de tus recurrentes<small class="num">${partes}</small></span></span>
+    <span class="hp-txt">${icon('reloj')}<span>Si pagas lo que falta<small class="num">${partes}</small></span></span>
     <b class="num ${clase(pr.final)}">terminas con ${moneySigno(pr.final)}</b>
   </a>`;
 }

@@ -4,7 +4,7 @@
 
 import { nombreMes } from '../format.js';
 
-export const COLORES_AVATAR = ['#FC90B6', '#8B5CF6', '#0EA5E9', '#1FA971', '#F5A524', '#E5484D', '#EC4899', '#64748B'];
+export const COLORES_AVATAR = ['#F6CACA', '#9FD3B8', '#F9D98B', '#BFD7F6', '#C9B8F0', '#F4B183', '#E7A6C2', '#B5B8BD'];
 
 export function normalizarPersona(x) {
   const color = Number(x?.color);

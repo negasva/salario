@@ -88,3 +88,11 @@ describe('normalizar y completar', () => {
     expect(nombreDe([], OTROS_ING)).toBe('Otros ingresos');
   });
 });
+
+describe('paleta pastel', () => {
+  it('un color de la paleta anterior se cambia por su pastel; uno propio se respeta', () => {
+    const [a, c] = normalizarCats([{ id: 'a', n: 'A', c: '#E5484D' }, { id: 'c', n: 'C', c: '#123456' }]);
+    expect(a.c).toBe('#9FD3B8');
+    expect(c.c).toBe('#123456');
+  });
+});

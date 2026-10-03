@@ -82,10 +82,11 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
   return `<section class="hero ${compacta ? 'hero-compacta' : ''}" aria-label="Saldo del mes">
     <div class="hero-main">
       <span class="hero-label">Terminas con</span>
-      <b class="hero-monto num ${clase(r.final)}">${moneySigno(r.final)}</b>
+      <b class="hero-monto num">${moneySigno(r.final)}</b>
+      <span class="hero-cambio num ${clase(r.final - r.inicial)}">${moneySigno(r.final - r.inicial)} este mes</span>
     </div>
     <dl class="hero-cuenta">
-      <div class="hc"><dt>${icon('billetera')}Empezaste con</dt><dd class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</dd></div>
+      <div class="hc"><dt>${icon('billetera')}Empezaste</dt><dd class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</dd></div>
       <div class="hc"><dt>${icon('entra')}Entró</dt><dd class="num ${clase(r.ingresos)}">${moneySigno(r.ingresos)}</dd></div>
       <div class="hc"><dt>${icon('sale')}Salió</dt><dd class="num ${clase(-r.gastos)}">${moneySigno(-r.gastos)}</dd></div>
     </dl>

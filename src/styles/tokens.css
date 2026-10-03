@@ -1,88 +1,86 @@
-/* Sistema de diseño, cuarta versión: bases de Vercel con Poppins.
+/* Sistema de diseño, séptima versión: tarjetas suaves.
 
-   Un negro casi puro con escalones de superficie separados por líneas de un
-   píxel, texto en gris neutro de alto contraste, botón principal en blanco y
-   el rosa de marca como único acento (lo activo, el foco y el mes elegido).
-   Nada de degradados en la interfaz: la jerarquía sale del tamaño, el peso y
-   la línea. Verde entra, rojo sale: el color significa plata y nunca va solo,
-   siempre con signo o texto.
+   Copia la estética de dos referencias de apps de finanzas. En claro: fondo
+   menta pálido, tarjetas blancas muy redondeadas, el saldo en una tarjeta
+   amarilla limón y el botón principal negro en píldora. En oscuro: fondo
+   negro, tarjetas gris carbón y tiles pastel (menta, rosa, amarillo, azul).
+   Cada fila es su propia tarjeta; los íconos van en círculos; las gráficas
+   usan trazos gruesos con puntas redondas.
 
    Los componentes solo usan tokens semánticos, nunca un hex suelto. */
 :root{
   color-scheme:dark;
 
-  /* marca */
-  --brand:        #FC90B6;
-  --brand-strong: #FF7AA8;
+  /* pastel de acento, compartidos por gráficas, tiles y categorías */
+  --menta:#9FD3B8; --rosa:#F6CACA; --limon:#F9D98B; --cielo:#BFD7F6; --oliva:#8C8A5E;
+
+  --brand:        #9FD3B8;
+  --brand-strong: #B7E2CC;
   --on-brand:     #0A0A0A;
 
-  /* botón principal: blanco sobre negro, como en Vercel */
-  --primary:      #EDEDED;
+  --primary:      #F5F5F5;
   --primary-hover:#FFFFFF;
   --on-primary:   #0A0A0A;
 
-  /* superficies y texto */
-  --bg:           #0A0A0A;
-  --surface:      #111111;
-  --surface-2:    #171717;
-  --surface-3:    #1F1F1F;
-  --border:       #242424;
-  --border-strong:#333333;
-  --text:         #EDEDED;
-  --text-2:       #A1A1A1;
-  --text-3:       #8F8F8F;
-  --hairline:     inset 0 1px 0 rgba(255,255,255,.04);
+  --bg:           #050505;
+  --page:         #050505;
+  --surface:      #1C1C1C;
+  --surface-2:    #262626;
+  --surface-3:    #313131;
+  --border:       #262626;
+  --border-strong:#3A3A3A;
+  --text:         #F5F5F5;
+  --text-2:       #A8A8A8;
+  --text-3:       #8E8E8E;
+  --hairline:     none;
 
-  /* acento en texto y fondos suaves */
-  --accent-text:  #FF9EC2;
-  --accent-soft:  rgba(252,144,182,.10);
-  --accent-line:  rgba(252,144,182,.30);
+  --accent-text:  #B7E2CC;
+  --accent-soft:  rgba(159,211,184,.14);
+  --accent-line:  rgba(159,211,184,.40);
 
-  /* tarjeta del saldo: igual que las demás, con un filo de luz arriba */
-  --hero-bg:      #111111;
-  --hero-text:    #FFFFFF;
-  --hero-text-2:  #A1A1A1;
-  --hero-line:    #2A2A2A;
-  --hero-pos:     #4ADE9B;
-  --hero-neg:     #FF7B7B;
+  /* el saldo: tile menta con tinta negra */
+  --hero-bg:      #A9D9C1;
+  --hero-text:    #0A0A0A;
+  --tile-ink:     #0A0A0A;
+  --hero-text-2:  rgba(10,10,10,.62);
+  --hero-line:    rgba(10,10,10,.12);
+  --hero-pos:     #0A5C36;
+  --hero-neg:     #8E1F1F;
 
-  /* el color como significado */
-  --pos:          #4ADE9B;
-  --pos-fill:     #22B77A;
-  --pos-soft:     #0E1F17;
-  --pos-line:     #1C4733;
-  --neg:          #FF7B7B;
-  --neg-fill:     #EF5358;
-  --neg-soft:     #261112;
-  --neg-line:     #532526;
+  --pos:          #7EE2A8;
+  --pos-fill:     #7EE2A8;
+  --pos-soft:     #13241B;
+  --pos-line:     #2A4D3A;
+  --neg:          #FF8E8E;
+  --neg-fill:     #F6A1A1;
+  --neg-soft:     #2A1616;
+  --neg-line:     #5A2C2C;
 
-  --warn:         #F5A524;
-  --focus:        #FF9EC2;
+  --warn:         #F9D98B;
+  --focus:        #F5F5F5;
   --scrim:        rgba(0,0,0,.72);
-  --glass:        rgba(10,10,10,.82);
-  --seg-on:       #262626;
+  --glass:        rgba(28,28,28,.92);
+  --seg-on:       #3A3A3A;
+  --nav-bg:       #333333;
+  --chart-line:   #9FD3B8;
 
-  /* tipografía */
   --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: var(--font-sans);
   --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:700;
-  --tracking-tight:-0.025em; --tracking-wide:0.08em;
-  --text-hero:40px; --text-h1:26px; --text-h2:20px; --text-h3:16px;
+  --tracking-tight:-0.02em; --tracking-wide:0.02em;
+  --text-hero:40px; --text-h1:24px; --text-h2:20px; --text-h3:16px;
   --text-base:14px; --text-sm:13px; --text-xs:12px;
 
-  /* espacio (ritmo de 4) */
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
   --space-6:24px; --space-8:32px; --space-10:40px;
 
-  --radius-sm:8px; --radius-md:10px; --radius-lg:12px; --radius-xl:16px; --radius-pill:9999px;
+  /* tarjetas 24, filas 20, controles 14, botones en píldora */
+  --radius-sm:14px; --radius-md:16px; --radius-lg:24px; --radius-xl:28px; --radius-pill:9999px;
 
-  /* en oscuro la sombra no se ve: la profundidad la dan superficie y borde */
-  --shadow-sm:var(--hairline);
+  --shadow-sm:none;
   --shadow-md:none;
   --shadow-lg:0 24px 48px rgba(0,0,0,.6);
 
-  /* movimiento (Emil Kowalski): ease-out fuerte para entrar y salir,
-     la curva de iOS para hojas que suben, nunca ease-in en la interfaz */
   --ease-out:cubic-bezier(.23,1,.32,1);
   --ease-in-out:cubic-bezier(.77,0,.175,1);
   --ease-drawer:cubic-bezier(.32,.72,0,1);
@@ -90,54 +88,57 @@
   --t-fast:.15s var(--ease-out);
   --t-med:.24s var(--ease-out);
 
-  /* capas */
   --z-nav:30; --z-modal:80; --z-toast:90;
 
   --tabbar-h:64px;
   --sidebar-w:248px;
 }
 
-/* Tema claro: las mismas piezas sobre blanco. El rosa de marca se oscurece
-   para el texto, porque el rosa del tema oscuro no llega a 4,5:1 sobre blanco. */
+/* Tema claro: la primera referencia. */
 :root[data-theme=light]{
   color-scheme:light;
-  --brand:        #E5528A;
-  --brand-strong: #D43B77;
-  --on-brand:     #171717;
-  --primary:      #171717;
+  --menta:#BFE3D0; --rosa:#F8D3D3; --limon:#F7F27D; --cielo:#CFE1F7; --oliva:#C9C79A;
+  --brand:        #F7F27D;
+  --brand-strong: #EFE85C;
+  --on-brand:     #111312;
+  --primary:      #111312;
   --primary-hover:#000000;
   --on-primary:   #FFFFFF;
-  --bg:           #FAFAFA;
+  --bg:           #E4F0E9;
+  --page:         linear-gradient(180deg,#D5EADF 0%,#E9F3ED 45%,#F2F6F3 100%);
   --surface:      #FFFFFF;
-  --surface-2:    #F5F5F5;
-  --surface-3:    #EBEBEB;
-  --border:       #E8E8E8;
-  --border-strong:#D4D4D4;
-  --text:         #171717;
-  --text-2:       #525252;
-  --text-3:       #6B6B6B;
-  --hairline:     inset 0 1px 0 rgba(255,255,255,.9);
-  --accent-text:  #C21F5C;
-  --accent-soft:  rgba(229,82,138,.10);
-  --accent-line:  rgba(229,82,138,.35);
-  --hero-bg:      #FFFFFF;
-  --hero-text:    #171717;
-  --hero-text-2:  #525252;
-  --hero-line:    #E8E8E8;
-  --hero-pos:     #15803D;
-  --hero-neg:     #C62828;
-  --pos:          #15803D;
-  --pos-fill:     #22A06B;
-  --pos-soft:     #ECFDF3;
-  --pos-line:     #B7E4C7;
-  --neg:          #C62828;
-  --neg-fill:     #E5484D;
-  --neg-soft:     #FEF0F0;
-  --neg-line:     #F5C2C2;
-  --warn:         #B45309;
-  --focus:        #C21F5C;
-  --scrim:        rgba(0,0,0,.45);
-  --glass:        rgba(250,250,250,.86);
+  --surface-2:    #F2F4F3;
+  --surface-3:    #E7EBE9;
+  --border:       #ECEFED;
+  --border-strong:#DCE2DE;
+  --text:         #111312;
+  --text-2:       #555C58;
+  --text-3:       #6E7571;
+  --accent-text:  #111312;
+  --accent-soft:  rgba(17,19,18,.06);
+  --accent-line:  rgba(17,19,18,.25);
+  --hero-bg:      #F7F27D;
+  --hero-text:    #111312;
+  --tile-ink:     #111312;
+  --hero-text-2:  rgba(17,19,18,.6);
+  --hero-line:    rgba(17,19,18,.1);
+  --hero-pos:     #136B36;
+  --hero-neg:     #A32020;
+  --pos:          #19893F;
+  --pos-fill:     #2BB15A;
+  --pos-soft:     #E7F6EC;
+  --pos-line:     #BFE5CC;
+  --neg:          #C42B2B;
+  --neg-fill:     #E25555;
+  --neg-soft:     #FCEBEB;
+  --neg-line:     #F2C4C4;
+  --warn:         #8A6A00;
+  --focus:        #111312;
+  --scrim:        rgba(17,19,18,.4);
+  --glass:        rgba(255,255,255,.92);
   --seg-on:       #FFFFFF;
-  --shadow-lg:    0 24px 48px rgba(0,0,0,.16);
+  --nav-bg:       #FFFFFF;
+  --chart-line:   #111312;
+  --shadow-sm:    0 1px 2px rgba(20,50,35,.04), 0 6px 18px rgba(20,50,35,.05);
+  --shadow-lg:    0 24px 48px rgba(20,50,35,.16);
 }

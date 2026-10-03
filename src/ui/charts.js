@@ -11,16 +11,20 @@ const mesCorto = (per) => MESES_CORTOS[Number(per.slice(5, 7)) - 1];
 
 /* ---------- el donut y su lista ---------- */
 
-const R = 64;
+const R = 62; const GROSOR = 22; const HUECO = GROSOR + 5;
 export const C = Math.round(2 * Math.PI * R * 100) / 100;
 
 function donut(trozos) {
-  const fondo = `<circle cx="80" cy="80" r="${R}" fill="none" stroke="var(--surface-2)" stroke-width="18"></circle>`;
+  const fondo = `<circle cx="80" cy="80" r="${R}" fill="none" stroke="var(--surface-2)" stroke-width="${GROSOR}"></circle>`;
   if (!trozos.length) return `<svg class="donut" viewBox="0 0 160 160" role="img" aria-label="Sin gastos">${fondo}</svg>`;
   return `<svg class="donut" viewBox="0 0 160 160" role="img" aria-label="Gasto por categoría: ${esc(trozos[0].nombre)} es el ${trozos[0].pct}%">
     ${fondo}
-    ${trozos.map((t) => `<circle class="trozo-donut" cx="80" cy="80" r="${R}" fill="none" stroke="${t.color}" stroke-width="18"
-      stroke-dasharray="${t.largo} ${t.resto}" stroke-dashoffset="${t.offset}" data-tip="${esc(t.nombre)}\n${money(t.monto)} · ${t.pct}%"></circle>`).join('')}
+    ${trozos.map((t) => {
+    // puntas redondas: cada trozo se acorta lo que crecen sus puntas más un respiro
+    const g = trozos.length > 1 ? Math.min(t.largo - 0.5, HUECO) : 0;
+    return `<circle class="trozo-donut" cx="80" cy="80" r="${R}" fill="none" stroke="${t.color}" stroke-width="${GROSOR}" stroke-linecap="${g > 0 ? 'round' : 'butt'}"
+      stroke-dasharray="${(t.largo - g).toFixed(2)} ${(t.resto + g).toFixed(2)}" stroke-dashoffset="${(t.offset - g / 2).toFixed(2)}" data-tip="${esc(t.nombre)}\n${money(t.monto)} · ${t.pct}%"></circle>`;
+  }).join('')}
   </svg>`;
 }
 
@@ -48,15 +52,15 @@ export function donutBloque(segmentos, rotulo = 'Salió', { lista = true, limite
 export function graficaBarras(serie, resaltar = serie.length - 1, W = serie.length * 48) {
   const ALTO = W > 420 ? 160 : 120;
   const b = barras(serie, ALTO);
-  const ancho = W / b.length; const bw = Math.min(16, ancho * 0.28);
+  const ancho = W / b.length; const bw = Math.min(14, ancho * 0.26); const rx = (bw / 2).toFixed(1);
   return `<svg class="barras" viewBox="0 0 ${W} ${ALTO + 22}" role="img" aria-label="Ingresos y gastos de los últimos ${b.length} meses">
-    ${[0.25, 0.5, 0.75].map((f) => `<line x1="0" x2="${W}" y1="${ALTO * f}" y2="${ALTO * f}" class="rejilla" />`).join('')}
-    <line x1="0" x2="${W}" y1="${ALTO}" y2="${ALTO}" class="base" />
     ${b.map((x, i) => {
     const cx = i * ancho + ancho / 2;
     return `<g class="hit ${i === resaltar ? 'actual' : 'pasado'}" style="--i:${i}">
-      <rect class="barra-in" x="${(cx - bw - 1).toFixed(1)}" y="${ALTO - x.ingresos}" width="${bw.toFixed(1)}" height="${x.ingresos}" rx="3" fill="var(--pos-fill)"></rect>
-      <rect class="barra-in" x="${(cx + 1).toFixed(1)}" y="${ALTO - x.gastos}" width="${bw.toFixed(1)}" height="${x.gastos}" rx="3" fill="var(--neg-fill)"></rect>
+      <rect class="riel" x="${(cx - bw - 2).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${ALTO}" rx="${rx}"></rect>
+      <rect class="riel" x="${(cx + 2).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${ALTO}" rx="${rx}"></rect>
+      <rect class="barra-in" x="${(cx - bw - 2).toFixed(1)}" y="${ALTO - x.ingresos}" width="${bw.toFixed(1)}" height="${x.ingresos}" rx="${rx}" fill="var(--pos-fill)"></rect>
+      <rect class="barra-in" x="${(cx + 2).toFixed(1)}" y="${ALTO - x.gastos}" width="${bw.toFixed(1)}" height="${x.gastos}" rx="${rx}" fill="var(--neg-fill)"></rect>
       <text x="${cx.toFixed(1)}" y="${ALTO + 16}" text-anchor="middle" class="eje">${mesCorto(x.periodo)}</text>
       <rect class="zona" x="${(i * ancho).toFixed(1)}" y="0" width="${ancho.toFixed(1)}" height="${ALTO + 22}" data-tip="${mesCorto(x.periodo)}\nEntró ${money(serie[i].ingresos)}\nSalió ${money(serie[i].gastos)}"></rect>
     </g>`;
@@ -93,9 +97,9 @@ export function graficaLinea(serie, Wtotal = 308) {
   const area = puntos.length ? `${d} L${puntos[puntos.length - 1].x} ${cero} L${puntos[0].x} ${cero} Z` : '';
   const ult = puntos.length - 1;
   return `<svg class="linea" viewBox="-10 -10 ${W + 20} ${H + 38}" role="img" aria-label="Saldo al final de cada mes: ${moneySigno(puntos[ult]?.final)} en ${mesCorto(puntos[ult]?.periodo || '2000-01')}">
-    <path d="${area}" fill="var(--brand)" fill-opacity=".10" class="area-in" />
+    <path d="${area}" fill="var(--chart-line)" fill-opacity=".10" class="area-in" />
     <line x1="0" x2="${W}" y1="${cero}" y2="${cero}" class="cero" />
-    <path d="${d}" pathLength="1" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="trazo-in" />
+    <path d="${d}" pathLength="1" fill="none" stroke="var(--chart-line)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="trazo-in" />
     ${puntos.map((pt, i) => `<g class="hit"><circle class="punto" cx="${pt.x}" cy="${pt.y}" r="${i === ult ? 5.5 : 4}" fill="${pt.final < 0 ? 'var(--neg-fill)' : 'var(--pos-fill)'}" stroke="var(--surface)" stroke-width="2"></circle>
       <text x="${pt.x}" y="${H + 22}" text-anchor="middle" class="eje ${i === ult ? 'eje-actual' : ''}">${mesCorto(pt.periodo)}</text>
       <circle class="zona" cx="${pt.x}" cy="${pt.y}" r="16" data-tip="${mesCorto(pt.periodo)}\nTerminó con ${moneySigno(pt.final)}"></circle></g>`).join('')}
@@ -126,20 +130,20 @@ export function lineaAcumulada({ periodo, actual, previo, proyeccion }, W = 640)
     const a = actual[i] ?? null;
     const txt = `${fechaCorta(dia)}\nEste mes ${a === null ? 'sin llegar' : money(a)}\nMes anterior ${previo[i] === undefined ? 'sin día' : money(previo[i])}`;
     return `<g class="hit"><line class="guia" x1="${X(i).toFixed(1)}" x2="${X(i).toFixed(1)}" y1="${MT}" y2="${MT + ih}"></line>
-      ${a === null ? '' : `<circle class="punto-h" cx="${X(i).toFixed(1)}" cy="${Y(a).toFixed(1)}" r="4.5" fill="var(--brand)" stroke="var(--surface)" stroke-width="2"></circle>`}
+      ${a === null ? '' : `<circle class="punto-h" cx="${X(i).toFixed(1)}" cy="${Y(a).toFixed(1)}" r="4.5" fill="var(--chart-line)" stroke="var(--surface)" stroke-width="2"></circle>`}
       <rect class="zona" x="${(X(i) - paso / 2).toFixed(1)}" y="${MT}" width="${paso.toFixed(1)}" height="${ih}" data-tip="${txt}"></rect></g>`;
   }).join('');
   const marcas = Array.from({ length: n }, (_, i) => i + 1).filter((d) => d === 1 || d % 5 === 0);
   const resumen = ult >= 0 ? `Llevas ${money(llenos[ult])} gastado; el mes anterior a esta altura llevabas ${money(previo[Math.min(ult, previo.length - 1)] ?? 0)}` : 'Sin gastos todavía';
   return `<svg class="linea-acum" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gasto acumulado del mes. ${resumen}">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--brand);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--brand);stop-opacity:0"/></linearGradient></defs>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart-line);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--chart-line);stop-opacity:0"/></linearGradient></defs>
     ${ticks.map((t) => `<line x1="${ML}" x2="${W - MR}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" class="${t === 0 ? 'base' : 'rejilla'}"></line>
       <text x="${ML - 8}" y="${(Y(t) + 4).toFixed(1)}" text-anchor="end" class="eje">${compacto(t)}</text>`).join('')}
     ${marcas.map((d) => `<text x="${X(d - 1).toFixed(1)}" y="${H - 8}" text-anchor="middle" class="eje">${d}</text>`).join('')}
     <path d="${camino(pp)}" pathLength="1" fill="none" class="previo" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round"></path>
     ${pa.length ? `<path d="${camino(pa)} L${pa[pa.length - 1][0]} ${MT + ih} L${pa[0][0]} ${MT + ih} Z" fill="url(#${gid})" class="area-in"></path>` : ''}
     ${proyeccion !== null && ult >= 0 && ult < n - 1 ? `<path d="M${pa[pa.length - 1].join(' ')} L${X(n - 1).toFixed(1)} ${Y(proyeccion).toFixed(1)}" class="proy" fill="none" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round"></path>` : ''}
-    <path d="${camino(pa)}" pathLength="1" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="trazo-in"></path>
+    <path d="${camino(pa)}" pathLength="1" fill="none" stroke="var(--chart-line)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="trazo-in"></path>
     ${cols}
   </svg>`;
 }

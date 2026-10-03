@@ -126,7 +126,7 @@ function vistaMes(p, per) {
     <section class="card">
       <div class="card-head">${titulo('sube', 'Gasto acumulado')}<span class="card-meta">Contra el mes anterior</span></div>
       <div class="graf" id="gAcum"></div>
-      <div class="leyenda"><span><i class="raya" style="background:var(--brand)"></i>Este mes</span><span><i class="raya raya-previo"></i>Mes anterior</span>${r.proyeccion !== null ? '<span><i class="raya raya-proy"></i>Ritmo actual</span>' : ''}</div>
+      <div class="leyenda"><span><i class="raya" style="background:var(--chart-line)"></i>Este mes</span><span><i class="raya raya-previo"></i>Mes anterior</span>${r.proyeccion !== null ? '<span><i class="raya raya-proy"></i>Ritmo actual</span>' : ''}</div>
     </section>
 
     <div class="grid-2">

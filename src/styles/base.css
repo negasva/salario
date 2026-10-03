@@ -3,7 +3,7 @@ html,body{width:100%;max-width:100%}
 html{background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%;
   overscroll-behavior:none;scrollbar-color:var(--border-strong) transparent;caret-color:var(--brand)}
 ::selection{background:var(--accent-line);color:var(--text)}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);
+body{margin:0;background:var(--page,var(--bg)) fixed;color:var(--text);font-family:var(--font-sans);
   font-size:var(--text-base);line-height:1.55;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
 h1,h2,h3,p{margin:0}

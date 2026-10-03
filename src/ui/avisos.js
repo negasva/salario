@@ -1,5 +1,8 @@
 import * as store from '../store.js';
-import { vencimientos, cuandoVence } from '../engine/recurrentes.js';
+import { vencimientos, cuandoVence, calendarioICS } from '../engine/recurrentes.js';
+import { icon } from './icons.js';
+import { toast } from './shell.js';
+import { titulo } from './piezas.js';
 import { hoyISO } from '../engine/movimientos.js';
 import { money } from '../format.js';
 
@@ -55,4 +58,45 @@ export async function avisarVencimientos() {
     if (reg) await reg.showNotification(titulo, opciones);
     else new Notification(titulo, opciones);
   } catch { /* el navegador no dejó: el aviso sigue en Inicio */ }
+}
+
+export function descargar(nombre, contenido, tipo) {
+  const blob = new Blob([contenido], { type: tipo });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* La tarjeta "Avisos de pagos": activar las notificaciones y llevar los
+   recurrentes al calendario del teléfono (.ics). Vive en Ajustes y en
+   Recurrentes, que es donde uno la busca. */
+export function tarjetaAvisos(p) {
+  return `<section class="card ajuste avisos-card">
+    <div class="ajuste-txt">
+      ${titulo('campana', 'Avisos y calendario')}
+      <p class="sub">${avisosSoportados()
+    ? `Te avisa cuando algo vence hoy o mañana. ${avisosActivos() ? '<b class="pos">Activos.</b>' : ''}`
+    : 'Este navegador no muestra avisos.'} El calendario pone tus pagos del mes en el del teléfono.</p>
+    </div>
+    <div class="field-row">
+      ${avisosSoportados() ? `<button id="ajAvisos">${icon('campana')}${avisosActivos() ? 'Apagar' : 'Activar'}</button>` : ''}
+      <button id="ajCalendario" ${p.recurrentes.some((r) => r.tipo === 'gasto') ? '' : 'disabled'}>${icon('calendario')}Al calendario</button>
+    </div>
+  </section>`;
+}
+
+export function enlazarAvisos(root, p, repintar) {
+  root.querySelector('#ajCalendario')?.addEventListener('click', () => {
+    descargar('pagos-del-mes.ics', calendarioICS(p.recurrentes), 'text/calendar;charset=utf-8');
+    toast('Abre el archivo para agregar tus pagos al calendario.');
+  });
+  root.querySelector('#ajAvisos')?.addEventListener('click', async () => {
+    if (avisosActivos()) { desactivarAvisos(); toast('Avisos apagados en este dispositivo.'); } else {
+      const ok = await activarAvisos();
+      toast(ok ? 'Listo: te avisará cuando algo venza hoy o mañana.' : 'El navegador no dio permiso para avisos.');
+    }
+    repintar();
+  });
 }

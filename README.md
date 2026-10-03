@@ -28,6 +28,11 @@ npm run dev
 2. En el SQL editor, corre `supabase/schema.sql`.
 3. En Authentication → Providers, deja email/password activo.
 4. Copia `Project URL` y `anon public key` a `.env` (local) o a las variables de entorno de Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+5. Para que el enlace de **recuperar contraseña** vuelva a la app y no a otra dirección, en Authentication → URL Configuration:
+   - **Site URL**: el dominio de producción (`https://tu-dominio.com`). Es el destino de respaldo: si queda en una URL de Vercel, los correos llevan allí.
+   - **Redirect URLs**: agrega `https://tu-dominio.com/**` y, si quieres probar en vistas previas, `https://*-tu-equipo.vercel.app/**`. Supabase ignora el `redirectTo` que no esté en esta lista.
+   - Opcional: `VITE_SITE_URL=https://tu-dominio.com` fija ese destino aunque pidas el correo desde una vista previa.
+   - El texto y remitente del correo se cambian en Authentication → Emails (plantilla *Reset Password*); para un remitente propio configura SMTP en Authentication → SMTP.
 
 ## Build y tests
 

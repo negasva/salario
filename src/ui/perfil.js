@@ -4,7 +4,7 @@ import { icon } from './icons.js';
 import { titulo, avatar } from './piezas.js';
 import { toast, salir } from './shell.js';
 import { confirmarBoton, mantenerPresionado, animarSegmentos } from './efectos.js';
-import { COLORES_AVATAR, textoSobre, iniciales, nombreVisible, desde, fuerzaClave, problemaClave } from '../engine/persona.js';
+import { COLORES_AVATAR, textoSobre, iniciales, nombreVisible, desde, fuerzaClave, problemaClave, mensajeClave } from '../engine/persona.js';
 import { esc } from '../format.js';
 
 /* Perfil: quién eres para la app (nombre, color, correo), cómo entras
@@ -19,15 +19,6 @@ const SYNC = {
   'sin-red': { ic: 'nube-no', t: 'Sin conexión', d: 'Se sube al volver la red.' },
   local: { ic: 'nube-no', t: 'Solo en este dispositivo', d: 'Entra con tu cuenta para guardar en la nube.' },
 };
-
-// Los mensajes de Supabase vienen en inglés: se traducen los que una persona puede resolver.
-function mensajeClave(error) {
-  const m = String(error?.message || '');
-  if (/same|different/i.test(m)) return 'Usa una contraseña distinta a la actual.';
-  if (/weak|short|least|characters/i.test(m)) return 'Esa contraseña es muy débil.';
-  if (/reauth|recent|session/i.test(m)) return 'Vuelve a entrar y prueba de nuevo.';
-  return 'No se pudo cambiar. Intenta de nuevo.';
-}
 
 export async function renderPerfil(root) {
   const user = await usuario();

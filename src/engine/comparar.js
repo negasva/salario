@@ -1,11 +1,13 @@
 /* Comparar un mes contra otro, categoría por categoría: cuánto fue, cuánto
    había sido y cuánto cambió. La base puede ser el mes anterior o el promedio
-   de los tres meses anteriores, que suaviza un mes raro. */
+   de los tres meses anteriores, que suaviza un mes raro. Con `hastaDia`, los
+   meses de antes solo cuentan hasta ese día: el mes en curso, que va en el 3,
+   se mide contra el 1 al 3 de los otros y no contra meses enteros. */
 
 import { enPeriodo, sumarMeses } from './movimientos.js';
 
-function porCategoria(movs, periodo) {
-  return enPeriodo(movs, periodo).reduce((acc, m) => {
+function porCategoria(movs, periodo, hastaDia = 31) {
+  return enPeriodo(movs, periodo).filter((m) => Number(m.fecha.slice(8, 10)) <= hastaDia).reduce((acc, m) => {
     const k = `${m.tipo}:${m.catId || (m.tipo === 'ingreso' ? 'otros-ingreso' : 'otros')}`;
     acc[k] = (acc[k] || 0) + m.monto;
     return acc;
@@ -17,12 +19,12 @@ function cambio(actual, antes) {
   return { actual, antes, delta, pct: antes > 0 ? Math.round((delta / antes) * 100) : null };
 }
 
-export function compararMeses(movs, cats, periodo, base = 'anterior') {
+export function compararMeses(movs, cats, periodo, base = 'anterior', { hastaDia = 31 } = {}) {
   const meses = base === 'promedio' ? [1, 2, 3] : [1];
   const ahora = porCategoria(movs, periodo);
   const antes = {};
   meses.forEach((i) => {
-    Object.entries(porCategoria(movs, sumarMeses(periodo, -i))).forEach(([k, v]) => {
+    Object.entries(porCategoria(movs, sumarMeses(periodo, -i), hastaDia)).forEach(([k, v]) => {
       antes[k] = (antes[k] || 0) + v / meses.length;
     });
   });

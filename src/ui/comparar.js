@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import { compararMeses } from '../engine/comparar.js';
 import { catAhorro } from '../engine/ahorro.js';
-import { sumarMeses } from '../engine/movimientos.js';
+import { sumarMeses, periodoActual } from '../engine/movimientos.js';
 import { money, esc, nombreMes } from '../format.js';
 import { selectorMes, enlazarMes, mesElegido } from './mes.js';
 import { icon } from './icons.js';
@@ -17,16 +17,19 @@ function variacion(c, subirEsBueno) {
   if (!c.delta) return '<span class="var igual">Igual</span>';
   const bueno = subirEsBueno ? c.delta > 0 : c.delta < 0;
   const signo = c.delta > 0 ? '+' : '−';
-  return `<span class="var ${bueno ? 'bien' : 'mal'}">${icon(c.delta > 0 ? 'sube' : 'baja', 'ic-sm')}${signo}${money(Math.abs(c.delta))}${c.pct === null ? ' · nuevo' : ` · ${signo}${Math.abs(c.pct)} %`}</span>`;
+  return `<span class="var ${bueno ? 'bien' : 'mal'}">${icon(c.delta > 0 ? 'sube' : 'baja', 'ic-sm')}${signo}${money(Math.abs(c.delta))}${c.pct === null ? ' · nuevo' : ` · ${signo}${Math.abs(c.pct)}\u00a0%`}</span>`;
 }
 
 export function renderComparar(root) {
   const p = store.active();
   const per = mesElegido();
-  const c = compararMeses(p.movs, p.cats, per, base);
-  const contra = base === 'promedio'
+  // el mes en curso va a medias: se compara contra los mismos días de antes
+  const hoy = new Date();
+  const hastaDia = per === periodoActual(hoy) ? hoy.getDate() : 31;
+  const c = compararMeses(p.movs, p.cats, per, base, { hastaDia });
+  const contra = (base === 'promedio'
     ? `el promedio de ${nombreMes(sumarMeses(per, -3)).split(' de ')[0]} a ${nombreMes(sumarMeses(per, -1)).split(' de ')[0]}`
-    : nombreMes(sumarMeses(per, -1));
+    : nombreMes(sumarMeses(per, -1))) + (hastaDia < 31 ? `, del 1 al ${hastaDia}, que es lo que va de este mes` : '');
   const max = Math.max(1, ...c.filas.map((f) => Math.max(f.actual, f.antes)));
   const ahorroId = catAhorro(p.cats)?.id;
   const subirEsBueno = (f) => f.tipo === 'ingreso' || f.id === ahorroId;
@@ -60,13 +63,13 @@ export function renderComparar(root) {
     <section class="card">
       <div class="stats">${total('Salió', c.gastos, 'gasto')}${total('Entró', c.ingresos, 'ingreso')}</div>
       ${subio || bajo ? `<ul class="cmp-claves">
-        ${subio ? `<li>${icon('sube', 'ic-sm')}Lo que más subió: <b>${esc(subio.nombre)}</b>, ${money(subio.delta)} más${subio.pct !== null ? ` (+${subio.pct} %)` : ''}.</li>` : ''}
-        ${bajo ? `<li>${icon('baja', 'ic-sm')}Lo que más bajó: <b>${esc(bajo.nombre)}</b>, ${money(-bajo.delta)} menos (${bajo.pct} %).</li>` : ''}
+        ${subio ? `<li>${icon('sube', 'ic-sm')}Lo que más subió: <b>${esc(subio.nombre)}</b>, ${money(subio.delta)} más${subio.pct !== null ? ` (+${subio.pct}\u00a0%)` : ''}.</li>` : ''}
+        ${bajo ? `<li>${icon('baja', 'ic-sm')}Lo que más bajó: <b>${esc(bajo.nombre)}</b>, ${money(-bajo.delta)} menos (${bajo.pct}\u00a0%).</li>` : ''}
       </ul>` : ''}
     </section>
     ${gastos.length ? `<section class="seccion"><h2 class="seccion-t">Gastos</h2><ul class="cmp-lista">${gastos.map(fila).join('')}</ul></section>` : ''}
     ${ingresos.length ? `<section class="seccion"><h2 class="seccion-t">Ingresos</h2><ul class="cmp-lista">${ingresos.map(fila).join('')}</ul></section>` : ''}
-    <div class="leyenda"><span><i class="cb-muestra antes"></i>Antes</span><span><i class="cb-muestra ahora"></i>${nombreMes(per).split(' de ')[0]}</span></div>`
+    <p class="leyenda">Barra de arriba: antes. Barra de abajo, en el color de la categoría: ${nombreMes(per).split(' de ')[0]}.</p>`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('comparar')}</span>
         <b>Nada que comparar</b>

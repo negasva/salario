@@ -41,8 +41,9 @@ export function categoriasBase() {
   return [
     ...BASE_GASTO.map((n, i) => cat(n, 'gasto', i)),
     { id: OTROS, n: 'Otros', m: 0, c: colorPara(BASE_GASTO.length), tipo: 'gasto' },
-    ...BASE_INGRESO.map((n, i) => cat(n, 'ingreso', i)),
-    { id: OTROS_ING, n: 'Otros ingresos', m: 0, c: colorPara(BASE_INGRESO.length), tipo: 'ingreso' },
+    // los ingresos arrancan en verde: un sueldo en rojo se lee como gasto
+    ...BASE_INGRESO.map((n, i) => cat(n, 'ingreso', i + 2)),
+    { id: OTROS_ING, n: 'Otros ingresos', m: 0, c: colorPara(BASE_INGRESO.length + 2), tipo: 'ingreso' },
   ];
 }
 

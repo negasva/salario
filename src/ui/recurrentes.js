@@ -304,10 +304,10 @@ export function renderRecurrentes(root) {
     ${selectorMes('Recurrentes')}
     <section class="card resumen">
       <div class="stats">
-        <div class="stat"><span class="stat-label">Pagado este mes</span><b class="num neg">${money(gastos.pagado)}</b></div>
+        <div class="stat"><span class="stat-label">Pagado este mes</span><b class="num ${gastos.pagado ? 'neg' : ''}">${money(gastos.pagado)}</b></div>
         <div class="stat"><span class="stat-label">Estimado del mes</span><b class="num">${money(gastos.estimado)}</b></div>
         ${gastos.estimado ? `<div class="stat"><span class="stat-label">Queda por pagar</span><b class="num">${money(gastos.queda)}</b></div>` : ''}
-        ${ingresos.total ? `<div class="stat"><span class="stat-label">Ingresos fijos recibidos</span><b class="num pos">${money(ingresos.pagado)}</b></div>
+        ${ingresos.total ? `<div class="stat"><span class="stat-label">Ingresos fijos recibidos</span><b class="num ${ingresos.pagado ? 'pos' : ''}">${money(ingresos.pagado)}</b></div>
         <div class="stat"><span class="stat-label">Estimado de ingresos</span><b class="num">${money(ingresos.estimado)}</b></div>` : ''}
       </div>
       ${total ? `<div class="progreso">
@@ -317,7 +317,7 @@ export function renderRecurrentes(root) {
       </div>` : ''}
     </section>
     <div class="section-bar">
-      <p class="sub">Cada uno guarda su nombre y su estimado. Págalo de una vez o por partes: el mercado en el Éxito, luego en el D1, y ves cuánto te queda.</p>
+      ${p.recurrentes.length ? '<span></span>' : '<p class="sub">Cada uno guarda su nombre y su estimado. Págalo de una vez o por partes: el mercado en el Éxito, luego en el D1, y ves cuánto te queda.</p>'}
       <button class="btn-primary" id="reNuevo">${icon('mas')}Nuevo</button>
     </div>
     ${p.recurrentes.length ? `

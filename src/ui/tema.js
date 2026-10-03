@@ -11,7 +11,7 @@ export function tema() {
 export function aplicar(t = tema()) {
   const claro = t === 'claro' || (t === 'sistema' && !matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = claro ? 'light' : 'dark';
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', claro ? '#F1F3F6' : '#0B0D10');
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', claro ? '#FBF3F6' : '#100B0E');
 }
 
 export function elegir(t) {

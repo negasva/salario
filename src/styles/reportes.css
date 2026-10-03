@@ -65,9 +65,9 @@
 @media (hover:hover) and (pointer:fine){.cal-d:not(.vacio):hover{outline:1px solid var(--text-2)}}
 
 /* categorías con su tendencia */
-.rep-cats-card{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--space-5);align-items:center}
-@media (min-width:760px){.rep-cats-card{grid-template-columns:200px minmax(0,1fr);gap:var(--space-8)}}
-.rep-cats-card .donut-bloque{gap:0}
+.rep-cats-card{display:block}
+.rep-cats-card .reparto{margin-top:0}
+.rep-cats-card .reparto-ley{margin-bottom:var(--space-5)}
 .datos{display:flex;flex-direction:column;margin:var(--space-4) 0 0;padding-top:var(--space-2);border-top:1px solid var(--border)}
 .dato{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) 0;font-size:var(--text-sm)}
 .dato+.dato{border-top:1px solid var(--border)}

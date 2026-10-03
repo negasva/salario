@@ -338,14 +338,15 @@ input.monto{min-height:56px;font-size:26px;font-weight:var(--fw-bold);letter-spa
 }
 
 /* ── hoja / diálogo ───────────────────────────────────────────────────── */
-.overlay{position:fixed;inset:0;z-index:var(--z-modal);display:flex;align-items:flex-end;justify-content:center;padding-bottom:var(--teclado,0px);
+.overlay{position:fixed;left:0;right:0;top:var(--vv-top,0px);height:var(--vv-h,100dvh);z-index:var(--z-modal);display:flex;align-items:flex-end;justify-content:center;
   background:var(--scrim);animation:aparecer .2s var(--ease-out)}
 .overlay.saliendo{pointer-events:none;animation:desvanecer .2s var(--ease-out) forwards}
-.sheet{width:100%;max-width:520px;max-height:calc(100dvh - var(--teclado,0px) - var(--space-6));overflow-y:auto;overscroll-behavior:contain;
+.sheet{width:100%;max-width:520px;max-height:calc(100% - var(--space-6));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
   background:var(--surface);border:1px solid var(--border);border-bottom:0;border-radius:var(--radius-xl) var(--radius-xl) 0 0;
   padding:var(--space-2) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));box-shadow:var(--shadow-lg);
   animation:subir .36s var(--ease-drawer)}
 .saliendo .sheet{animation:bajar .2s var(--ease-out) forwards}
+.con-teclado .sheet{padding-bottom:var(--space-6)}
 .sheet-grip,.sheet-head{touch-action:none}
 .sheet{transition:transform .25s var(--ease-drawer)}
 .sheet-grip{width:40px;height:4px;margin:var(--space-1) auto var(--space-3);border-radius:var(--radius-pill);background:var(--border-strong)}
@@ -354,7 +355,7 @@ input.monto{min-height:56px;font-size:26px;font-weight:var(--fw-bold);letter-spa
 .modal-body .btn-primary.wide{min-height:48px;font-size:var(--text-base)}
 @media (min-width:640px){
   .overlay{align-items:center;padding:var(--space-6)}
-  .sheet{max-height:calc(100dvh - 48px);border-bottom:1px solid var(--border);border-radius:var(--radius-xl);
+  .sheet{max-height:calc(100% - 48px);border-bottom:1px solid var(--border);border-radius:var(--radius-xl);
     padding:var(--space-6);animation:asomar .2s var(--ease-out)}
   .saliendo .sheet{animation:ocultar .15s var(--ease-out) forwards}
   .sheet-grip{display:none}

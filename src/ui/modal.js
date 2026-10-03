@@ -18,12 +18,23 @@ export function abrirModal({ titulo = '', alCerrar } = {}) {
     </div>`;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
-  /* El teclado del teléfono tapa lo que está pegado abajo de la pantalla. La
-     hoja sube lo que mida el teclado (la diferencia entre la ventana y lo que
-     realmente se ve) para que el botón de guardar quede a la vista. */
+  /* El teclado del teléfono tapa lo que está pegado abajo de la pantalla. En
+     iOS además desplaza la ventana, así que la capa se ajusta exactamente al
+     área visible (arriba y alto del visualViewport): la hoja queda sobre el
+     teclado y su contenido se puede desplazar para ver todo. */
   const vv = window.visualViewport;
-  const subirConTeclado = () => overlay.style.setProperty('--teclado', `${Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop))}px`);
-  if (vv) { vv.addEventListener('resize', subirConTeclado); vv.addEventListener('scroll', subirConTeclado); subirConTeclado(); }
+  const ajustar = () => {
+    overlay.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
+    overlay.style.setProperty('--vv-h', `${Math.round(vv.height)}px`);
+    overlay.classList.toggle('con-teclado', innerHeight - vv.height - vv.offsetTop > 80);
+  };
+  if (vv) { vv.addEventListener('resize', ajustar); vv.addEventListener('scroll', ajustar); ajustar(); }
+  /* El teclado se baja tocando fuera de un campo o al desplazar la hoja. */
+  const esCampo = (el) => el?.closest?.('input, textarea, select, [contenteditable]');
+  const bajarTeclado = () => { const a = document.activeElement; if (a && esCampo(a) && overlay.contains(a)) a.blur(); };
+  overlay.addEventListener('pointerdown', (e) => { if (!esCampo(e.target) && !e.target.closest('label, button')) bajarTeclado(); });
+  overlay.addEventListener('touchmove', () => bajarTeclado(), { passive: true });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches?.('input')) e.target.blur(); });
   /* Sale por donde entró: la hoja baja y el fondo se funde. El estado cambia
      ya (foco, scroll, Esc); lo único que espera es quitar el nodo, con un
      tiempo fijo y no con animationend, que en segundo plano no siempre llega. */
@@ -31,7 +42,7 @@ export function abrirModal({ titulo = '', alCerrar } = {}) {
     if (!overlay.isConnected || overlay.classList.contains('saliendo')) return;
     document.body.style.overflow = '';
     document.removeEventListener('keydown', onKey);
-    if (vv) { vv.removeEventListener('resize', subirConTeclado); vv.removeEventListener('scroll', subirConTeclado); }
+    if (vv) { vv.removeEventListener('resize', ajustar); vv.removeEventListener('scroll', ajustar); }
     overlay.classList.add('saliendo');
     setTimeout(() => overlay.remove(), 200);
     alCerrar?.();

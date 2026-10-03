@@ -11,7 +11,7 @@ import { donutBloque, graficaBarras, graficaNeto, lineaAcumulada, barrasSemana, 
   sparkline, enlazarTips, responsiva } from './charts.js';
 import { icon } from './icons.js';
 import { animarSegmentos } from './efectos.js';
-import { titulo, franja } from './piezas.js';
+import { titulo } from './piezas.js';
 
 /* Reportes: lo que los movimientos dicen más allá del saldo. Dos vistas, el
    mes y el año, con el mismo ritmo: cuatro cifras arriba y las gráficas
@@ -144,7 +144,7 @@ function vistaMes(p, per) {
     <section class="card">
       <div class="card-head">${titulo('categorias', 'A dónde se fue')}<span class="card-meta">Tendencia de 6 meses</span></div>
       <div class="rep-cats-card">
-        ${franja(segs, r.ingresos, { n: 4, vacio: 'Sin gastos este mes.' })}
+        ${donutBloque(segs, 'Salió', { lista: false })}
         ${segs.length ? `<ul class="rep-cats">${segs.slice(0, 8).map(fila).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}
       </div>
     </section>
@@ -198,8 +198,7 @@ function vistaAnio(p, anio) {
     </div>
     <section class="card">
       <div class="card-head">${titulo('categorias', 'A dónde se fue el año')}</div>
-      ${franja(segs, a.ingresos, { n: 0, vacio: 'Sin gastos este año.' })}
-      ${donutBloque(segs, '', { grafica: false })}
+      ${donutBloque(segs)}
     </section>`;
 
   return {

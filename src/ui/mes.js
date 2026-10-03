@@ -1,9 +1,8 @@
 import * as store from '../store.js';
 import { resumenMes, periodoActual, sumarMeses, gastoPorCategoria } from '../engine/movimientos.js';
-import { segmentosPorCategoria } from '../engine/graficas.js';
-import { franja } from './piezas.js';
+import { segmentosPorCategoria, franjaReparto } from '../engine/graficas.js';
 import { proyeccion } from '../engine/recurrentes.js';
-import { money, moneySigno, nombreMes, plain, digits, MESES } from '../format.js';
+import { money, moneySigno, nombreMes, plain, digits, esc, MESES } from '../format.js';
 import { abrirModal } from './modal.js';
 import { icon } from './icons.js';
 import { toast } from './shell.js';
@@ -65,27 +64,7 @@ function abrirArranque(per, repintar) {
   cuerpo.querySelector('#arrMonto').focus();
 }
 
-/* El saldo rueda de la cifra que tenías a la nueva cuando cambia (otro mes,
-   un movimiento guardado): así se ve cuánto se movió. 450 ms, ease-out, y
-   nada con "reducir movimiento". La primera pintada no rueda. */
-let cifraPrevia = null;
-function rodarCifra(root) {
-  const el = root.querySelector('.hero-monto[data-v]');
-  if (!el) return;
-  const a = cifraPrevia; const z = Number(el.dataset.v);
-  cifraPrevia = z;
-  if (a === null || a === z || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  const t0 = performance.now();
-  const paso = (t) => {
-    const k = Math.min(1, (t - t0) / 450);
-    el.textContent = moneySigno(Math.round(a + (z - a) * (1 - (1 - k) ** 3)));
-    if (k < 1 && el.isConnected) requestAnimationFrame(paso);
-  };
-  requestAnimationFrame(paso);
-}
-
 export function enlazarMes(root, repintar) {
-  rodarCifra(root);
   root.querySelectorAll('[data-mes]').forEach((b) => {
     b.onclick = () => { periodo = sumarMeses(periodo, Number(b.dataset.mes)); repintar(); };
   });
@@ -104,9 +83,9 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
   return `<section class="hero ${compacta ? 'hero-compacta' : ''}" aria-label="Saldo del mes">
     <div class="hero-main">
       <span class="hero-label">${per < periodoActual() ? 'Terminaste con' : 'Terminas con'}</span>
-      <b class="hero-monto num ${clase(r.final)}" data-v="${r.final}">${moneySigno(r.final)}</b>
+      <b class="hero-monto num ${clase(r.final)}">${moneySigno(r.final)}</b>
     </div>
-    ${compacta ? '' : franja(segmentosPorCategoria(p.cats, gastoPorCategoria(p.movs, per)), r.ingresos)}
+    ${compacta ? '' : franjaHTML(p, per, r)}
     <dl class="hero-cuenta">
       <div class="hc"><dt>Empezaste con</dt><dd class="num ${clase(r.inicial)}">${moneySigno(r.inicial)}</dd></div>
       <div class="hc"><dt>Entró</dt><dd class="num ${clase(r.ingresos)}">${moneySigno(r.ingresos)}</dd></div>
@@ -117,6 +96,23 @@ export function cabeceraMes(p, per = periodo, { compacta = false } = {}) {
     ? 'Este mes empieza de nuevo · cambiar'
     : 'Empezar este mes en cero'}</button>
   </section>`;
+}
+
+/* La firma de la app: lo que entró este mes partido en lo que se fue a cada
+   categoría. Cada tramo mide lo que pesa sobre lo que entró; lo que no se gastó queda
+   como tramo vacío al final. Debajo, las tres más grandes con su monto. */
+function franjaHTML(p, per, r) {
+  const segs = segmentosPorCategoria(p.cats, gastoPorCategoria(p.movs, per));
+  const f = franjaReparto(segs, r.ingresos);
+  if (!f) return '';
+  const tramos = [...f.partes, ...(f.libre ? [{ nombre: 'Libre', monto: f.libre.monto, pct: f.libre.pct, libre: true }] : [])];
+  const resumen = tramos.map((t) => `${t.nombre} ${money(t.monto)}`).join(', ');
+  const leyenda = f.partes.slice(0, 3).concat(f.libre ? [{ nombre: 'Libre', monto: f.libre.monto, libre: true }] : []);
+  return `<div class="reparto" role="img" aria-label="Cómo se reparte el mes: ${esc(resumen)}">
+    ${tramos.map((t, k) => `<i class="${t.libre ? 'libre' : ''}" data-tip="${esc(t.nombre)}\n${money(t.monto)} · ${String(t.pct).replace('.', ',')} %" style="--w:${t.pct};--k:${k}${t.libre ? '' : `;--c:${t.color}`}"></i>`).join('')}
+  </div>
+  <ul class="reparto-ley">${leyenda.map((t) => `<li class="${t.libre ? 'libre' : ''}"><i style="${t.libre ? '' : `background:${t.color}`}"></i><span>${esc(t.nombre)}</span><b class="num">${money(t.monto)}</b></li>`).join('')}</ul>
+  ${f.exceso ? `<p class="reparto-aviso">Gastaste ${money(f.exceso)} más de lo que entró este mes.</p>` : ''}`;
 }
 
 /* Si pagas y recibes lo que falta de los recurrentes, con cuánto terminas.

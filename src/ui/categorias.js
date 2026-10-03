@@ -53,7 +53,7 @@ export function renderCategorias(root) {
     const pasado = c.m > 0 && total > c.m;
     return `<li class="row row-link cat ${pasado ? 'over' : ''}">
       <button class="row-main" data-id="${c.id}"><span class="sr-only">Editar </span>
-        <span class="av" style="--c:${c.c}" aria-hidden="true">${esc(c.n.trim().charAt(0).toUpperCase())}</span>
+        <span class="av" style="--c:${c.c}" aria-hidden="true"></span>
         <span class="row-txt">
           <span class="row-top">
             <span class="row-t">${esc(c.n)}</span>
@@ -74,11 +74,11 @@ export function renderCategorias(root) {
     ${selectorMes('Categorías')}
     <p class="sub intro">Toca una para editarla. Al borrarla, sus movimientos pasan a Otros.</p>
     <section class="seccion">
-      <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2><button class="mini" data-nueva="gasto">${icon('mas', 'ic-sm')}Nueva</button></div>
+      <div class="seccion-head"><h2 class="seccion-t">Gastos</h2><button class="mini" data-nueva="gasto">${icon('mas', 'ic-sm')}Nueva</button></div>
       <ul class="list">${deTipo(p.cats, 'gasto').map(fila).join('')}</ul>
     </section>
     <section class="seccion">
-      <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2><button class="mini" data-nueva="ingreso">${icon('mas', 'ic-sm')}Nueva</button></div>
+      <div class="seccion-head"><h2 class="seccion-t">Ingresos</h2><button class="mini" data-nueva="ingreso">${icon('mas', 'ic-sm')}Nueva</button></div>
       <ul class="list">${deTipo(p.cats, 'ingreso').map(fila).join('')}</ul>
     </section>`;
 

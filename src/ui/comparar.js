@@ -68,8 +68,8 @@ export function renderComparar(root) {
         ${bajo ? `<li>${icon('baja', 'ic-sm')}Lo que más bajó: <b>${esc(bajo.nombre)}</b>, ${money(-bajo.delta)} menos (${bajo.pct}\u00a0%).</li>` : ''}
       </ul>` : ''}
     </section>
-    ${gastos.length ? `<section class="seccion"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2><ul class="cmp-lista">${gastos.map(fila).join('')}</ul></section>` : ''}
-    ${ingresos.length ? `<section class="seccion"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos</h2><ul class="cmp-lista">${ingresos.map(fila).join('')}</ul></section>` : ''}
+    ${gastos.length ? `<section class="seccion"><h2 class="seccion-t">Gastos</h2><ul class="cmp-lista">${gastos.map(fila).join('')}</ul></section>` : ''}
+    ${ingresos.length ? `<section class="seccion"><h2 class="seccion-t">Ingresos</h2><ul class="cmp-lista">${ingresos.map(fila).join('')}</ul></section>` : ''}
     <p class="leyenda">Arriba, antes. Abajo, ${nombreMes(per).split(' de ')[0]}.</p>`
     : `<div class="empty-state">
         <span class="empty-ic">${icon('comparar')}</span>

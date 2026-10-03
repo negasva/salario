@@ -58,7 +58,7 @@ function bienvenida() {
   const paso = (n, t, d, accion) => `<li class="paso" style="--i:${n - 1}"><span class="paso-n" aria-hidden="true">${n}</span>
     <div class="paso-txt"><b>${t}</b><span class="sub">${d}</span></div>${accion}</li>`;
   return `<section class="card bienvenida">
-    <div class="card-head">${titulo('chispa', 'Empieza por aquí')}</div>
+    <div class="card-head">${titulo('mas', 'Empieza por aquí')}</div>
     <p class="sub">Tres pasos y listo.</p>
     <ol class="pasos">
       ${paso(1, 'Con cuánto empiezas', 'Tu saldo de hoy.', '<button class="mini" data-ir="ajustes">Ajustes</button>')}
@@ -73,8 +73,8 @@ function resumenRapido(p, per) {
   const r = resumenReporte(p.movs, per, { ahorroId: catAhorro(p.cats)?.id });
   if (!r.gastos && !r.ingresos) return '';
   const dato = (rot, valor, nota) => `<div class="kpi-mini"><span class="stat-label">${rot}</span><b class="num">${valor}</b><span class="sub">${nota}</span></div>`;
-  return `<section class="card resumen-rapido">
-    <div class="card-head">${titulo('chispa', 'Cómo va el mes')}<a class="card-meta" href="#reportes">Ver reportes</a></div>
+  return `<section class="pulso">
+    <div class="card-head"><h2 class="card-title">Ritmo del mes</h2><a class="card-meta" href="#reportes">Ver reportes</a></div>
     <div class="kpis-mini">
       ${dato('Por día', money(r.promedioDiario), r.proyeccion !== null ? `Cierras en ${money(r.proyeccion)}` : `${r.diasConGasto} días con gasto`)}
       ${dato('Ahorro', r.tasaAhorro === null ? 'Sin ingresos' : `${r.tasaAhorro} %`, r.apartado ? `Apartaste ${money(r.apartado)}` : r.neto >= 0 ? `Sobró ${money(r.neto)}` : `Faltó ${money(-r.neto)}`)}
@@ -108,8 +108,8 @@ export function renderInicio(root) {
       <div class="stack">
         ${proximos(p)}
         <section class="card">
-          <div class="card-head">${titulo('categorias', 'Gasto por categoría')}</div>
-          ${donutBloque(segmentos, 'Salió', { limite: 5 })}
+          <div class="card-head">${titulo('categorias', 'En qué se fue')}</div>
+          ${donutBloque(segmentos, 'Salió', { limite: 6, grafica: false })}
         </section>
       </div>
       <div class="stack">

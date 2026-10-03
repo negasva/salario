@@ -20,7 +20,7 @@ export function renderMas(root) {
   const correo = store.correo();
   const fila = (n) => `<li class="row row-link">
       <a class="row-main" href="#${n.id}">
-        <span class="av" style="--c:var(--brand)" aria-hidden="true">${icon(n.ic, 'ic-sm')}</span>
+        <span class="av-ic" aria-hidden="true">${icon(n.ic, 'ic-sm')}</span>
         <span class="row-txt"><span class="row-t">${n.label}</span><span class="row-s">${DETALLE[n.id] || ''}</span></span>
         <span class="mas-flecha" aria-hidden="true">${icon('der', 'ic-sm')}</span>
       </a></li>`;

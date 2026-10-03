@@ -1,6 +1,6 @@
 import * as store from '../store.js';
 import { compararMeses } from '../engine/comparar.js';
-import { catAhorro } from '../engine/ahorro.js';
+import { idsAhorro } from '../engine/ahorro.js';
 import { sumarMeses, periodoActual } from '../engine/movimientos.js';
 import { money, esc, nombreMes } from '../format.js';
 import { selectorMes, enlazarMes, mesElegido } from './mes.js';
@@ -32,13 +32,13 @@ export function renderComparar(root) {
     ? `el promedio de ${nombreMes(sumarMeses(per, -3)).split(' de ')[0]} a ${nombreMes(sumarMeses(per, -1)).split(' de ')[0]}`
     : nombreMes(sumarMeses(per, -1))) + (hastaDia < 31 ? `, del 1 al ${hastaDia}, que es lo que va de este mes` : '');
   const max = Math.max(1, ...c.filas.map((f) => Math.max(f.actual, f.antes)));
-  const ahorroId = catAhorro(p.cats)?.id;
-  const subirEsBueno = (f) => f.tipo === 'ingreso' || f.id === ahorroId;
+  const ahorroId = idsAhorro(p.cats);
+  const subirEsBueno = (f) => f.tipo === 'ingreso' || ahorroId.includes(f.id);
   const gastos = c.filas.filter((f) => f.tipo === 'gasto');
   const ingresos = c.filas.filter((f) => f.tipo === 'ingreso');
   // lo que más se movió entre los gastos de verdad: el ahorro no cuenta aquí
-  const subio = gastos.filter((f) => f.delta > 0 && f.id !== ahorroId)[0];
-  const bajo = gastos.filter((f) => f.delta < 0 && f.id !== ahorroId)[0];
+  const subio = gastos.filter((f) => f.delta > 0 && !ahorroId.includes(f.id))[0];
+  const bajo = gastos.filter((f) => f.delta < 0 && !ahorroId.includes(f.id))[0];
 
   const fila = (f) => `<li class="cmp">
       <div class="cmp-top"><span class="dot" style="background:${f.color}"></span><span class="cmp-n">${esc(f.nombre)}</span>

@@ -1,3 +1,7 @@
+import '@fontsource/poppins/latin-400.css';
+import '@fontsource/poppins/latin-500.css';
+import '@fontsource/poppins/latin-600.css';
+import '@fontsource/poppins/latin-700.css';
 import { mountIconSprite } from './ui/icons.js';
 import { renderLogin } from './ui/login.js';
 import { renderShell, toast } from './ui/shell.js';
@@ -8,12 +12,17 @@ import { renderCategorias } from './ui/categorias.js';
 import { renderAjustes } from './ui/ajustes.js';
 import { renderAhorro } from './ui/ahorro.js';
 import { renderComparar } from './ui/comparar.js';
+import { renderReportes } from './ui/reportes.js';
 import { renderMas } from './ui/mas.js';
 import { avisarVencimientos } from './ui/avisos.js';
 import { getSession, onAuthChange } from './auth.js';
 import * as store from './store.js';
+import { montarTema } from './ui/tema.js';
+import { montarPaleta } from './ui/paleta.js';
+import { salir } from './ui/shell.js';
 
 mountIconSprite();
+montarTema();
 store.load();
 
 const app = document.getElementById('app');
@@ -23,6 +32,7 @@ const ROUTES = {
   movimientos: renderMovimientos,
   recurrentes: renderRecurrentes,
   ahorro: renderAhorro,
+  reportes: renderReportes,
   comparar: renderComparar,
   categorias: renderCategorias,
   ajustes: renderAjustes,
@@ -35,7 +45,7 @@ let route = deHash();
 let conSesion = false;
 
 const TITULOS = { inicio: 'Inicio', movimientos: 'Movimientos', recurrentes: 'Recurrentes', ahorro: 'Ahorro',
-  comparar: 'Comparar', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
+  reportes: 'Reportes', comparar: 'Comparar', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
 
 function paintRoute({ entrada = false } = {}) {
   const content = renderShell(app, route, navegar);
@@ -64,6 +74,7 @@ window.addEventListener('hashchange', () => {
 
 // una pantalla pide saltar a otra (el aviso de recurrentes en Movimientos)
 window.addEventListener('ir-a-vista', (e) => navegar(e.detail?.route));
+montarPaleta({ activa: () => conSesion, salir });
 
 async function boot() {
   const session = await getSession();

@@ -2,6 +2,7 @@ import { EN_MAS } from './shell.js';
 import { icon } from './icons.js';
 
 const DETALLE = {
+  reportes: 'Gráficas del mes y del año, calendario de gasto, imprimir',
   comparar: 'Cada categoría contra el mes anterior o el promedio',
   categorias: 'Nombres y presupuesto de cada una',
   ajustes: 'Saldo inicial, exportar e importar, avisos y calendario',

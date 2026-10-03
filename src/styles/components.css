@@ -348,7 +348,9 @@ input.monto{min-height:56px;font-size:26px;font-weight:var(--fw-bold);letter-spa
   padding:var(--space-2) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));box-shadow:var(--shadow-lg);
   animation:subir .36s var(--ease-drawer)}
 .saliendo .sheet{animation:bajar .2s var(--ease-out) forwards}
-.con-teclado .sheet{padding-bottom:var(--space-6)}
+.overlay.listo{transition:height .2s var(--ease-out),top .2s var(--ease-out)}
+/* la barra de ↑ ↓ ✓ de iOS no cuenta en el área visible: se deja aire para que no tape nada */
+.con-teclado .sheet{padding-bottom:calc(var(--space-6) + 56px)}
 .sheet-grip,.sheet-head{touch-action:none}
 .sheet{transition:transform .25s var(--ease-drawer)}
 .sheet-grip{width:40px;height:4px;margin:var(--space-1) auto var(--space-3);border-radius:var(--radius-pill);background:var(--border-strong)}

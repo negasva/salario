@@ -17,30 +17,49 @@ export function abrirModal({ titulo = '', alCerrar } = {}) {
       <div class="modal-body"></div>
     </div>`;
   document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-  /* El teclado del teléfono tapa lo que está pegado abajo de la pantalla. En
-     iOS además desplaza la ventana, así que la capa se ajusta exactamente al
-     área visible (arriba y alto del visualViewport): la hoja queda sobre el
-     teclado y su contenido se puede desplazar para ver todo. */
+  /* En iOS, body{overflow:hidden} no impide que la página de atrás se mueva
+     cuando sale el teclado: se congela el body en su sitio y se restaura al cerrar. */
+  const scrollPrevio = window.scrollY;
+  const cuerpoPrevio = document.body.style.cssText;
+  document.body.style.cssText += `;position:fixed;top:-${scrollPrevio}px;left:0;right:0;overflow:hidden`;
+  /* El teclado del teléfono tapa lo que está pegado abajo de la pantalla. La
+     capa se ajusta al área visible (visualViewport) y la hoja queda sobre el
+     teclado. Se actualiza una vez por cuadro para no dar saltos. */
   const vv = window.visualViewport;
+  let raf = 0;
   const ajustar = () => {
-    overlay.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
-    overlay.style.setProperty('--vv-h', `${Math.round(vv.height)}px`);
-    overlay.classList.toggle('con-teclado', innerHeight - vv.height - vv.offsetTop > 80);
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      overlay.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
+      overlay.style.setProperty('--vv-h', `${Math.round(vv.height)}px`);
+      overlay.classList.toggle('con-teclado', innerHeight - vv.height - vv.offsetTop > 80);
+    });
   };
   if (vv) { vv.addEventListener('resize', ajustar); vv.addEventListener('scroll', ajustar); ajustar(); }
-  /* El teclado se baja tocando fuera de un campo o al desplazar la hoja. */
+  /* Solo después de abrir se anima el cambio de alto, para que no se note al entrar. */
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('listo')));
+  /* El campo que se edita siempre queda a la vista: al enfocarlo y cuando el
+     teclado termina de subir, se centra dentro de la hoja. */
   const esCampo = (el) => el?.closest?.('input, textarea, select, [contenteditable]');
+  const mostrarCampo = () => {
+    const a = document.activeElement;
+    if (a && esCampo(a) && overlay.contains(a)) a.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+  overlay.addEventListener('focusin', () => { setTimeout(mostrarCampo, 120); setTimeout(mostrarCampo, 450); });
+  if (vv) vv.addEventListener('resize', mostrarCampo);
+  /* El teclado se baja tocando fuera de un campo (un toque, no un desplazamiento) o con Enter. */
   const bajarTeclado = () => { const a = document.activeElement; if (a && esCampo(a) && overlay.contains(a)) a.blur(); };
-  overlay.addEventListener('pointerdown', (e) => { if (!esCampo(e.target) && !e.target.closest('label, button')) bajarTeclado(); });
-  overlay.addEventListener('touchmove', () => bajarTeclado(), { passive: true });
+  overlay.addEventListener('click', (e) => { if (!esCampo(e.target) && !e.target.closest('label, button')) bajarTeclado(); });
   overlay.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches?.('input')) e.target.blur(); });
   /* Sale por donde entró: la hoja baja y el fondo se funde. El estado cambia
      ya (foco, scroll, Esc); lo único que espera es quitar el nodo, con un
      tiempo fijo y no con animationend, que en segundo plano no siempre llega. */
   function cerrar() {
     if (!overlay.isConnected || overlay.classList.contains('saliendo')) return;
-    document.body.style.overflow = '';
+    document.body.style.cssText = cuerpoPrevio;
+    window.scrollTo(0, scrollPrevio);
+    cancelAnimationFrame(raf);
+    if (vv) vv.removeEventListener('resize', mostrarCampo);
     document.removeEventListener('keydown', onKey);
     if (vv) { vv.removeEventListener('resize', ajustar); vv.removeEventListener('scroll', ajustar); }
     overlay.classList.add('saliendo');

@@ -46,6 +46,8 @@
    Reportes. 30 a 60ms entre una y otra, nunca bloquean tocar. */
 .entrada .paso,.anima .ins{animation:entrar .32s var(--ease-out) both;animation-delay:calc(var(--i,0) * 55ms + 120ms)}
 @media (prefers-reduced-motion:reduce){
+  /* el relleno de mantener presionado es un temporizador, no adorno: sigue llenándose */
+  .mantener .mantener-relleno{transition-property:clip-path!important}
   .chips[data-seg]::before{transition:none}
   .morph-in{animation:aparecer .2s ease}
   .row.nuevo{animation:none}

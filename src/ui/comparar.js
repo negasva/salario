@@ -50,7 +50,7 @@ export function renderComparar(root) {
       <div class="cmp-pie num"><span class="sub">Antes ${money(f.antes)}</span>${variacion(f, subirEsBueno(f))}</div>
     </li>`;
 
-  const total = (titulo, x, tipo) => `<div class="stat"><span class="stat-label">${titulo}</span><b class="num">${money(x.actual)}</b>
+  const total = (titulo, x, tipo) => `<div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon(tipo === 'ingreso' ? 'entra' : 'sale', 'ic-sm')}</span>${titulo}</span><b class="num">${money(x.actual)}</b>
     <span class="sub num">antes ${money(x.antes)}</span>${variacion(x, tipo === 'ingreso')}</div>`;
 
   root.innerHTML = `

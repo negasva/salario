@@ -304,11 +304,11 @@ export function renderRecurrentes(root) {
     ${selectorMes('Recurrentes')}
     <section class="card resumen">
       <div class="stats">
-        <div class="stat"><span class="stat-label">Pagado este mes</span><b class="num ${gastos.pagado ? 'neg' : ''}">${money(gastos.pagado)}</b></div>
-        <div class="stat"><span class="stat-label">Estimado del mes</span><b class="num">${money(gastos.estimado)}</b></div>
-        ${gastos.estimado ? `<div class="stat"><span class="stat-label">Queda por pagar</span><b class="num">${money(gastos.queda)}</b></div>` : ''}
-        ${ingresos.total ? `<div class="stat"><span class="stat-label">Ingresos fijos recibidos</span><b class="num ${ingresos.pagado ? 'pos' : ''}">${money(ingresos.pagado)}</b></div>
-        <div class="stat"><span class="stat-label">Estimado de ingresos</span><b class="num">${money(ingresos.estimado)}</b></div>` : ''}
+        <div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon('pagado', 'ic-sm')}</span>Pagado este mes</span><b class="num ${gastos.pagado ? 'neg' : ''}">${money(gastos.pagado)}</b></div>
+        <div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon('calendario', 'ic-sm')}</span>Estimado del mes</span><b class="num">${money(gastos.estimado)}</b></div>
+        ${gastos.estimado ? `<div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon('reloj', 'ic-sm')}</span>Queda por pagar</span><b class="num">${money(gastos.queda)}</b></div>` : ''}
+        ${ingresos.total ? `<div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon('entra', 'ic-sm')}</span>Ingresos fijos recibidos</span><b class="num ${ingresos.pagado ? 'pos' : ''}">${money(ingresos.pagado)}</b></div>
+        <div class="stat"><span class="stat-label kpi-rot"><span class="kpi-ic" aria-hidden="true">${icon('billetera', 'ic-sm')}</span>Estimado de ingresos</span><b class="num">${money(ingresos.estimado)}</b></div>` : ''}
       </div>
       ${total ? `<div class="progreso">
         <div class="progreso-txt"><span>${faltan ? `Faltan <b>${faltan}</b> por pagar` : 'Todos al día este mes'}</span><span class="num">${marcados} de ${total}</span></div>

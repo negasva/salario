@@ -1,10 +1,11 @@
-/* Sistema de diseño NEGASVA, tercera versión: solo oscuro.
+/* Sistema de diseño, cuarta versión: bases de Vercel con Poppins.
 
-   Un grafito casi negro con tres escalones de superficie, Montserrat para todo
-   y el rosa chicle como único acento (acciones y lo activo). Nada de
-   degradados ni brillos: la jerarquía sale del tamaño, el peso y el paso de
-   una superficie a la siguiente. Verde entra, rojo sale: el color significa
-   plata y nunca va solo, siempre con signo o texto.
+   Un negro casi puro con escalones de superficie separados por líneas de un
+   píxel, texto en gris neutro de alto contraste, botón principal en blanco y
+   el rosa de marca como único acento (lo activo, el foco y el mes elegido).
+   Nada de degradados en la interfaz: la jerarquía sale del tamaño, el peso y
+   la línea. Verde entra, rojo sale: el color significa plata y nunca va solo,
+   siempre con signo o texto.
 
    Los componentes solo usan tokens semánticos, nunca un hex suelto. */
 :root{
@@ -13,63 +14,69 @@
   /* marca */
   --brand:        #FC90B6;
   --brand-strong: #FF7AA8;
-  --on-brand:     #121115;
+  --on-brand:     #0A0A0A;
+
+  /* botón principal: blanco sobre negro, como en Vercel */
+  --primary:      #EDEDED;
+  --primary-hover:#FFFFFF;
+  --on-primary:   #0A0A0A;
 
   /* superficies y texto */
-  --bg:           #0C0C0F;
-  --surface:      #151519;
-  --surface-2:    #1D1D23;
-  --surface-3:    #27272E;
-  --border:       #232329;
-  --border-strong:#34343C;
-  --text:         #F4F3F6;
-  --text-2:       #B3B0BA;
-  --text-3:       #98959F;
+  --bg:           #0A0A0A;
+  --surface:      #111111;
+  --surface-2:    #171717;
+  --surface-3:    #1F1F1F;
+  --border:       #242424;
+  --border-strong:#333333;
+  --text:         #EDEDED;
+  --text-2:       #A1A1A1;
+  --text-3:       #8F8F8F;
+  --hairline:     inset 0 1px 0 rgba(255,255,255,.04);
 
   /* acento en texto y fondos suaves */
   --accent-text:  #FF9EC2;
-  --accent-soft:  #2A1820;
-  --accent-line:  #57293B;
+  --accent-soft:  rgba(252,144,182,.10);
+  --accent-line:  rgba(252,144,182,.30);
 
-  /* tarjeta del saldo: una superficie más alta que el resto */
-  --hero-bg:      #18181D;
+  /* tarjeta del saldo: igual que las demás, con un filo de luz arriba */
+  --hero-bg:      #111111;
   --hero-text:    #FFFFFF;
-  --hero-text-2:  #B3B0BA;
-  --hero-line:    #2C2C33;
+  --hero-text-2:  #A1A1A1;
+  --hero-line:    #2A2A2A;
   --hero-pos:     #4ADE9B;
   --hero-neg:     #FF7B7B;
 
   /* el color como significado */
   --pos:          #4ADE9B;
   --pos-fill:     #22B77A;
-  --pos-soft:     #10231B;
-  --pos-line:     #1E4A36;
+  --pos-soft:     #0E1F17;
+  --pos-line:     #1C4733;
   --neg:          #FF7B7B;
   --neg-fill:     #EF5358;
-  --neg-soft:     #2A1415;
-  --neg-line:     #562627;
+  --neg-soft:     #261112;
+  --neg-line:     #532526;
 
   --focus:        #FF9EC2;
   --scrim:        rgba(0,0,0,.72);
-  --glass:        #121216;
-  --seg-on:       #2E2E36;
+  --glass:        rgba(10,10,10,.82);
+  --seg-on:       #262626;
 
   /* tipografía */
-  --font-sans: 'Montserrat', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: var(--font-sans);
-  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:800;
-  --tracking-tight:-0.02em; --tracking-wide:0.08em;
-  --text-hero:40px; --text-h1:28px; --text-h2:21px; --text-h3:17px;
-  --text-base:15px; --text-sm:14px; --text-xs:12px;
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:700;
+  --tracking-tight:-0.025em; --tracking-wide:0.08em;
+  --text-hero:40px; --text-h1:26px; --text-h2:20px; --text-h3:16px;
+  --text-base:14px; --text-sm:13px; --text-xs:12px;
 
   /* espacio (ritmo de 4) */
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
   --space-6:24px; --space-8:32px; --space-10:40px;
 
-  --radius-sm:10px; --radius-md:14px; --radius-lg:18px; --radius-xl:24px; --radius-pill:9999px;
+  --radius-sm:8px; --radius-md:10px; --radius-lg:12px; --radius-xl:16px; --radius-pill:9999px;
 
   /* en oscuro la sombra no se ve: la profundidad la dan superficie y borde */
-  --shadow-sm:none;
+  --shadow-sm:var(--hairline);
   --shadow-md:none;
   --shadow-lg:0 24px 48px rgba(0,0,0,.6);
 
@@ -83,8 +90,52 @@
   --t-med:.24s var(--ease-out);
 
   /* capas */
-  --z-nav:30; --z-fab:40; --z-modal:80; --z-toast:90;
+  --z-nav:30; --z-modal:80; --z-toast:90;
 
   --tabbar-h:64px;
   --sidebar-w:248px;
+}
+
+/* Tema claro: las mismas piezas sobre blanco. El rosa de marca se oscurece
+   para el texto, porque el rosa del tema oscuro no llega a 4,5:1 sobre blanco. */
+:root[data-theme=light]{
+  color-scheme:light;
+  --brand:        #E5528A;
+  --brand-strong: #D43B77;
+  --on-brand:     #171717;
+  --primary:      #171717;
+  --primary-hover:#000000;
+  --on-primary:   #FFFFFF;
+  --bg:           #FAFAFA;
+  --surface:      #FFFFFF;
+  --surface-2:    #F5F5F5;
+  --surface-3:    #EBEBEB;
+  --border:       #E8E8E8;
+  --border-strong:#D4D4D4;
+  --text:         #171717;
+  --text-2:       #525252;
+  --text-3:       #6B6B6B;
+  --hairline:     inset 0 1px 0 rgba(255,255,255,.9);
+  --accent-text:  #C21F5C;
+  --accent-soft:  rgba(229,82,138,.10);
+  --accent-line:  rgba(229,82,138,.35);
+  --hero-bg:      #FFFFFF;
+  --hero-text:    #171717;
+  --hero-text-2:  #525252;
+  --hero-line:    #E8E8E8;
+  --hero-pos:     #15803D;
+  --hero-neg:     #DC2626;
+  --pos:          #15803D;
+  --pos-fill:     #22A06B;
+  --pos-soft:     #ECFDF3;
+  --pos-line:     #B7E4C7;
+  --neg:          #DC2626;
+  --neg-fill:     #E5484D;
+  --neg-soft:     #FEF0F0;
+  --neg-line:     #F5C2C2;
+  --focus:        #C21F5C;
+  --scrim:        rgba(0,0,0,.45);
+  --glass:        rgba(250,250,250,.86);
+  --seg-on:       #FFFFFF;
+  --shadow-lg:    0 24px 48px rgba(0,0,0,.16);
 }

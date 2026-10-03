@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { arcos, segmentosPorCategoria, barras, linea } from './graficas.js';
+import { arcos, segmentosPorCategoria, barras, linea, escala, trazo } from './graficas.js';
 
 describe('donut', () => {
   it('reparte la circunferencia en proporción y los porcentajes suman 100', () => {
@@ -42,5 +42,18 @@ describe('barras y línea', () => {
     expect(puntos[1].y).toBeGreaterThan(cero);
     expect(puntos[2].y).toBe(0);
     expect(puntos[1].y).toBe(100);
+  });
+});
+
+describe('escala y trazo', () => {
+  it('el máximo sube a un paso redondo y los ticks arrancan en cero', () => {
+    expect(escala(1230000)).toEqual({ max: 1500000, ticks: [0, 500000, 1000000, 1500000] });
+    expect(escala(87)).toEqual({ max: 100, ticks: [0, 50, 100] });
+  });
+  it('sin datos devuelve una escala válida', () => {
+    expect(escala(0)).toEqual({ max: 1, ticks: [0, 1] });
+  });
+  it('trazo reparte en x, invierte y y respeta los null', () => {
+    expect(trazo([0, 50, null, 100], 90, 100, 100)).toEqual([{ x: 0, y: 100 }, { x: 30, y: 50 }, null, { x: 90, y: 0 }]);
   });
 });

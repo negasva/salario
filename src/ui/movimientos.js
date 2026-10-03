@@ -12,6 +12,9 @@ let filtro = ''; // '' = todo | catId
 let texto = ''; // lo que se está buscando
 let todosLosMeses = false; // buscar en toda la historia y no solo en el mes
 
+// la paleta de comandos abre Movimientos ya buscando
+export function prepararBusqueda(t) { texto = t; todosLosMeses = true; filtro = ''; }
+
 // '2026-09-08' → 'lunes'
 function diaSemana(fecha) {
   const [a, m, d] = String(fecha).split('-').map(Number);

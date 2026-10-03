@@ -3,19 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0C0C0F">
 <meta name="description" content="Ingresos, gastos por categoría y el saldo que se arrastra mes a mes.">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icono.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icono.svg">
 <title>Reparto mensual</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap">
+<script>try{var t=localStorage.getItem("reparto:tema");document.documentElement.dataset.theme=t==="claro"||((!t||t==="sistema")&&!matchMedia("(prefers-color-scheme:dark)").matches)?"light":"dark"}catch(e){}</script>
 <link rel="stylesheet" href="/src/styles/tokens.css">
 <link rel="stylesheet" href="/src/styles/base.css">
 <link rel="stylesheet" href="/src/styles/components.css">
+<link rel="stylesheet" href="/src/styles/reportes.css">
 </head>
 <body>
 <div id="app"></div>

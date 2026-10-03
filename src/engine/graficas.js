@@ -56,3 +56,22 @@ export function linea(serie, ancho, alto) {
     cero: y(0),
   };
 }
+
+/* Escala "bonita" para un eje: el máximo sube al siguiente paso redondo
+   (1, 2, 5 por potencia de diez) para que las líneas de guía caigan en cifras
+   limpias. Devuelve { max, ticks } con ticks desde 0. */
+export function escala(maxReal, cuantos = 4) {
+  if (!(maxReal > 0)) return { max: 1, ticks: [0, 1] };
+  const crudo = maxReal / cuantos;
+  const pot = 10 ** Math.floor(Math.log10(crudo));
+  const paso = [1, 2, 5, 10].map((m) => m * pot).find((p) => p >= crudo);
+  const n = Math.ceil(maxReal / paso);
+  return { max: n * paso, ticks: Array.from({ length: n + 1 }, (_, i) => i * paso) };
+}
+
+/* Puntos de una serie sobre una caja de ancho × alto. Los null cortan la
+   línea (sirve para el mes en curso, que no tiene futuro). */
+export function trazo(valores, ancho, alto, max) {
+  const paso = valores.length > 1 ? ancho / (valores.length - 1) : 0;
+  return valores.map((v, i) => (v === null ? null : { x: Math.round(i * paso * 10) / 10, y: Math.round((1 - v / max) * alto * 10) / 10 }));
+}

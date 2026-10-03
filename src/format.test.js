@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { digits, money, moneySigno, fechaCorta, nombreMes } from './format.js';
+import { digits, money, moneySigno, fechaCorta, nombreMes, compacto, moneyCorto } from './format.js';
 
 describe('digits', () => {
   it('lee montos con separador de miles', () => {
@@ -52,5 +52,22 @@ describe('fechas', () => {
 
   it('nombreMes escribe el mes completo', () => {
     expect(nombreMes('2026-09')).toBe('septiembre de 2026');
+  });
+});
+
+describe('compacto', () => {
+  it('acorta para los ejes de las gráficas', () => {
+    expect(compacto(1500000)).toBe('1,5 M');
+    expect(compacto(250000)).toBe('250 k');
+    expect(compacto(999)).toBe('999');
+    expect(compacto(-2000000)).toBe('−2 M');
+    expect(compacto(0)).toBe('0');
+    expect(compacto(3200000000)).toBe('3,2 mil M');
+    expect(compacto(2500000000000)).toBe('2,5 B');
+  });
+  it('moneyCorto abrevia solo cuando no cabe', () => {
+    expect(moneyCorto(3313000)).toBe(money(3313000));
+    expect(moneyCorto(100123461789)).toBe('$ 100,1 mil M');
+    expect(moneyCorto(-100123461789)).toBe('−$ 100,1 mil M');
   });
 });

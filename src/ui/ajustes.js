@@ -6,6 +6,7 @@ import { toast, salir } from './shell.js';
 import { aCSV } from '../engine/csv.js';
 import { calendarioICS } from '../engine/recurrentes.js';
 import { abrirImportar } from './importar.js';
+import { tema, elegir } from './tema.js';
 import { avisosSoportados, avisosActivos, activarAvisos, desactivarAvisos } from './avisos.js';
 
 function descargar(nombre, contenido, tipo) {
@@ -34,6 +35,15 @@ export function renderAjustes(root) {
         <div class="field-row">
           <input id="ajSaldo" class="num" inputmode="numeric" value="${p.saldoInicial < 0 ? '-' : ''}${plain(Math.abs(p.saldoInicial))}" aria-label="Saldo inicial">
           <button class="btn-primary" id="ajSaldoSave">Guardar</button>
+        </div>
+      </section>
+      <section class="card ajuste">
+        <div class="ajuste-txt">
+          <h2 class="card-title">Apariencia</h2>
+          <p class="sub">Claro, oscuro o el de tu dispositivo. Al imprimir un reporte siempre sale claro.</p>
+        </div>
+        <div class="chips chips-3" role="group" aria-label="Tema">
+          ${[['sistema', 'Sistema'], ['claro', 'Claro'], ['oscuro', 'Oscuro']].map(([v, t]) => `<button class="chip ${tema() === v ? 'on' : ''}" data-tema="${v}" aria-pressed="${tema() === v}">${t}</button>`).join('')}
         </div>
       </section>
       <section class="card ajuste">
@@ -84,6 +94,12 @@ export function renderAjustes(root) {
     renderAjustes(root);
     toast(`Saldo inicial: ${money(p.saldoInicial)}.`);
   };
+  root.querySelectorAll('[data-tema]').forEach((b) => {
+    b.onclick = () => {
+      elegir(b.dataset.tema);
+      root.querySelectorAll('[data-tema]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+    };
+  });
   root.querySelector('#ajNombreSave').onclick = () => {
     const n = root.querySelector('#ajNombre').value.trim();
     if (!n) return;

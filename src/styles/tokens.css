@@ -15,9 +15,9 @@
   --brand-strong: #FF7AA8;
   --on-brand:     #1A0E14;
 
-  --primary:      #F6EEF2;
-  --primary-hover:#FFFFFF;
-  --on-primary:   #100B0E;
+  --primary:      #FC90B6;
+  --primary-hover:#FFA3C2;
+  --on-primary:   #1A0E14;
 
   --bg:           #100B0E;
   --surface:      #181116;
@@ -95,9 +95,9 @@
   --brand:        #E5528A;
   --brand-strong: #D43B77;
   --on-brand:     #1E1319;
-  --primary:      #1E1319;
-  --primary-hover:#000000;
-  --on-primary:   #FFFFFF;
+  --primary:      #E5528A;
+  --primary-hover:#D43B77;
+  --on-primary:   #1E1319;
   --bg:           #FBF3F6;
   --surface:      #FFFFFF;
   --surface-2:    #F6EAEF;

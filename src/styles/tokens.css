@@ -1,85 +1,83 @@
-/* Sistema de diseño, cuarta versión: bases de Vercel con Poppins.
+/* Sistema de diseño, quinta versión: libro de cuentas.
 
-   Un negro casi puro con escalones de superficie separados por líneas de un
-   píxel, texto en gris neutro de alto contraste, botón principal en blanco y
-   el rosa de marca como único acento (lo activo, el foco y el mes elegido).
-   Nada de degradados en la interfaz: la jerarquía sale del tamaño, el peso y
-   la línea. Verde entra, rojo sale: el color significa plata y nunca va solo,
-   siempre con signo o texto.
+   Papel cálido y tinta en vez de negro y gris de plantilla. Las cifras van en
+   serif (Fraunces), el texto en Instrument Sans. El saldo es una hoja de
+   papel clara sobre la noche —o tinta sobre el papel en el tema claro—, no
+   una tarjeta más. Una sola marca, el amarillo de marcador, para lo activo y
+   el foco. Verde salvia entra, ladrillo sale: el color significa plata y
+   nunca va solo, siempre con signo o texto.
 
    Los componentes solo usan tokens semánticos, nunca un hex suelto. */
 :root{
   color-scheme:dark;
 
-  /* marca */
-  --brand:        #FC90B6;
-  --brand-strong: #FF7AA8;
-  --on-brand:     #0A0A0A;
+  /* marca: el marcador amarillo de quien repasa cuentas */
+  --brand:        #E8B44C;
+  --brand-strong: #F2C25F;
+  --on-brand:     #1A1510;
 
-  /* botón principal: blanco sobre negro, como en Vercel */
-  --primary:      #EDEDED;
-  --primary-hover:#FFFFFF;
-  --on-primary:   #0A0A0A;
+  /* botón principal: papel sobre tinta */
+  --primary:      #F1E9DC;
+  --primary-hover:#FFF8EA;
+  --on-primary:   #1A1510;
 
-  /* superficies y texto */
-  --bg:           #0A0A0A;
-  --surface:      #111111;
-  --surface-2:    #171717;
-  --surface-3:    #1F1F1F;
-  --border:       #242424;
-  --border-strong:#333333;
-  --text:         #EDEDED;
-  --text-2:       #A1A1A1;
-  --text-3:       #8F8F8F;
-  --hairline:     inset 0 1px 0 rgba(255,255,255,.04);
+  /* superficies y texto: tinta tibia, nunca gris neutro */
+  --bg:           #15110D;
+  --surface:      #1C1712;
+  --surface-2:    #231D17;
+  --surface-3:    #2C251D;
+  --border:       #2E271F;
+  --border-strong:#40372C;
+  --text:         #F1E9DC;
+  --text-2:       #B8AC9A;
+  --text-3:       #9D917F;
+  --hairline:     inset 0 1px 0 rgba(255,244,225,.04);
 
-  /* acento en texto y fondos suaves */
-  --accent-text:  #FF9EC2;
-  --accent-soft:  rgba(252,144,182,.10);
-  --accent-line:  rgba(252,144,182,.30);
+  --accent-text:  #F0C46A;
+  --accent-soft:  rgba(232,180,76,.11);
+  --accent-line:  rgba(232,180,76,.32);
 
-  /* tarjeta del saldo: igual que las demás, con un filo de luz arriba */
-  --hero-bg:      #111111;
-  --hero-text:    #FFFFFF;
-  --hero-text-2:  #A1A1A1;
-  --hero-line:    #2A2A2A;
-  --hero-pos:     #4ADE9B;
-  --hero-neg:     #FF7B7B;
+  /* el saldo: una hoja de papel sobre la noche */
+  --hero-bg:      #F1E9DC;
+  --hero-text:    #1A1510;
+  --hero-text-2:  #5E5446;
+  --hero-line:    #D6CAB5;
+  --hero-pos:     #2D6A3E;
+  --hero-neg:     #A8371F;
 
-  /* el color como significado */
-  --pos:          #4ADE9B;
-  --pos-fill:     #22B77A;
-  --pos-soft:     #0E1F17;
-  --pos-line:     #1C4733;
-  --neg:          #FF7B7B;
-  --neg-fill:     #EF5358;
-  --neg-soft:     #261112;
-  --neg-line:     #532526;
+  --pos:          #93C9A0;
+  --pos-fill:     #5FA474;
+  --pos-soft:     #141F18;
+  --pos-line:     #284534;
+  --neg:          #EE8A73;
+  --neg-fill:     #D0553D;
+  --neg-soft:     #26150F;
+  --neg-line:     #55291D;
 
-  --warn:         #F5A524;
-  --focus:        #FF9EC2;
-  --scrim:        rgba(0,0,0,.72);
-  --glass:        rgba(10,10,10,.82);
-  --seg-on:       #262626;
+  --warn:         #E8B44C;
+  --focus:        #F0C46A;
+  --scrim:        rgba(10,7,4,.72);
+  --glass:        rgba(21,17,13,.84);
+  --seg-on:       #332B21;
 
   /* tipografía */
-  --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: var(--font-sans);
-  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:700;
-  --tracking-tight:-0.025em; --tracking-wide:0.08em;
-  --text-hero:40px; --text-h1:26px; --text-h2:20px; --text-h3:16px;
-  --text-base:14px; --text-sm:13px; --text-xs:12px;
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-black:600;
+  --tracking-tight:-0.02em; --tracking-wide:0.1em;
+  --text-hero:44px; --text-h1:30px; --text-h2:22px; --text-h3:17px;
+  --text-base:15px; --text-sm:13px; --text-xs:12px;
 
   /* espacio (ritmo de 4) */
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
   --space-6:24px; --space-8:32px; --space-10:40px;
 
-  --radius-sm:8px; --radius-md:10px; --radius-lg:12px; --radius-xl:16px; --radius-pill:9999px;
+  --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --radius-xl:12px; --radius-pill:9999px;
 
   /* en oscuro la sombra no se ve: la profundidad la dan superficie y borde */
   --shadow-sm:var(--hairline);
   --shadow-md:none;
-  --shadow-lg:0 24px 48px rgba(0,0,0,.6);
+  --shadow-lg:0 24px 48px rgba(0,0,0,.55);
 
   /* movimiento (Emil Kowalski): ease-out fuerte para entrar y salir,
      la curva de iOS para hojas que suben, nunca ease-in en la interfaz */
@@ -97,47 +95,47 @@
   --sidebar-w:248px;
 }
 
-/* Tema claro: las mismas piezas sobre blanco. El rosa de marca se oscurece
-   para el texto, porque el rosa del tema oscuro no llega a 4,5:1 sobre blanco. */
+/* Tema claro: el papel. El amarillo de marca se vuelve ocre para el texto,
+   porque el amarillo no llega a 4,5:1 sobre papel. */
 :root[data-theme=light]{
   color-scheme:light;
-  --brand:        #E5528A;
-  --brand-strong: #D43B77;
-  --on-brand:     #171717;
-  --primary:      #171717;
+  --brand:        #D79A1E;
+  --brand-strong: #BF8410;
+  --on-brand:     #1F1810;
+  --primary:      #231D15;
   --primary-hover:#000000;
-  --on-primary:   #FFFFFF;
-  --bg:           #FAFAFA;
-  --surface:      #FFFFFF;
-  --surface-2:    #F5F5F5;
-  --surface-3:    #EBEBEB;
-  --border:       #E8E8E8;
-  --border-strong:#D4D4D4;
-  --text:         #171717;
-  --text-2:       #525252;
-  --text-3:       #6B6B6B;
-  --hairline:     inset 0 1px 0 rgba(255,255,255,.9);
-  --accent-text:  #C21F5C;
-  --accent-soft:  rgba(229,82,138,.10);
-  --accent-line:  rgba(229,82,138,.35);
-  --hero-bg:      #FFFFFF;
-  --hero-text:    #171717;
-  --hero-text-2:  #525252;
-  --hero-line:    #E8E8E8;
-  --hero-pos:     #15803D;
-  --hero-neg:     #C62828;
-  --pos:          #15803D;
-  --pos-fill:     #22A06B;
-  --pos-soft:     #ECFDF3;
-  --pos-line:     #B7E4C7;
-  --neg:          #C62828;
-  --neg-fill:     #E5484D;
-  --neg-soft:     #FEF0F0;
-  --neg-line:     #F5C2C2;
-  --warn:         #B45309;
-  --focus:        #C21F5C;
-  --scrim:        rgba(0,0,0,.45);
-  --glass:        rgba(250,250,250,.86);
-  --seg-on:       #FFFFFF;
-  --shadow-lg:    0 24px 48px rgba(0,0,0,.16);
+  --on-primary:   #F6F0E4;
+  --bg:           #F4EEE2;
+  --surface:      #FBF8F1;
+  --surface-2:    #EFE8D9;
+  --surface-3:    #E5DCC9;
+  --border:       #DDD3BE;
+  --border-strong:#C7BBA1;
+  --text:         #231D15;
+  --text-2:       #5B5244;
+  --text-3:       #70664F;
+  --hairline:     inset 0 1px 0 rgba(255,255,255,.8);
+  --accent-text:  #84570A;
+  --accent-soft:  rgba(215,154,30,.14);
+  --accent-line:  rgba(180,125,15,.42);
+  --hero-bg:      #231D15;
+  --hero-text:    #F6F0E4;
+  --hero-text-2:  #B8AC9A;
+  --hero-line:    #3B3328;
+  --hero-pos:     #8FD3A0;
+  --hero-neg:     #F29B85;
+  --pos:          #2D6A3E;
+  --pos-fill:     #3F8A55;
+  --pos-soft:     #E7F0E3;
+  --pos-line:     #B5D2B9;
+  --neg:          #A8371F;
+  --neg-fill:     #C2432A;
+  --neg-soft:     #F8E6DE;
+  --neg-line:     #E3B7A8;
+  --warn:         #8A5A0B;
+  --focus:        #84570A;
+  --scrim:        rgba(35,29,21,.45);
+  --glass:        rgba(244,238,226,.86);
+  --seg-on:       #FBF8F1;
+  --shadow-lg:    0 24px 48px rgba(60,40,10,.18);
 }

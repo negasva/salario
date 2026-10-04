@@ -432,5 +432,3 @@ describe('una fila por cuenta en la base', () => {
     } finally { vi.useRealTimers(); }
   });
 });
-});
-

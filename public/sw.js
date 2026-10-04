@@ -30,13 +30,17 @@ function guardar(e, clave, r, html = false) {
   return r;
 }
 
-/* Los assets con hash de versiones viejas no se borran uno a uno: pasado el
-   tope, se vacían al entrar con red y la siguiente carga los vuelve a bajar. */
-const TOPE_ASSETS = 60;
-async function podar() {
+/* Cada build tiene su propio JS y CSS con hash. Al entrar con red, los de
+   versiones anteriores (los que el index.html nuevo ya no nombra) se borran;
+   las fuentes se quedan, que casi nunca cambian.
+   ponytail: sirve mientras el build sea un solo JS y un solo CSS; con chunks perezosos, conservar los de la versión vigente. */
+async function podar(html) {
   const c = await caches.open(CACHE);
-  const viejos = (await c.keys()).filter((k) => new URL(k.url).pathname.startsWith('/assets/'));
-  if (viejos.length > TOPE_ASSETS) await Promise.all(viejos.map((k) => c.delete(k)));
+  const viejos = (await c.keys()).filter((k) => {
+    const ruta = new URL(k.url).pathname;
+    return /^\/assets\/.*\.(js|css|map)$/.test(ruta) && !html.includes(ruta);
+  });
+  await Promise.all(viejos.map((k) => c.delete(k)));
 }
 
 self.addEventListener('fetch', (e) => {
@@ -46,7 +50,7 @@ self.addEventListener('fetch', (e) => {
   // navegación: red primero (y se guarda copia fresca del cascarón); sin red, el último guardado
   if (e.request.mode === 'navigate') {
     e.respondWith(fetch(e.request).then((r) => {
-      e.waitUntil(podar());
+      if (r.ok) e.waitUntil(r.clone().text().then(podar));
       return guardar(e, '/index.html', r, true);
     }).catch(() => caches.match('/index.html')));
     return;

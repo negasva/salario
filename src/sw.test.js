@@ -28,7 +28,7 @@ function montar(red) {
   return { tienda, pedir };
 }
 
-const resp = (tipo, ok = true) => ({ ok, headers: { get: () => tipo }, clone() { return this; } });
+const resp = (tipo, ok = true, texto = '') => ({ ok, headers: { get: () => tipo }, clone() { return this; }, text: async () => texto });
 
 describe('service worker', () => {
   it('no guarda como asset una página HTML que llegó con 200', async () => {
@@ -38,18 +38,27 @@ describe('service worker', () => {
   });
 
   it('guarda los assets buenos y la navegación refresca el cascarón', async () => {
-    const { tienda, pedir } = montar((req) => resp(req.url.endsWith('.js') ? 'text/javascript' : 'text/html'));
+    const { tienda, pedir } = montar((req) => (req.url.endsWith('.js') ? resp('text/javascript') : resp('text/html', true, '<script src="/assets/app-1.js">')));
     await pedir('/assets/app-1.js');
     await pedir('/algo', 'navigate');
     expect([...tienda.keys()].sort()).toEqual(['https://app.test/assets/app-1.js', 'https://app.test/index.html']);
   });
 
-  it('pasado el tope, vacía los assets viejos al entrar con red', async () => {
-    const { tienda, pedir } = montar(() => resp('text/javascript'));
-    for (let i = 0; i < 61; i++) await pedir(`/assets/a-${i}.js`);
-    expect(tienda.size).toBe(61);
+  it('al entrar con red borra el JS y CSS de versiones viejas y conserva el vigente y las fuentes', async () => {
+    const html = '<script src="/assets/index-NUEVO.js"></script><link href="/assets/index-NUEVO.css">';
+    const { tienda, pedir } = montar((req) => (req.url.includes('/assets/') ? resp(req.url.endsWith('.woff2') ? 'font/woff2' : 'text/javascript') : resp('text/html', true, html)));
+    for (const f of ['index-VIEJO.js', 'index-VIEJO.css', 'index-VIEJO.js.map', 'index-NUEVO.js', 'poppins-400.woff2']) await pedir(`/assets/${f}`);
     await pedir('/', 'navigate');
-    expect([...tienda.keys()].filter((k) => k.includes('/assets/'))).toEqual([]);
+    expect([...tienda.keys()].map((k) => k.replace('https://app.test', '')).sort()).toEqual(['/assets/index-NUEVO.js', '/assets/poppins-400.woff2', '/index.html']);
+  });
+
+  it('una navegación fallida no poda nada', async () => {
+    let ok = true;
+    const { tienda, pedir } = montar((req) => (req.url.includes('/assets/') ? resp('text/javascript') : resp('text/html', ok, '')));
+    await pedir('/assets/index-VIEJO.js');
+    ok = false;
+    await pedir('/', 'navigate');
+    expect(tienda.has('https://app.test/assets/index-VIEJO.js')).toBe(true);
   });
 
   it('sin red sirve el último cascarón guardado', async () => {

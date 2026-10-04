@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import {
   estadoDelMes, abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos,
   nuevoRecurrente, resumen, fechaSugerida, pendientes, normalizarCuotas, numeroCuota, activoEn,
-  estadoDeuda, mesFinal, sugerirRecurrentes, adoptarSugerencia,
+  estadoDeuda, mesFinal, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from '../engine/recurrentes.js';
 import { deTipo, nombreDe, colorDe, OTROS } from '../engine/categorias.js';
 import { money, plain, esc, digits, fechaCorta, nombreMes } from '../format.js';
@@ -255,7 +255,7 @@ function seccionDeudas(deudas, p, per) {
 function tarjetaSugeridos(p) {
   const lista = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
   if (!lista.length) return '';
-  const alMes = lista.reduce((t, s) => t + (s.tipo === 'gasto' ? s.monto : 0), 0);
+  const alMes = totalAlMes(lista);
   return `<section class="card sugeridos">
     <div class="card-head"><h2 class="card-title">Se repite cada mes</h2></div>
     <p class="sub">Los encontré en tus movimientos${alMes ? `: unos ${money(alMes)} al mes sin marcar` : ''}. ¿Los agregamos como recurrentes?</p>
@@ -370,7 +370,12 @@ export function renderRecurrentes(root) {
   });
   const sugeridos = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
   root.querySelectorAll('[data-no]').forEach((b) => {
-    b.onclick = () => { p.ignoradas.push(sugeridos[Number(b.dataset.no)].clave); store.save(); repintar(); };
+    b.onclick = () => {
+      p.ignoradas.push(sugeridos[Number(b.dataset.no)].clave);
+      store.save();
+      repintar();
+      toast('Listo, no te lo vuelvo a sugerir.', () => { p.ignoradas.pop(); store.save(); repintar(); });
+    };
   });
   root.querySelectorAll('[data-sug]').forEach((b) => {
     b.onclick = () => {

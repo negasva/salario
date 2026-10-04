@@ -384,3 +384,6 @@ export function adoptarSugerencia(sug, movs, hoy = hoyISO()) {
   ligados.forEach((m) => { m.recId = rec.id; });
   return { rec, ligados };
 }
+
+// Lo que suman al mes las sugerencias de gasto: la cifra que la hoja no te da.
+export const totalAlMes = (lista) => lista.reduce((t, s) => t + (s.tipo === 'gasto' ? s.monto : 0), 0);

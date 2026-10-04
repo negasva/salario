@@ -16,7 +16,7 @@ import { renderReportes } from './ui/reportes.js';
 import { renderPerfil } from './ui/perfil.js';
 import { renderMas } from './ui/mas.js';
 import { avisarVencimientos } from './ui/avisos.js';
-import { getSession, onAuthChange, enlaceInicial, signOut, sinConfiguracion } from './auth.js';
+import { getSession, onAuthChange, enlaceInicial, signOut, sinConfiguracion, sesionGuardada } from './auth.js';
 import * as store from './store.js';
 import { montarTema } from './ui/tema.js';
 import { montarPaleta } from './ui/paleta.js';
@@ -99,6 +99,24 @@ function pedirNuevaClave() {
   });
 }
 
+/* Con datos de esta cuenta en el dispositivo se pinta de una vez y la nube se
+   consulta por detrás: sin conexión, esperarla dejaba la pantalla en blanco
+   (con el token vencido, más de ocho segundos). Lo que traiga se junta con lo
+   que se haya hecho mientras tanto (store.bootAuth) y se repinta solo si cambió. */
+function arrancarConLoGuardado(user) {
+  store.setCorreo(user.email);
+  conSesion = true;
+  route = deHash();
+  paintRoute({ entrada: true });
+  avisarVencimientos();
+  const antes = JSON.stringify(store.active());
+  store.bootAuth(user.id).then((res) => {
+    if (res?.migrated) toast('Tus datos locales se subieron a tu cuenta.');
+    if (conSesion && JSON.stringify(store.active()) !== antes) paintRoute();
+  });
+  getSession(); // por detrás: si la sesión ya no sirve, onAuthChange manda al ingreso
+}
+
 async function boot() {
   if (vencido) {
     vencido = false;
@@ -106,6 +124,8 @@ async function boot() {
     renderLogin(app, boot, 'El enlace venció. Pide otro.', true);
     return;
   }
+  const guardada = recuperando ? null : sesionGuardada()?.user;
+  if (guardada && store.esDe(guardada.id)) { arrancarConLoGuardado(guardada); return; }
   const session = await getSession();
   if (session && recuperando) { pedirNuevaClave(); return; }
   if (!session) { conSesion = false; renderLogin(app, boot); return; }

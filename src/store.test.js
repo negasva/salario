@@ -480,3 +480,30 @@ describe('errores de la base al subir', () => {
   });
 });
 
+describe('mostrar lo guardado sin esperar a la nube', () => {
+  it('esDe dice si lo que hay en el dispositivo es de esa cuenta', async () => {
+    await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), dueno: 'u1' }) });
+    expect(store.esDe('u1')).toBe(true);
+    expect(store.esDe('u2')).toBe(false);
+    expect(store.esDe(undefined)).toBe(false);
+  });
+
+  it('una copia sin dueño conocido no se muestra antes de entrar', async () => {
+    await cargarCon({ 'reparto:v11': JSON.stringify(perfilCon('a')) });
+    expect(store.esDe('u1')).toBe(false);
+  });
+
+  it('lo que se registra mientras la nube contesta se junta con lo que traiga, sin perderse', async () => {
+    const rows = [fila('t2', 'b')];
+    nube.supabase = nubeFalsa(rows);
+    await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), remoteId: 'r1', sello: 't1', pendiente: false, dueno: 'u1' }) });
+    const llegada = store.bootAuth('u1');        // la nube todavía no contestó...
+    store.active().movs.push(mv('c'));            // ...y la persona ya registró algo
+    store.save();
+    await llegada;
+    await store.subirYa();
+    expect(ids(store.active().movs)).toEqual(['a', 'b', 'c']);
+    expect(ids(rows[0].data.movs)).toEqual(['a', 'b', 'c']);
+  });
+});
+

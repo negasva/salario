@@ -275,6 +275,9 @@ export async function bootAuth(uid) {
 /* Cerrar sesión borra la copia local, salvo que tenga cambios sin subir (por
    ejemplo, la sesión caducó sin red): esos se guardan para subirlos al volver
    a entrar con la misma cuenta. */
+// ¿Lo guardado en este dispositivo es de esta cuenta? Entonces se puede mostrar ya, sin esperar a la nube.
+export const esDe = (uid) => Boolean(uid) && duenoLocal === uid;
+
 export function signOutLocal() {
   clearTimeout(pushTimer);
   userId = null;

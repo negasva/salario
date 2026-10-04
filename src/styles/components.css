@@ -624,3 +624,5 @@ kbd{padding:1px 6px;border:1px solid var(--border-strong);border-radius:6px;back
 .auth-card .wide:disabled{opacity:.6}
 .auth-card #authReenviar{margin-top:var(--space-2)}
 .sub + .auth-err{margin-top:var(--space-4)}
+.aviso-sug{display:flex;align-items:center;gap:var(--space-3);text-decoration:none;color:var(--text-1);font-size:var(--text-sm)}
+.aviso-sug svg{flex:none;color:var(--accent-text)}

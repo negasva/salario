@@ -3,7 +3,7 @@ import {
   fechaEnPeriodo, fechaSugerida, nuevoRecurrente, pendientes, pagosDelMes, estaPagado, estadoDelMes,
   abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos, resumen,
   normalizarCuotas, mesesEntre, numeroCuota, mesFinal, activoEn, estadoDeuda,
-  diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS,
+  diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from './recurrentes.js';
 
 const nuevo = (n, monto, extra = {}) => nuevoRecurrente({ n, monto, catId: 'viv', dia: 5, ...extra });
@@ -282,5 +282,49 @@ describe('calendario', () => {
     expect(ics).toContain('SUMMARY:Pagar Arriendo ($ 1.200.000)');
     expect(ics).not.toContain('Sueldo');
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(3);
+  });
+});
+
+describe('sugerir recurrentes', () => {
+  const mov = (fecha, nota, monto, extra = {}) => ({ id: fecha + nota, fecha, tipo: 'gasto', monto, catId: 'ser', nota, ...extra });
+  const hoy = '2026-10-04';
+  const netflix = [mov('2026-08-05', 'Netflix', 30000), mov('2026-09-06', 'NETFLIX COL 4411', 32000), mov('2026-10-03', 'netflix mes', 30000)];
+
+  it('agrupa notas parecidas y da monto típico, rango y día', () => {
+    expect(sugerirRecurrentes(netflix, [], hoy)).toEqual([
+      { clave: 'gasto|ser|netflix', n: 'Netflix', tipo: 'gasto', monto: 30000, min: 30000, max: 32000, catId: 'ser', dia: 5, meses: 3 },
+    ]);
+  });
+
+  it('no sugiere dos meses, lo que ya es recurrente ni los pagos de un recurrente', () => {
+    expect(sugerirRecurrentes(netflix.slice(1), [], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix, [nuevoRecurrente({ n: 'netflix' })], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix.map((m) => ({ ...m, recId: 'x' })), [], hoy)).toEqual([]);
+  });
+
+  it('dos compras el mismo mes cuentan como un mes', () => {
+    const movs = [mov('2026-09-01', 'Éxito', 100), mov('2026-09-15', 'Éxito', 100), mov('2026-10-01', 'Éxito', 100)];
+    expect(sugerirRecurrentes(movs, [], hoy)).toEqual([]);
+  });
+
+  it('descarta lo irregular (mercado) y lo que el usuario ignoró', () => {
+    const mercado = [mov('2026-08-02', 'Mercado', 50000), mov('2026-09-20', 'Mercado', 400000), mov('2026-10-11', 'Mercado', 90000)];
+    expect(sugerirRecurrentes(mercado, [], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix, [], hoy, ['gasto|ser|netflix'])).toEqual([]);
+  });
+
+  it('adoptar cuelga un pago por mes, solo de los últimos 6 meses', () => {
+    const movs = [...netflix, mov('2026-10-20', 'Netflix extra', 5000), mov('2025-01-05', 'Netflix', 30000), mov('2026-09-09', 'Luz', 80000)];
+    const [sug] = sugerirRecurrentes(movs, [], hoy);
+    const { rec, ligados } = adoptarSugerencia(sug, movs, hoy);
+    expect(rec).toMatchObject({ n: 'Netflix', monto: 30000, dia: 5 });
+    expect(ligados.map((m) => m.fecha)).toEqual(['2026-08-05', '2026-09-06', '2026-10-03']);
+    expect(movs.filter((m) => m.recId).length).toBe(3);
+  });
+});
+
+describe('total al mes de las sugerencias', () => {
+  it('suma solo los gastos', () => {
+    expect(totalAlMes([{ tipo: 'gasto', monto: 30000 }, { tipo: 'ingreso', monto: 2000000 }, { tipo: 'gasto', monto: 90000 }])).toBe(120000);
   });
 });

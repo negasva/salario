@@ -309,3 +309,81 @@ export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date()) {
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Reparto mensual//ES', 'CALSCALE:GREGORIAN',
     'X-WR-CALNAME:Pagos del mes', ...eventos, 'END:VCALENDAR'].join('\r\n');
 }
+
+/* ---------- sugerencias ---------- */
+
+const mediana = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+
+/* "Netflix", "NETFLIX COL" y "netflix mes 10" son lo mismo: sin tildes ni
+   cifras, vale la primera palabra. Va con el tipo (y la categoría, en los
+   gastos) para que "Compra" en Mercado no se mezcle con "Compra" en Ropa.
+   ponytail: primera palabra; un nombre compartido ("Pago ...") une cosas distintas, afinar si estorba. */
+const llave = (m) => {
+  const palabra = String(m.nota || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z]{3,}/);
+  return palabra ? `${m.tipo}|${m.tipo === 'gasto' ? m.catId || '' : ''}|${palabra[0]}` : null;
+};
+
+/* Lo que ya se repite sin que lo hayas marcado: movimientos sueltos (sin
+   recId) con la misma llave en 3 o más de los últimos 6 meses, de monto y día
+   parecidos (el mercado o el almuerzo varían demasiado para ser un pago fijo),
+   que no coinciden con un recurrente ni con una sugerencia descartada. Es lo
+   que una hoja de cálculo no te dice. Devuelve fichas listas para
+   nuevoRecurrente, las más constantes primero. */
+export function sugerirRecurrentes(movs, recurrentes, hoy = hoyISO(), ignoradas = []) {
+  const desde = sumarMeses(periodoDe(hoy), -5);
+  const palabra = (k) => k.split('|')[2];
+  const hay = new Set((recurrentes || []).map((r) => `${r.tipo}|${palabra(llave({ nota: r.n, tipo: r.tipo }) || '||')}`));
+  const ignorar = new Set(ignoradas);
+  const grupos = new Map();
+  for (const m of movs || []) {
+    const k = llave(m);
+    if (m.recId || !k || periodoDe(m.fecha) < desde || ignorar.has(k) || hay.has(`${m.tipo}|${palabra(k)}`)) continue;
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(m);
+  }
+  const dia = (m) => Number(m.fecha.slice(8, 10));
+  return [...grupos].map(([clave, todos]) => {
+    const d = mediana(todos.map(dia));
+    const mo = mediana(todos.map((m) => m.monto));
+    const ms = todos.filter((m) => Math.abs(dia(m) - d) <= 5 && m.monto >= mo * 0.5 && m.monto <= mo * 1.5);
+    return { clave, ms, meses: new Set(ms.map((m) => periodoDe(m.fecha))).size };
+  })
+    .filter((g) => g.meses >= 3)
+    .sort((a, b) => b.meses - a.meses || b.ms.length - a.ms.length)
+    .slice(0, 5)
+    .map(({ clave, ms, meses }) => {
+      const montos = ms.map((m) => m.monto);
+      return {
+        clave,
+        n: ms.map((m) => m.nota.trim()).sort((a, b) => a.length - b.length)[0],
+        tipo: ms[0].tipo,
+        monto: mediana(montos),
+        min: Math.min(...montos),
+        max: Math.max(...montos),
+        catId: ms[0].catId,
+        dia: mediana(ms.map(dia)),
+        meses,
+      };
+    });
+}
+
+/* Convierte una sugerencia en recurrente y le cuelga, un pago por mes, los
+   movimientos sueltos de los últimos 6 meses que la originaron, para que este
+   mes no aparezca "pendiente" lo ya pagado. */
+export function adoptarSugerencia(sug, movs, hoy = hoyISO()) {
+  const { clave, min, max, meses, ...ficha } = sug;
+  const rec = nuevoRecurrente(ficha);
+  const desde = sumarMeses(periodoDe(hoy), -5);
+  const vistos = new Set();
+  const ligados = movs.filter((m) => {
+    const per = periodoDe(m.fecha);
+    if (m.recId || per < desde || vistos.has(per) || llave(m) !== clave) return false;
+    vistos.add(per);
+    return true;
+  });
+  ligados.forEach((m) => { m.recId = rec.id; });
+  return { rec, ligados };
+}
+
+// Lo que suman al mes las sugerencias de gasto: la cifra que la hoja no te da.
+export const totalAlMes = (lista) => lista.reduce((t, s) => t + (s.tipo === 'gasto' ? s.monto : 0), 0);

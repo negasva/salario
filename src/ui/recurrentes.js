@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import {
   estadoDelMes, abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos,
   nuevoRecurrente, resumen, fechaSugerida, pendientes, normalizarCuotas, numeroCuota, activoEn,
-  estadoDeuda, mesFinal,
+  estadoDeuda, mesFinal, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from '../engine/recurrentes.js';
 import { deTipo, nombreDe, colorDe, OTROS } from '../engine/categorias.js';
 import { money, plain, esc, digits, fechaCorta, nombreMes } from '../format.js';
@@ -251,6 +251,23 @@ function seccionDeudas(deudas, p, per) {
   </section>`;
 }
 
+/* Lo que ya haces cada mes sin haberlo marcado: un toque y pasa a recurrentes. */
+function tarjetaSugeridos(p) {
+  const lista = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
+  const volver = p.ignoradas.length ? `<button class="mini" id="reVolver">Volver a sugerir las ${p.ignoradas.length} descartadas</button>` : '';
+  if (!lista.length) return volver;
+  const alMes = totalAlMes(lista);
+  return `<section class="card sugeridos">
+    <div class="card-head"><h2 class="card-title">Se repite cada mes</h2></div>
+    <p class="sub">Los encontré en tus movimientos${alMes ? `: unos ${money(alMes)} al mes sin marcar` : ''}. ¿Los agregamos como recurrentes?</p>
+    <ul class="list">${lista.map((s, i) => `<li class="row">
+      <div class="row-txt"><div class="row-t">${esc(s.n)}</div><div class="row-s num">${s.max > s.min * 1.15 ? `entre ${money(s.min)} y ${money(s.max)}` : money(s.monto)} · ${s.meses} meses · hacia el día ${s.dia}</div></div>
+      <button class="mini" data-no="${i}" aria-label="${esc(s.n)} no es recurrente">No</button>
+      <button class="mini btn-primary" data-sug="${i}" aria-label="Agregar ${esc(s.n)} como recurrente">Agregar</button>
+    </li>`).join('')}</ul>
+  </section>${volver}`;
+}
+
 export function renderRecurrentes(root) {
   const p = store.active();
   const per = mesElegido();
@@ -321,6 +338,7 @@ export function renderRecurrentes(root) {
       ${p.recurrentes.length ? '<span></span>' : '<p class="sub">Págalos de una vez o por partes.</p>'}
       <button class="btn-primary" id="reNuevo">${icon('mas')}Nuevo</button>
     </div>
+    ${tarjetaSugeridos(p)}
     ${p.recurrentes.length ? `
       <section class="seccion">
         <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('sale', 'ic-sm')}</span>Gastos</h2>
@@ -350,6 +368,31 @@ export function renderRecurrentes(root) {
   });
   root.querySelectorAll('[data-deuda]').forEach((b) => {
     b.onclick = () => editorFicha(p.recurrentes.find((r) => r.id === b.dataset.deuda), repintar);
+  });
+  const sugeridos = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
+  root.querySelector('#reVolver')?.addEventListener('click', () => { p.ignoradas = []; store.save(); repintar(); });
+  root.querySelectorAll('[data-no]').forEach((b) => {
+    b.onclick = () => {
+      const { clave } = sugeridos[Number(b.dataset.no)];
+      p.ignoradas.push(clave);
+      store.save();
+      repintar();
+      toast('Listo, no te lo vuelvo a sugerir.', () => { p.ignoradas = p.ignoradas.filter((k) => k !== clave); store.save(); repintar(); });
+    };
+  });
+  root.querySelectorAll('[data-sug]').forEach((b) => {
+    b.onclick = () => {
+      const { rec, ligados } = adoptarSugerencia(sugeridos[Number(b.dataset.sug)], p.movs);
+      p.recurrentes.push(rec);
+      store.save();
+      repintar();
+      toast(`${rec.n} ahora es recurrente.`, () => {
+        p.recurrentes = p.recurrentes.filter((r) => r !== rec);
+        ligados.forEach((m) => { delete m.recId; });
+        store.save();
+        repintar();
+      });
+    };
   });
   root.querySelector('#reTodos')?.addEventListener('click', () => {
     const nuevos = marcarTodos(p.recurrentes, p.movs, per);

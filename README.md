@@ -2,6 +2,8 @@
 
 Registra ingresos y gastos, ponles categoría, mira en gráficas a dónde se va la plata, y el saldo se arrastra de un mes al siguiente: si agosto termina en −100.000, septiembre empieza en −100.000. Cuando quieras cortar ese arrastre, un mes puede empezar de nuevo con la cifra que le pongas.
 
+**Lo que una hoja de cálculo no hace: detecta tus pagos repetidos.** Si algo se repite en 3 meses con monto y día parecidos y no lo marcaste como recurrente, Inicio te avisa con cuánto suman al mes, y lo agregas con un toque (con deshacer) o lo descartas.
+
 Nueve pantallas. En el teléfono van abajo Inicio, Movimientos, **Registrar** (en el centro, donde llega el pulgar y no tapa ninguna cifra), Ahorro y **Más**, que abre las demás; en escritorio la barra lateral las muestra todas. Con `Ctrl`/`⌘` + `K` se abre una paleta de comandos para ir a cualquier pantalla, registrar o buscar un movimiento.
 
 - **Inicio**: flechas de mes · empezaste con / entró / salió / terminas con · **si pagas y recibes lo que falta de tus recurrentes, con cuánto terminas** · empezar el mes de nuevo · **próximos pagos** (lo que vence en 7 días y lo vencido) · donut por categoría · barras de 6 meses · línea de saldo.

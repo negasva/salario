@@ -36,6 +36,8 @@ npm run dev
    - Opcional: `VITE_SITE_URL=https://tu-dominio.com` fija ese destino aunque pidas el correo desde una vista previa.
    - El texto y remitente del correo se cambian en Authentication → Emails (plantilla *Reset Password*); para un remitente propio configura SMTP en Authentication → SMTP.
 
+La política de contenido (CSP) y demás cabeceras de seguridad viven en `vercel.json`. Solo deja conectar a la propia app y a `*.supabase.co`: si usas un dominio propio para Supabase, agrégalo a `connect-src`. Si editas el script del tema en `index.html`, hay que actualizar su hash (una prueba avisa).
+
 ## Build y tests
 
 ```

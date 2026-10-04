@@ -54,7 +54,7 @@ export function renderShell(root, currentRoute, onNavigate) {
       return `<button class="navlink navlink-add solo-tel" id="navAdd" aria-label="Registrar movimiento"><span class="navlink-ic">${icon(n.ic)}</span><span class="navlink-txt">${n.label}</span></button>`;
     }
     const actual = n.id === currentRoute || (n.id === 'mas' && EN_MAS.some((m) => m.id === currentRoute));
-    return `<a class="navlink ${n.tel ? '' : n.soloTel ? 'solo-tel' : 'solo-esc'}" href="#${n.id}" data-r="${n.id}" ${n.corto ? `aria-label="${n.label}"` : ''} ${actual ? 'aria-current="page"' : ''}>
+    return `<a class="navlink ${n.tel ? '' : n.soloTel ? 'solo-tel' : 'solo-esc'}" href="#${n.id}" data-r="${esc(n.id)}" ${n.corto ? `aria-label="${n.label}"` : ''} ${actual ? 'aria-current="page"' : ''}>
             <span class="navlink-ic">${iconNav(n.ic)}</span><span class="navlink-txt">${n.corto ? `<span class="navlink-largo">${n.label}</span><span class="navlink-corto" aria-hidden="true">${n.corto}</span>` : n.label}</span></a>`;
   }).join('')}
         </nav>

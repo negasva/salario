@@ -57,7 +57,7 @@ export function abrirImportar(alGuardar = () => {}) {
       <select id="im-${campo}" data-campo="${campo}">${opcional ? '<option value="-1">(ninguna)</option>' : ''}
         ${cols.map((c, j) => `<option value="${j}" ${mapa[campo] === j ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>`;
     const incluidos = candidatos.filter((c) => !c.duplicado);
-    const opciones = (c) => deTipo(p.cats, c.tipo).map((x) => `<option value="${x.id}" ${x.id === c.catId ? 'selected' : ''}>${esc(x.n)}</option>`).join('');
+    const opciones = (c) => deTipo(p.cats, c.tipo).map((x) => `<option value="${esc(x.id)}" ${x.id === c.catId ? 'selected' : ''}>${esc(x.n)}</option>`).join('');
 
     cuerpo.innerHTML = `
       <details class="im-cols" ${candidatos.length ? '' : 'open'}>
@@ -70,7 +70,7 @@ export function abrirImportar(alGuardar = () => {}) {
       </details>
       ${candidatos.length ? `
       <p class="sub im-resumen num" id="imResumen"></p>
-      <ul class="list im-lista">${candidatos.map((c) => `<li class="row im-fila ${c.duplicado ? 'duplicado' : ''}" data-id="${c.id}">
+      <ul class="list im-lista">${candidatos.map((c) => `<li class="row im-fila ${c.duplicado ? 'duplicado' : ''}" data-id="${esc(c.id)}">
         <input type="checkbox" class="im-si" aria-label="Importar ${esc(c.nota)}" ${c.duplicado ? '' : 'checked'}>
         <div class="row-txt">
           <span class="row-t">${esc(c.nota || '(sin descripción)')}</span>
@@ -84,7 +84,7 @@ export function abrirImportar(alGuardar = () => {}) {
       <button class="wide" id="imOtro">Elegir otro archivo</button>`;
 
     const $ = (s) => cuerpo.querySelector(s);
-    const elegidos = () => candidatos.filter((c) => cuerpo.querySelector(`[data-id="${c.id}"] .im-si`)?.checked);
+    const elegidos = () => candidatos.filter((c) => cuerpo.querySelector(`[data-id="${esc(c.id)}"] .im-si`)?.checked);
     const contar = () => {
       const e = elegidos();
       const sale = e.filter((c) => c.tipo === 'gasto').reduce((t, c) => t + c.monto, 0);

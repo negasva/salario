@@ -32,7 +32,7 @@ function editorFicha(rec, alGuardar) {
       <input id="reMonto" class="num monto" inputmode="numeric" placeholder="0" value="${r.monto ? plain(r.monto) : ''}">
       <p class="sub">Solo una referencia: al pagar escribes lo real. Vacío si cambia cada mes.</p></div>
     <div class="fld" id="reCatWrap"><label for="reCat">Categoría</label>
-      <select id="reCat">${deTipo(p.cats, 'gasto').map((c) => `<option value="${c.id}" ${(r.catId || OTROS) === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>
+      <select id="reCat">${deTipo(p.cats, 'gasto').map((c) => `<option value="${esc(c.id)}" ${(r.catId || OTROS) === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>
     <div class="fld"><label for="reDia">Día del mes</label>
       <input id="reDia" class="num" type="number" min="1" max="31" value="${r.dia || 1}"></div>
     <div class="fld cuotas-wrap" id="reCuotasWrap">
@@ -140,12 +140,12 @@ function hojaPagos(rec, per, alGuardar) {
       </section>
       ${e.pagos.length ? `<h3 class="seccion-t pg-t">${e.pagos.length === 1 ? 'Un pago' : `${e.pagos.length} pagos`}</h3>
       <ul class="list pg-lista">${e.pagos.map((m) => `<li class="row row-link ${editando === m ? 'editando' : ''}">
-          <button class="row-main" data-abono="${m.id}"><span class="sr-only">Corregir </span>
+          <button class="row-main" data-abono="${esc(m.id)}"><span class="sr-only">Corregir </span>
             <span class="row-txt"><span class="row-t">${esc(m.nota === rec.n ? 'Pago' : m.nota)}</span>
               <span class="row-s">${fechaCorta(m.fecha)}</span></span>
             <b class="num row-monto">${money(m.monto)}</b>
           </button>
-          <button class="btn-icon btn-icon-danger" data-quitar="${m.id}" aria-label="Quitar pago de ${money(m.monto)}">${icon('basura')}</button>
+          <button class="btn-icon btn-icon-danger" data-quitar="${esc(m.id)}" aria-label="Quitar pago de ${money(m.monto)}">${icon('basura')}</button>
         </li>`).join('')}</ul>` : ''}
       <div class="pg-form">
         <h3 class="seccion-t pg-t">${editando ? 'Corregir pago' : (e.pagos.length ? 'Otro pago' : (ingreso ? 'Anotar lo recibido' : 'Anotar un pago'))}</h3>
@@ -238,7 +238,7 @@ function seccionDeudas(deudas, p, per) {
       vencida: `Terminó en ${nombreMes(d.fin)} y quedó saldo`,
     }[d.estado];
     return `<li class="row row-link deuda ${d.estado === 'pagada' ? 'pagada' : ''}">
-      <button class="row-main" data-deuda="${r.id}"><span class="sr-only">Editar </span>
+      <button class="row-main" data-deuda="${esc(r.id)}"><span class="sr-only">Editar </span>
         <span class="av" style="--c:${colorDe(p.cats, r.catId)}" aria-hidden="true">${icon('tarjeta', 'ic-sm')}</span>
         <span class="row-txt">
           <span class="row-top"><span class="row-t">${esc(r.n)}</span><span class="num row-monto">${d.falta ? `faltan ${money(d.falta)}` : icon('check', 'ic-sm')}</span></span>
@@ -298,7 +298,7 @@ export function renderRecurrentes(root) {
       parcial: ['mini', `${icon('mas', 'ic-sm')}Abonar`, `${esc(r.n)}: abonar, quedan ${money(e.queda)}`],
       pagado: ['mini pagado-btn', `${icon('check', 'ic-sm')}${ingreso ? 'Recibido' : 'Pagado'}`, `${esc(r.n)}: ${ingreso ? 'recibido' : 'pagado'}, ver pagos`],
     }[e.estado];
-    return `<li class="row rec ${e.estado}" data-id="${r.id}">
+    return `<li class="row rec ${e.estado}" data-id="${esc(r.id)}">
       <span class="estado ${e.estado}" aria-hidden="true">${icon(e.estado)}</span>
       <div class="row-txt">
         <div class="row-t">${esc(r.n)}</div>
@@ -306,8 +306,8 @@ export function renderRecurrentes(root) {
         ${e.estado === 'parcial' || e.pasado ? `<span class="barra ${e.pasado ? 'barra-over' : ''}" aria-hidden="true"><i style="width:${pct}%;background:${e.pasado ? 'var(--neg-fill)' : 'var(--brand)'}"></i></span>` : ''}
       </div>
       <div class="row-acc">
-        <button class="${boton[0]}" data-pago="${r.id}" aria-label="${boton[2]}">${boton[1]}</button>
-        <button class="btn-icon" data-edit="${r.id}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
+        <button class="${boton[0]}" data-pago="${esc(r.id)}" aria-label="${boton[2]}">${boton[1]}</button>
+        <button class="btn-icon" data-edit="${esc(r.id)}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
       </div>
     </li>`;
   };

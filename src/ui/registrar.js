@@ -19,7 +19,7 @@ export function abrirRegistro({ tipo = 'gasto', movId = null, catId = null, nota
   const { cuerpo, cerrar } = abrirModal({ titulo: previo ? 'Editar movimiento' : (titulo || 'Registrar') });
   const catInicial = previo?.catId || catId;
   const opciones = (t) => deTipo(p.cats, t)
-    .map((c) => `<option value="${c.id}" ${catInicial === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
+    .map((c) => `<option value="${esc(c.id)}" ${catInicial === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
 
   cuerpo.innerHTML = `
     <div class="chips chips-tipo" id="regTipo" data-seg="reg-tipo" data-v="gasto">

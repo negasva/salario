@@ -328,3 +328,15 @@ describe('total al mes de las sugerencias', () => {
     expect(totalAlMes([{ tipo: 'gasto', monto: 30000 }, { tipo: 'ingreso', monto: 2000000 }, { tipo: 'gasto', monto: 90000 }])).toBe(120000);
   });
 });
+
+describe('calendario sin inyección', () => {
+  it('un salto de línea en el nombre no abre propiedades nuevas y el UID queda limpio', () => {
+    const r = { ...nuevoRecurrente({ n: 'Luz\r\nATTENDEE:mailto:x@y.z', monto: 1000, dia: 5 }), id: 'a1;b\r\nX-EVIL:1' };
+    const ics = calendarioICS([r], '2026-10-04', new Date('2026-10-04T00:00:00Z'));
+    const lineas = ics.split('\r\n');
+    expect(lineas.some((l) => l.startsWith('ATTENDEE') || l.startsWith('X-EVIL'))).toBe(false);
+    expect(lineas.find((l) => l.startsWith('UID:'))).toBe('UID:a1bX-EVIL1@reparto-mensual');
+    expect(lineas.find((l) => l.startsWith('SUMMARY:'))).toContain('Luz\\nATTENDEE');
+  });
+});
+

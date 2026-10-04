@@ -173,14 +173,14 @@ export function renderAhorro(root) {
       ? `<span class="pos">${icon('check', 'ic-sm')}Completa: úsala cuando la necesites</span>`
       : `Faltan <b>${money(x.falta)}</b>${x.meses ? ` · a este ritmo llegas en ${x.meses === 1 ? 'un mes' : `${x.meses} meses`} (${nombreMes(x.llega)})` : ' · este mes no ha entrado nada'}`;
     return `<li class="meta-card" style="--c:${color}">
-      <button class="meta-main" data-meta="${x.meta.id}"><span class="sr-only">Editar </span>
+      <button class="meta-main" data-meta="${esc(x.meta.id)}"><span class="sr-only">Editar </span>
         <span class="meta-top"><span class="meta-n">${esc(x.meta.n)}</span><span class="meta-pct">${x.meta.pct} %</span></span>
         <span class="meta-cifras num"><b>${money(x.llevado)}</b><span> de ${money(x.meta.objetivo)}</span><span class="meta-avance">${x.pctAvance} %</span></span>
         <span class="barra" aria-hidden="true"><i style="width:${x.pctAvance}%;background:var(--c)"></i></span>
         <span class="sub num">${estado}</span>
         ${x.esteMes ? `<span class="sub num">Este mes: +${money(x.esteMes)}</span>` : ''}
       </button>
-      <button class="mini ${x.completa ? 'btn-primary' : ''}" data-usar="${x.meta.id}" ${x.llevado > 0 ? '' : 'disabled'}>Usar</button>
+      <button class="mini ${x.completa ? 'btn-primary' : ''}" data-usar="${esc(x.meta.id)}" ${x.llevado > 0 ? '' : 'disabled'}>Usar</button>
     </li>`;
   };
 

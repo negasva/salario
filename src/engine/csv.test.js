@@ -72,3 +72,19 @@ describe('adivinar la categoría', () => {
     expect(adivinarCategoria('ALGO RARO', 'gasto', cats)).toBe('otros');
   });
 });
+
+describe('exportar sin fórmulas', () => {
+  it('un texto que empieza por = + - @ lleva apóstrofo; los montos siguen siendo números', () => {
+    const csv = aCSV(
+      [{ id: 'a', fecha: '2026-10-01', tipo: 'gasto', monto: 5000, catId: 'otros', nota: '=HYPERLINK("http://x","y")' },
+        { id: 'b', fecha: '2026-10-02', tipo: 'gasto', monto: 100, catId: 'otros', nota: '@SUM(A1)' },
+        { id: 'c', fecha: '2026-10-03', tipo: 'ingreso', monto: 70, catId: null, nota: 'Pago normal' }],
+      [{ id: 'otros', n: 'Otros' }],
+    ).split('\r\n');
+    expect(csv[1]).toContain(`"\'=HYPERLINK(""http://x"",""y"")"`);
+    expect(csv[2]).toContain(";'@SUM(A1);");
+    expect(csv[1]).toContain(';-5000;');
+    expect(csv[3]).toContain(';Pago normal;');
+  });
+});
+

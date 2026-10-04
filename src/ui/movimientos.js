@@ -29,7 +29,7 @@ export function renderMovimientos(root) {
   if (filtro && !p.cats.some((c) => c.id === filtro)) filtro = '';
   const faltan = pendientes(p.recurrentes, p.movs, per);
   const grupo = (tipo) => deTipo(p.cats, tipo)
-    .map((c) => `<option value="${c.id}" ${filtro === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
+    .map((c) => `<option value="${esc(c.id)}" ${filtro === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('');
 
   root.innerHTML = `
     ${selectorMes('Movimientos')}
@@ -102,7 +102,7 @@ function pintar(root, p, per, repintar) {
     const rec = m.recId && recs.get(m.recId);
     const nota = rec && m.nota && m.nota !== rec.n ? `${rec.n} · ${m.nota}` : m.nota;
     return `<li class="row row-link mov ${m.tipo}${m.id === destacar.id ? ' nuevo' : ''}">
-        <button class="row-main" data-edit="${m.id}"><span class="sr-only">Editar </span>
+        <button class="row-main" data-edit="${esc(m.id)}"><span class="sr-only">Editar </span>
           <span class="av" style="--c:${colorDe(p.cats, m.catId)}" aria-hidden="true">${esc(nombre.trim().charAt(0).toUpperCase())}</span>
           <span class="row-txt">
             <span class="row-t">${esc(nombre)}</span>
@@ -110,7 +110,7 @@ function pintar(root, p, per, repintar) {
           </span>
           <b class="num row-monto">${m.tipo === 'ingreso' ? '+' : '−'}${money(m.monto)}</b>
         </button>
-        <button class="btn-icon btn-icon-danger" data-del="${m.id}" aria-label="Borrar ${esc(nombre)} de ${money(m.monto)}">${icon('basura')}</button>
+        <button class="btn-icon btn-icon-danger" data-del="${esc(m.id)}" aria-label="Borrar ${esc(nombre)} de ${money(m.monto)}">${icon('basura')}</button>
       </li>`;
   }).join('')}
       </ul>

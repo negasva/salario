@@ -253,13 +253,15 @@ function seccionDeudas(deudas, p, per) {
 
 /* Lo que ya haces cada mes sin haberlo marcado: un toque y pasa a recurrentes. */
 function tarjetaSugeridos(p) {
-  const lista = sugerirRecurrentes(p.movs, p.recurrentes);
+  const lista = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
   if (!lista.length) return '';
+  const alMes = lista.reduce((t, s) => t + (s.tipo === 'gasto' ? s.monto : 0), 0);
   return `<section class="card sugeridos">
     <div class="card-head"><h2 class="card-title">Se repite cada mes</h2></div>
-    <p class="sub">Los encontré en tus movimientos. ¿Los agregamos como recurrentes?</p>
+    <p class="sub">Los encontré en tus movimientos${alMes ? `: unos ${money(alMes)} al mes sin marcar` : ''}. ¿Los agregamos como recurrentes?</p>
     <ul class="list">${lista.map((s, i) => `<li class="row">
       <div class="row-txt"><div class="row-t">${esc(s.n)}</div><div class="row-s num">${s.max > s.min * 1.15 ? `entre ${money(s.min)} y ${money(s.max)}` : money(s.monto)} · ${s.meses} meses · hacia el día ${s.dia}</div></div>
+      <button class="mini" data-no="${i}" aria-label="${esc(s.n)} no es recurrente">No</button>
       <button class="mini btn-primary" data-sug="${i}" aria-label="Agregar ${esc(s.n)} como recurrente">Agregar</button>
     </li>`).join('')}</ul>
   </section>`;
@@ -366,7 +368,10 @@ export function renderRecurrentes(root) {
   root.querySelectorAll('[data-deuda]').forEach((b) => {
     b.onclick = () => editorFicha(p.recurrentes.find((r) => r.id === b.dataset.deuda), repintar);
   });
-  const sugeridos = sugerirRecurrentes(p.movs, p.recurrentes);
+  const sugeridos = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
+  root.querySelectorAll('[data-no]').forEach((b) => {
+    b.onclick = () => { p.ignoradas.push(sugeridos[Number(b.dataset.no)].clave); store.save(); repintar(); };
+  });
   root.querySelectorAll('[data-sug]').forEach((b) => {
     b.onclick = () => {
       const { rec, ligados } = adoptarSugerencia(sugeridos[Number(b.dataset.sug)], p.movs);

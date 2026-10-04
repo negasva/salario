@@ -292,7 +292,7 @@ describe('sugerir recurrentes', () => {
 
   it('agrupa notas parecidas y da monto típico, rango y día', () => {
     expect(sugerirRecurrentes(netflix, [], hoy)).toEqual([
-      { n: 'Netflix', tipo: 'gasto', monto: 30000, min: 30000, max: 32000, catId: 'ser', dia: 5, meses: 3 },
+      { clave: 'gasto|ser|netflix', n: 'Netflix', tipo: 'gasto', monto: 30000, min: 30000, max: 32000, catId: 'ser', dia: 5, meses: 3 },
     ]);
   });
 
@@ -307,11 +307,17 @@ describe('sugerir recurrentes', () => {
     expect(sugerirRecurrentes(movs, [], hoy)).toEqual([]);
   });
 
+  it('descarta lo irregular (mercado) y lo que el usuario ignoró', () => {
+    const mercado = [mov('2026-08-02', 'Mercado', 50000), mov('2026-09-20', 'Mercado', 400000), mov('2026-10-11', 'Mercado', 90000)];
+    expect(sugerirRecurrentes(mercado, [], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix, [], hoy, ['gasto|ser|netflix'])).toEqual([]);
+  });
+
   it('adoptar cuelga un pago por mes, solo de los últimos 6 meses', () => {
     const movs = [...netflix, mov('2026-10-20', 'Netflix extra', 5000), mov('2025-01-05', 'Netflix', 30000), mov('2026-09-09', 'Luz', 80000)];
     const [sug] = sugerirRecurrentes(movs, [], hoy);
     const { rec, ligados } = adoptarSugerencia(sug, movs, hoy);
-    expect(rec).toMatchObject({ n: 'Netflix', monto: 30000, dia: 6 });
+    expect(rec).toMatchObject({ n: 'Netflix', monto: 30000, dia: 5 });
     expect(ligados.map((m) => m.fecha)).toEqual(['2026-08-05', '2026-09-06', '2026-10-03']);
     expect(movs.filter((m) => m.recId).length).toBe(3);
   });

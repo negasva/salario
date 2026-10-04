@@ -27,7 +27,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], persona: normalizarPersona() };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], ignoradas: [], persona: normalizarPersona() };
 }
 
 /* El perfil de antes de la auditoría, si sigue en este navegador. Es de donde
@@ -64,6 +64,7 @@ function normalizar(p) {
   n.recurrentes = Array.isArray(n.recurrentes) ? n.recurrentes : [];
   n.arranques = n.arranques && typeof n.arranques === 'object' ? n.arranques : {};
   n.metas = normalizarMetas(n.metas);
+  n.ignoradas = Array.isArray(n.ignoradas) ? n.ignoradas : [];
   n.persona = normalizarPersona(n.persona);
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');

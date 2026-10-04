@@ -33,7 +33,7 @@ function proximos(p) {
 
 /* Si ya haces algo cada mes sin haberlo marcado, aquí se avisa. */
 function avisoSugeridos(p) {
-  const n = sugerirRecurrentes(p.movs, p.recurrentes).length;
+  const n = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas).length;
   if (!n) return '';
   return `<a class="card aviso-sug" href="#recurrentes">${icon('recurrente')}<span><b>${n} ${n === 1 ? 'gasto se repite' : 'gastos se repiten'} cada mes.</b> Agrégalos como recurrentes con un toque.</span></a>`;
 }

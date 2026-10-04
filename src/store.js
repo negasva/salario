@@ -39,6 +39,15 @@ export function freshProfile(name = 'Mi presupuesto') {
   return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], ignoradas: [], persona: normalizarPersona() };
 }
 
+/* Las copias de versiones anteriores guardan los datos en claro y ya no hacen
+   falta una vez que lo suyo está en la nube: se borran al cerrar sesión, al
+   borrar todo, al entrar otra cuenta y tras la primera subida correcta. */
+function limpiarViejas() {
+  for (const k of [...KEYS_NUEVAS, ...KEYS_V8]) {
+    try { localStorage.removeItem(k); } catch { /* noop */ }
+  }
+}
+
 /* El perfil de antes de la auditoría, si sigue en este navegador. Es de donde
    se recuperan los gastos recurrentes de un perfil que ya pasó por la primera
    migración y los perdió. */
@@ -158,7 +167,7 @@ async function flushPush() {
     fallos = 0;
     remoteId = data[0].id;
     sello = data[0].updated_at;
-    if (version === cambios) { pushPendiente = false; reinicio = false; }
+    if (version === cambios) { pushPendiente = false; reinicio = false; limpiarViejas(); }
     escribirLocal();
     if (pushPendiente) reintentar(2000);
   } catch {
@@ -205,6 +214,7 @@ export async function bootAuth(uid) {
     if (duenoLocal && duenoLocal !== uid) {
       // la copia local es de otra cuenta: no se mezcla con esta; si traía cambios sin subir, se aparta para cuando vuelva
       if (pushPendiente && mia) localStorage.setItem(`${RETENIDA}${duenoLocal}`, mia);
+      limpiarViejas();
       perfil = freshProfile();
       remoteId = null; sello = null; pushPendiente = false; reinicio = false;
     }
@@ -266,6 +276,7 @@ export function signOutLocal() {
     duenoLocal = null;
     reinicio = false;
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
+    limpiarViejas();
   }
   perfil = freshProfile();
 }
@@ -318,7 +329,8 @@ export function estadoSync() {
 export function reiniciar() {
   const antes = perfil;
   reinicio = true;
-  perfil = { ...freshProfile(perfil.name), persona: perfil.persona };
+  limpiarViejas();
+  perfil = { ...freshProfile(perfil.name), persona: perfil.persona, recRecuperados: true };
   save();
   return antes;
 }

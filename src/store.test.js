@@ -329,3 +329,41 @@ describe('sincronizar sin perder lo hecho', () => {
   });
 });
 
+describe('privacidad: no quedan datos viejos en el navegador', () => {
+  const viejas = () => ({ 'reparto:v9': JSON.stringify(V9), 'reparto:v8': JSON.stringify(V8) });
+  const quedan = () => ['reparto:v10', 'reparto:v9', 'reparto:v8', 'reparto:v7', 'reparto:v6', 'reparto:v5']
+    .filter((k) => localStorage.getItem(k) !== null);
+
+  it('cerrar sesión borra la copia actual y las de versiones anteriores', async () => {
+    await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, [fila('t1', 'a')]);
+    localStorage.setItem('reparto:v8', JSON.stringify(V8));
+    store.signOutLocal();
+    expect(localStorage.getItem('reparto:v11')).toBeNull();
+    expect(quedan()).toEqual([]);
+  });
+
+  it('borrar todo no hace volver los recurrentes del perfil viejo', async () => {
+    const p = await cargarCon(viejas());
+    expect(p.recurrentes.length).toBeGreaterThan(0);
+    store.reiniciar();
+    expect(quedan()).toEqual([]);
+    expect((await cargarCon({ ...localStorage._datos })).recurrentes).toEqual([]);
+  });
+
+  it('la primera subida correcta borra las copias viejas, que ya no hacen falta', async () => {
+    const rows = [fila('t1')];
+    nube.supabase = nubeFalsa(rows);
+    await cargarCon({ ...viejas(), 'reparto:v11': JSON.stringify({ ...perfilCon('a'), remoteId: 'r1', sello: 't1', pendiente: true }) });
+    await store.bootAuth('u1');
+    await store.subirYa();
+    expect(quedan()).toEqual([]);
+  });
+
+  it('otra cuenta en el mismo navegador no hereda los recurrentes viejos de la anterior', async () => {
+    nube.supabase = nubeFalsa([{ ...fila('t5'), id: 'r2', user_id: 'u2' }]);
+    await cargarCon({ ...viejas(), 'reparto:v11': JSON.stringify({ ...perfilCon('a'), dueno: 'u1' }) });
+    await store.bootAuth('u2');
+    expect(store.active().recurrentes).toEqual([]);
+  });
+});
+

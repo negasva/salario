@@ -112,13 +112,22 @@ function escribirLocal() {
   catch { /* almacenamiento lleno o bloqueado: se sigue en memoria */ }
 }
 
+/* Cambia lo que contiene el perfil sin cambiar el objeto. Lo que llega de la
+   nube mientras la persona ya usa la app no debe dejar a una hoja abierta
+   escribiendo en un perfil viejo: sigue teniendo en la mano el vigente. */
+function fijarPerfil(nuevo) {
+  if (!perfil || perfil === nuevo) { perfil = nuevo; return; }
+  Object.keys(perfil).forEach((k) => delete perfil[k]);
+  Object.assign(perfil, nuevo);
+}
+
 function aplicarBlob(v) {
   remoteId = v?.remoteId || null;
   sello = v?.sello || null;
   duenoLocal = v?.dueno || null;
   pushPendiente = !!v?.pendiente;
   reinicio = !!v?.reinicio;
-  perfil = v ? normalizar(v) : freshProfile();
+  fijarPerfil(v ? normalizar(v) : freshProfile());
   ['remoteId', 'sello', 'pendiente', 'reinicio', 'dueno'].forEach((k) => delete perfil[k]);
 }
 
@@ -190,7 +199,7 @@ async function juntarConLaNube() {
   if (error) throw error;
   const fila = data?.[0];
   if (fila) {
-    if (!reinicio) perfil = normalizar(fusionar(perfil, normalizar({ ...fila.data, name: fila.nombre || fila.data?.name })));
+    if (!reinicio) fijarPerfil(normalizar(fusionar(perfil, normalizar({ ...fila.data, name: fila.nombre || fila.data?.name }))));
     sello = fila.updated_at;
   } else {
     remoteId = null; // la fila ya no existe: se vuelve a crear
@@ -247,7 +256,7 @@ export async function bootAuth(uid) {
     /* Con cambios locales sin subir la nube no pisa: si nadie más escribió
        (mismo sello) gana lo local; si alguien escribió, se juntan las dos. */
     if (pushPendiente) {
-      if (!reinicio && (fila.id !== remoteId || fila.updated_at !== sello)) perfil = normalizar(fusionar(perfil, remoto));
+      if (!reinicio && (fila.id !== remoteId || fila.updated_at !== sello)) fijarPerfil(normalizar(fusionar(perfil, remoto)));
       remoteId = fila.id;
       sello = fila.updated_at;
       escribirLocal();
@@ -258,7 +267,7 @@ export async function bootAuth(uid) {
     reinicio = false;
     remoteId = fila.id;
     sello = fila.updated_at;
-    perfil = remoto;
+    fijarPerfil(remoto);
     escribirLocal();
     // se sube si la migración o el rescate cambiaron algo
     if (esViejo(fila.data) || perfil.recurrentes.length !== antes) programarPush();

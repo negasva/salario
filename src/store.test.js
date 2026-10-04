@@ -505,5 +505,17 @@ describe('mostrar lo guardado sin esperar a la nube', () => {
     expect(ids(store.active().movs)).toEqual(['a', 'b', 'c']);
     expect(ids(rows[0].data.movs)).toEqual(['a', 'b', 'c']);
   });
+
+  it('lo que trae la nube cambia el contenido del perfil sin cambiar el objeto: una hoja abierta no escribe en uno viejo', async () => {
+    nube.supabase = nubeFalsa([fila('t2', 'b')]);
+    await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), remoteId: 'r1', sello: 't1', pendiente: false, dueno: 'u1' }) });
+    const enLaMano = store.active();
+    await store.bootAuth('u1');
+    expect(store.active()).toBe(enLaMano);
+    expect(ids(enLaMano.movs)).toEqual(['b']);
+    enLaMano.movs.push(mv('c')); // lo que escribe esa hoja ya cuenta
+    store.save();
+    expect(ids(store.active().movs)).toEqual(['b', 'c']);
+  });
 });
 

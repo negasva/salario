@@ -112,9 +112,18 @@ function arrancarConLoGuardado(user) {
   const antes = JSON.stringify(store.active());
   store.bootAuth(user.id).then((res) => {
     if (res?.migrated) toast('Tus datos locales se subieron a tu cuenta.');
-    if (conSesion && JSON.stringify(store.active()) !== antes) paintRoute();
-  });
-  getSession(); // por detrás: si la sesión ya no sirve, onAuthChange manda al ingreso
+    repintarSiCambio(antes);
+  }).catch(() => { /* sin red: se queda con lo guardado */ });
+  getSession().catch(() => { /* idem: si la sesión ya no sirve, onAuthChange manda al ingreso */ });
+}
+
+/* Repinta con lo que trajo la nube, pero sin quitarle la pantalla a quien ya
+   la está usando: con una hoja abierta o un campo con el cursor, espera. */
+const ocupado = () => Boolean(document.querySelector('.overlay')) || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+function repintarSiCambio(antes, intentos = 0) {
+  if (!conSesion || JSON.stringify(store.active()) === antes) return;
+  if (ocupado() && intentos < 40) { setTimeout(() => repintarSiCambio(antes, intentos + 1), 1500); return; }
+  paintRoute();
 }
 
 async function boot() {

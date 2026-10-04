@@ -11,7 +11,7 @@ const mesCorto = (per) => MESES_CORTOS[Number(per.slice(5, 7)) - 1];
 
 /* ---------- el donut y su lista ---------- */
 
-const R = 62; const GROSOR = 22; const HUECO = GROSOR + 5;
+const R = 62; const GROSOR = 22;
 export const C = Math.round(2 * Math.PI * R * 100) / 100;
 
 function donut(trozos) {
@@ -20,10 +20,12 @@ function donut(trozos) {
   return `<svg class="donut" viewBox="0 0 160 160" role="img" aria-label="Gasto por categoría: ${esc(trozos[0].nombre)} es el ${trozos[0].pct}%">
     ${fondo}
     ${trozos.map((t) => {
-    // puntas redondas: cada trozo se acorta lo que crecen sus puntas más un respiro
-    const g = trozos.length > 1 ? Math.min(t.largo - 0.5, HUECO) : 0;
-    return `<circle class="trozo-donut" cx="80" cy="80" r="${R}" fill="none" stroke="${t.color}" stroke-width="${GROSOR}" stroke-linecap="${g > 0 ? 'round' : 'butt'}"
-      stroke-dasharray="${(t.largo - g).toFixed(2)} ${(t.resto + g).toFixed(2)}" stroke-dashoffset="${(t.offset - g / 2).toFixed(2)}" data-tip="${esc(t.nombre)}\n${money(t.monto)} · ${t.pct}%"></circle>`;
+    // Puntas redondas que se montan sobre el vecino, sin dejar fondo a la vista:
+    // los trozos van del mayor al menor, así que los chicos quedan encima. Uno
+    // más corto que su grosor no cabe con puntas redondas y va recto.
+    const redondo = trozos.length > 1 && t.largo >= GROSOR;
+    return `<circle class="trozo-donut" cx="80" cy="80" r="${R}" fill="none" stroke="${t.color}" stroke-width="${GROSOR}" stroke-linecap="${redondo ? 'round' : 'butt'}"
+      stroke-dasharray="${t.largo} ${t.resto}" stroke-dashoffset="${t.offset}" data-tip="${esc(t.nombre)}\n${money(t.monto)} · ${t.pct}%"></circle>`;
   }).join('')}
   </svg>`;
 }

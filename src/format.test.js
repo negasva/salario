@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { digits, money, moneySigno, fechaCorta, nombreMes, compacto, moneyCorto } from './format.js';
+import { esc, digits, money, moneySigno, fechaCorta, nombreMes, compacto, moneyCorto } from './format.js';
 
 describe('digits', () => {
   it('lee montos con separador de miles', () => {
@@ -71,3 +71,11 @@ describe('compacto', () => {
     expect(moneyCorto(-100123461789)).toBe('−$ 100,1 mil M');
   });
 });
+
+describe('esc', () => {
+  it('escapa lo que rompe un atributo o abre una etiqueta, incluida la comilla simple', () => {
+    expect(esc(`<img src=x onerror='a()' alt="b">&`)).toBe('&lt;img src=x onerror=&#39;a()&#39; alt=&quot;b&quot;&gt;&amp;');
+    expect(esc(null)).toBe('');
+  });
+});
+

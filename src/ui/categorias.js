@@ -52,7 +52,7 @@ export function renderCategorias(root) {
     const pct = c.m > 0 ? Math.min(100, Math.round((total / c.m) * 100)) : 0;
     const pasado = c.m > 0 && total > c.m;
     return `<li class="row row-link cat ${pasado ? 'over' : ''}">
-      <button class="row-main" data-id="${c.id}"><span class="sr-only">Editar </span>
+      <button class="row-main" data-id="${esc(c.id)}"><span class="sr-only">Editar </span>
         <span class="av" style="--c:${c.c}" aria-hidden="true">${esc(c.n.trim().charAt(0).toUpperCase())}</span>
         <span class="row-txt">
           <span class="row-top">
@@ -66,7 +66,7 @@ export function renderCategorias(root) {
     : `<span class="row-s">${c.tipo === 'gasto' ? 'Sin presupuesto' : 'Este mes'}</span>`}
         </span>
       </button>
-      ${esFija(c.id) ? '<span class="row-acc-vacio"></span>' : `<button class="btn-icon btn-icon-danger" data-del="${c.id}" aria-label="Borrar ${esc(c.n)}">${icon('basura')}</button>`}
+      ${esFija(c.id) ? '<span class="row-acc-vacio"></span>' : `<button class="btn-icon btn-icon-danger" data-del="${esc(c.id)}" aria-label="Borrar ${esc(c.n)}">${icon('basura')}</button>`}
     </li>`;
   };
 

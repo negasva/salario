@@ -276,7 +276,8 @@ export function proyeccion(final, recurrentes, movs, periodo) {
    con aviso la víspera a las 9 de la mañana. El 31 cae en el último día de
    los meses cortos. Una deuda solo repite las cuotas que le faltan. */
 export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date()) {
-  const esc = (t) => String(t).replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
+  // un salto de línea dentro de un valor abriría una propiedad nueva del calendario
+  const esc = (t) => String(t).replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r\n|\r|\n/g, '\\n');
   const plata = (v) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(v);
   const dtstamp = sello.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const actual = periodoDe(hoy);
@@ -293,7 +294,7 @@ export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date()) {
     const dias = r.dia > 28 ? `${Array.from({ length: r.dia - 27 }, (_, i) => 28 + i).join(',')};BYSETPOS=-1` : String(r.dia);
     return [
       'BEGIN:VEVENT',
-      `UID:${r.id}@reparto-mensual`,
+      `UID:${String(r.id).replace(/[^A-Za-z0-9-]/g, '')}@reparto-mensual`,
       `DTSTAMP:${dtstamp}`,
       `DTSTART;VALUE=DATE:${inicio}`,
       `RRULE:FREQ=MONTHLY;BYMONTHDAY=${dias}${count}`,

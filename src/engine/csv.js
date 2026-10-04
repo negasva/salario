@@ -12,8 +12,11 @@ import { clave, nombreDe, fallbackDe } from './categorias.js';
 
 /* ---------- exportar ---------- */
 
+/* Excel y Hojas ejecutan como fórmula un texto que empieza por = + - @: la
+   descripción de un banco o una nota pegada de otro lado podría ser una. Se le
+   pone un apóstrofo delante. Los montos son números y no se tocan. */
 function celda(v) {
-  const t = String(v ?? '');
+  const t = typeof v === 'string' && /^[=+\-@\t\r]/.test(v) ? `'${v}` : String(v ?? '');
   return /[;"\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 }
 

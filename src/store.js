@@ -10,6 +10,7 @@ import { fusionar } from './engine/sync.js';
    { v, name, saldoInicial, cats, movs, recurrentes, arranques, metas }. */
 
 const KEY = 'reparto:v11';
+const RETENIDA = 'reparto:retenida:'; // copias con cambios sin subir de otra cuenta, por dueño
 const KEYS_NUEVAS = ['reparto:v10', 'reparto:v9'];
 const KEYS_V8 = ['reparto:v8', 'reparto:v7', 'reparto:v6', 'reparto:v5'];
 
@@ -100,20 +101,17 @@ function escribirLocal() {
   catch { /* almacenamiento lleno o bloqueado: se sigue en memoria */ }
 }
 
-export function load() {
-  const v = leerLocal();
+function aplicarBlob(v) {
   remoteId = v?.remoteId || null;
   sello = v?.sello || null;
   duenoLocal = v?.dueno || null;
   pushPendiente = !!v?.pendiente;
   reinicio = !!v?.reinicio;
   perfil = v ? normalizar(v) : freshProfile();
-  delete perfil.remoteId;
-  delete perfil.sello;
-  delete perfil.pendiente;
-  delete perfil.reinicio;
-  delete perfil.dueno;
+  ['remoteId', 'sello', 'pendiente', 'reinicio', 'dueno'].forEach((k) => delete perfil[k]);
 }
+
+export function load() { aplicarBlob(leerLocal()); }
 
 export function save() {
   if (userId) programarPush();
@@ -157,10 +155,9 @@ async function flushPush() {
     if (!data?.length) { await juntarConLaNube(); return; }
     conflictos = 0;
     fallos = 0;
-    reinicio = false;
     remoteId = data[0].id;
     sello = data[0].updated_at;
-    if (version === cambios) pushPendiente = false;
+    if (version === cambios) { pushPendiente = false; reinicio = false; }
     escribirLocal();
     if (pushPendiente) reintentar(2000);
   } catch {
@@ -202,11 +199,19 @@ window.addEventListener('online', () => { if (pushPendiente) flushPush(); });
 export async function bootAuth(uid) {
   userId = uid;
   if (!uid) return { migrated: false };
-  if (duenoLocal && duenoLocal !== uid) {
-    // la copia local es de otra cuenta: no se mezcla con esta
-    perfil = freshProfile();
-    remoteId = null; sello = null; pushPendiente = false; reinicio = false;
-  }
+  try {
+    if (duenoLocal && duenoLocal !== uid) {
+      // la copia local es de otra cuenta: no se mezcla con esta; si traía cambios sin subir, se aparta para cuando vuelva
+      if (pushPendiente) localStorage.setItem(`${RETENIDA}${duenoLocal}`, localStorage.getItem(KEY) || '');
+      perfil = freshProfile();
+      remoteId = null; sello = null; pushPendiente = false; reinicio = false;
+    }
+    const apartada = localStorage.getItem(`${RETENIDA}${uid}`);
+    if (apartada && !pushPendiente) {
+      aplicarBlob(JSON.parse(apartada));
+      localStorage.removeItem(`${RETENIDA}${uid}`);
+    }
+  } catch { /* almacenamiento bloqueado o copia ilegible: se sigue con la nube */ }
   duenoLocal = uid;
   fallos = 0;
   const { data, error } = await supabase.from('perfiles').select('*').eq('user_id', uid)
@@ -229,6 +234,7 @@ export async function bootAuth(uid) {
       notify();
       return { migrated: false, recuperados: 0 };
     }
+    reinicio = false;
     remoteId = fila.id;
     sello = fila.updated_at;
     perfil = remoto;
@@ -256,6 +262,7 @@ export function signOutLocal() {
     remoteId = null;
     sello = null;
     duenoLocal = null;
+    reinicio = false;
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   }
   perfil = freshProfile();

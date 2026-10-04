@@ -277,5 +277,32 @@ describe('sincronizar sin perder lo hecho', () => {
     s.setPersona({ nombre: 'Otro' });
     expect(JSON.parse(localStorage.getItem('reparto:v11')).movs).toHaveLength(1);
   });
+
+  it('los cambios sin subir de una cuenta esperan a que ella vuelva a entrar', async () => {
+    await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true, dueno: 'u1' }, [fila('t1')]);
+    store.signOutLocal();
+    nube.supabase = nubeFalsa([{ ...fila('t5'), id: 'r2', user_id: 'u2' }]);
+    await store.bootAuth('u2'); // entra otra persona: no ve ni hereda lo de u1
+    expect(store.active().movs).toHaveLength(0);
+    const guardado = { ...localStorage._datos };
+    const rows = [fila('t1')];
+    await cargarCon(guardado);
+    nube.supabase = nubeFalsa(rows);
+    await store.bootAuth('u1'); // vuelve u1: recupera lo suyo y lo sube
+    await store.subirYa();
+    expect(ids(rows[0].data.movs)).toEqual(['a']);
+  });
+
+  it('un borrado total no deja la marca colgada: después se junta con la nube', async () => {
+    const rows = [fila('t1', 'a')];
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, rows);
+    s.reiniciar();
+    await s.subirYa(); // sube el borrado y apaga la marca
+    Object.assign(rows[0], { updated_at: 't9', data: perfilCon('z') }); // otro dispositivo
+    s.active().movs.push(mv('n'));
+    s.save();
+    await s.subirYa();
+    expect(ids(rows[0].data.movs)).toEqual(['n', 'z']);
+  });
 });
 

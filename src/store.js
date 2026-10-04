@@ -218,7 +218,7 @@ export async function bootAuth(uid) {
   fallos = 0;
   const { data, error } = await supabase.from('perfiles').select('*').eq('user_id', uid)
     .order('updated_at', { ascending: false });
-  if (error) return { migrated: false };
+  if (error) { if (pushPendiente) reintentar(4000); return { migrated: false }; }
   if (data?.length) {
     /* Un solo perfil: si la cuenta traía varios, manda el que se usó por
        última vez. Las otras filas no se tocan. */

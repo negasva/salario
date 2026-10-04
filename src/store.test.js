@@ -312,5 +312,20 @@ describe('sincronizar sin perder lo hecho', () => {
     expect(ids(store.active().movs)).toEqual(['b']);
     expect(localStorage.getItem('reparto:retenida:u1')).toBeNull();
   });
+
+  it('si al abrir falla la consulta con cambios pendientes, reintenta solo', async () => {
+    vi.useFakeTimers();
+    try {
+      const rows = [fila('t1')];
+      const roto = { from: () => { const b = { select: () => b, eq: () => b, order: () => b, then: (ok) => ok({ data: null, error: new Error('sin red') }) }; return b; } };
+      nube.supabase = roto;
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), remoteId: 'r1', sello: 't1', pendiente: true }) });
+      await store.bootAuth('u1');
+      expect(ids(rows[0].data.movs)).toEqual([]);
+      nube.supabase = nubeFalsa(rows);
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(ids(rows[0].data.movs)).toEqual(['a']);
+    } finally { vi.useRealTimers(); }
+  });
 });
 

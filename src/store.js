@@ -276,8 +276,8 @@ export function signOutLocal() {
     duenoLocal = null;
     reinicio = false;
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
-    limpiarViejas();
   }
+  limpiarViejas(); // si hay una copia con cambios sin subir, ya lleva todo lo que estas tenían
   perfil = freshProfile();
 }
 

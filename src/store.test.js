@@ -365,5 +365,13 @@ describe('privacidad: no quedan datos viejos en el navegador', () => {
     await store.bootAuth('u2');
     expect(store.active().recurrentes).toEqual([]);
   });
+
+  it('cerrar sesión con cambios sin subir también borra las copias viejas', async () => {
+    await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true, dueno: 'u1' }, [fila('t1')]);
+    localStorage.setItem('reparto:v8', JSON.stringify(V8));
+    store.signOutLocal();
+    expect(localStorage.getItem('reparto:v8')).toBeNull();
+    expect(localStorage.getItem('reparto:v11')).not.toBeNull(); // la copia con cambios sin subir se conserva
+  });
 });
 

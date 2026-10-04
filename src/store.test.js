@@ -418,15 +418,19 @@ describe('respaldo y restauración', () => {
 });
 
 describe('una fila por cuenta en la base', () => {
-  it('si otro dispositivo crea la fila justo antes de insertar, se junta con ella en vez de fallar', async () => {
-    const rows = [];
-    let creada = false;
-    nube.supabase = nubeFalsa(rows, null, () => { if (!creada) { creada = true; rows.push(fila('t1', 'b')); } });
-    await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
-    await store.bootAuth('u1');
-    expect(await store.subirYa()).toBe(true);
-    expect(rows).toHaveLength(1);
-    expect(ids(rows[0].data.movs)).toEqual(['a', 'b']);
+  it('si otro dispositivo crea la fila justo antes de insertar, se junta con ella enseguida en vez de esperar al reintento', async () => {
+    vi.useFakeTimers();
+    try {
+      const rows = [];
+      let creada = false;
+      nube.supabase = nubeFalsa(rows, null, () => { if (!creada) { creada = true; rows.push(fila('t1', 'b')); } });
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+      await store.bootAuth('u1');
+      await vi.advanceTimersByTimeAsync(50); // el reintento del choque es inmediato; el de un error común, de 4 s
+      expect(rows).toHaveLength(1);
+      expect(ids(rows[0].data.movs)).toEqual(['a', 'b']);
+    } finally { vi.useRealTimers(); }
   });
+});
 });
 

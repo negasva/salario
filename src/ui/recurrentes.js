@@ -371,10 +371,11 @@ export function renderRecurrentes(root) {
   const sugeridos = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
   root.querySelectorAll('[data-no]').forEach((b) => {
     b.onclick = () => {
-      p.ignoradas.push(sugeridos[Number(b.dataset.no)].clave);
+      const { clave } = sugeridos[Number(b.dataset.no)];
+      p.ignoradas.push(clave);
       store.save();
       repintar();
-      toast('Listo, no te lo vuelvo a sugerir.', () => { p.ignoradas.pop(); store.save(); repintar(); });
+      toast('Listo, no te lo vuelvo a sugerir.', () => { p.ignoradas = p.ignoradas.filter((k) => k !== clave); store.save(); repintar(); });
     };
   });
   root.querySelectorAll('[data-sug]').forEach((b) => {

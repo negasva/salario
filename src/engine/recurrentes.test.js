@@ -3,7 +3,7 @@ import {
   fechaEnPeriodo, fechaSugerida, nuevoRecurrente, pendientes, pagosDelMes, estaPagado, estadoDelMes,
   abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos, resumen,
   normalizarCuotas, mesesEntre, numeroCuota, mesFinal, activoEn, estadoDeuda,
-  diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia,
+  diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from './recurrentes.js';
 
 const nuevo = (n, monto, extra = {}) => nuevoRecurrente({ n, monto, catId: 'viv', dia: 5, ...extra });
@@ -320,5 +320,11 @@ describe('sugerir recurrentes', () => {
     expect(rec).toMatchObject({ n: 'Netflix', monto: 30000, dia: 5 });
     expect(ligados.map((m) => m.fecha)).toEqual(['2026-08-05', '2026-09-06', '2026-10-03']);
     expect(movs.filter((m) => m.recId).length).toBe(3);
+  });
+});
+
+describe('total al mes de las sugerencias', () => {
+  it('suma solo los gastos', () => {
+    expect(totalAlMes([{ tipo: 'gasto', monto: 30000 }, { tipo: 'ingreso', monto: 2000000 }, { tipo: 'gasto', monto: 90000 }])).toBe(120000);
   });
 });

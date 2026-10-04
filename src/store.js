@@ -21,6 +21,9 @@ let pushPendiente = false;   // hay cambios locales que la nube aún no tiene; s
 let sello = null;            // el updated_at de la fila de la nube que este dispositivo vio por última vez
 let cambios = 0;             // sube con cada edición, para saber si algo cambió mientras se subía
 let enVuelo = false;
+let fallos = 0;              // fallos seguidos al subir: espera creciente y aviso en el perfil
+let reinicio = false;        // tras "borrar todo" la nube se sobrescribe, no se fusiona
+let duenoLocal = null;       // de quién es la copia local: otra cuenta no hereda cambios ajenos
 let conflictos = 0;          // choques seguidos al subir, para no insistir sin fin
 let pushTimer = null;
 
@@ -92,7 +95,7 @@ function leerLocal() {
 }
 
 function escribirLocal() {
-  try { localStorage.setItem(KEY, JSON.stringify({ ...perfil, remoteId, sello, pendiente: pushPendiente })); }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...perfil, remoteId, sello, pendiente: pushPendiente, dueno: userId || duenoLocal })); }
   catch { /* almacenamiento lleno o bloqueado: se sigue en memoria */ }
 }
 
@@ -100,11 +103,13 @@ export function load() {
   const v = leerLocal();
   remoteId = v?.remoteId || null;
   sello = v?.sello || null;
+  duenoLocal = v?.dueno || null;
   pushPendiente = !!v?.pendiente;
   perfil = v ? normalizar(v) : freshProfile();
   delete perfil.remoteId;
   delete perfil.sello;
   delete perfil.pendiente;
+  delete perfil.dueno;
 }
 
 export function save() {
@@ -134,6 +139,12 @@ async function flushPush() {
   const version = cambios;
   const fila = { user_id: userId, nombre: perfil.name, updated_at: new Date().toISOString(), data: perfil };
   try {
+    if (!remoteId) {
+      // otro dispositivo pudo crear la fila hace un instante: se junta con ella en vez de duplicarla
+      const { data: ya, error: e } = await supabase.from('perfiles').select('*').eq('user_id', userId);
+      if (e) throw e;
+      if (ya?.length) { remoteId = ya[0].id; await juntarConLaNube(); return; }
+    }
     const q = supabase.from('perfiles');
     const { data, error } = remoteId
       ? await q.update(fila).eq('id', remoteId).eq('updated_at', sello).select()
@@ -141,13 +152,15 @@ async function flushPush() {
     if (error) throw error;
     if (!data?.length) { await juntarConLaNube(); return; }
     conflictos = 0;
+    fallos = 0;
+    reinicio = false;
     remoteId = data[0].id;
     sello = data[0].updated_at;
     if (version === cambios) pushPendiente = false;
     escribirLocal();
     if (pushPendiente) reintentar(2000);
   } catch {
-    reintentar(4000);
+    reintentar(Math.min(60000, 4000 * 2 ** fallos++));
   } finally {
     enVuelo = false;
   }
@@ -159,7 +172,7 @@ async function juntarConLaNube() {
   if (error) throw error;
   const fila = data?.[0];
   if (fila) {
-    perfil = normalizar(fusionar(perfil, normalizar({ ...fila.data, name: fila.nombre || fila.data?.name })));
+    if (!reinicio) perfil = normalizar(fusionar(perfil, normalizar({ ...fila.data, name: fila.nombre || fila.data?.name })));
     sello = fila.updated_at;
   } else {
     remoteId = null; // la fila ya no existe: se vuelve a crear
@@ -185,6 +198,12 @@ window.addEventListener('online', () => { if (pushPendiente) flushPush(); });
 export async function bootAuth(uid) {
   userId = uid;
   if (!uid) return { migrated: false };
+  if (duenoLocal && duenoLocal !== uid) {
+    // la copia local es de otra cuenta: no se mezcla con esta
+    perfil = freshProfile();
+    remoteId = null; sello = null; pushPendiente = false;
+  }
+  duenoLocal = uid;
   const { data, error } = await supabase.from('perfiles').select('*').eq('user_id', uid)
     .order('updated_at', { ascending: false });
   if (error) return { migrated: false };
@@ -221,12 +240,23 @@ export async function bootAuth(uid) {
   return { migrated: habiaLocal };
 }
 
+/* Cerrar sesión borra la copia local, salvo que tenga cambios sin subir (por
+   ejemplo, la sesión caducó sin red): esos se guardan para subirlos al volver
+   a entrar con la misma cuenta. */
 export function signOutLocal() {
+  clearTimeout(pushTimer);
   userId = null;
-  remoteId = null;
-  try { localStorage.removeItem(KEY); } catch { /* noop */ }
+  if (!pushPendiente) {
+    remoteId = null;
+    sello = null;
+    duenoLocal = null;
+    try { localStorage.removeItem(KEY); } catch { /* noop */ }
+  }
   perfil = freshProfile();
 }
+
+// Quien cierra sesión sabiendo que hay cambios sin subir los descarta.
+export function descartarPendiente() { pushPendiente = false; }
 
 /* ---------- borrado con deshacer ---------- */
 
@@ -264,6 +294,7 @@ export function setPersona(cambios) {
 export function estadoSync() {
   if (!userId) return 'local';
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'sin-red';
+  if (pushPendiente && fallos >= 3) return 'error';
   return pushPendiente ? 'subiendo' : 'al-dia';
 }
 
@@ -271,6 +302,7 @@ export function estadoSync() {
    nombre de la persona y el del presupuesto: lo que se vacía son los números. */
 export function reiniciar() {
   const antes = perfil;
+  reinicio = true;
   perfil = { ...freshProfile(perfil.name), persona: perfil.persona };
   save();
   return antes;

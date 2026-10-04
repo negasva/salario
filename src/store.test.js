@@ -148,7 +148,8 @@ describe('sugerencias descartadas', () => {
 });
 
 /* Supabase de mentira: una tabla en memoria con select, update, insert y eq. */
-function nubeFalsa(rows) {
+function nubeFalsa(rows, alConsultar) {
+  let consultas = 0;
   return {
     from: () => {
       const filtros = [];
@@ -161,6 +162,7 @@ function nubeFalsa(rows) {
         insert: (c) => { accion = 'insert'; carga = c; return b; },
         eq: (col, v) => { filtros.push([col, v]); return b; },
         then: (ok) => {
+          if (accion === 'select') alConsultar?.(consultas++);
           const m = rows.filter((r) => filtros.every(([c, v]) => r[c] === v));
           if (accion === 'insert') { const r = { id: `n${rows.length}`, ...carga }; rows.push(r); return ok({ data: [r], error: null }); }
           if (accion === 'update') m.forEach((r) => Object.assign(r, carga));
@@ -225,4 +227,40 @@ describe('sincronizar sin perder lo hecho', () => {
     s.restaurar(antes);
     expect(ids(s.active().movs)).toEqual(['a']);
   });
+
+  it('primer login desde dos dispositivos: se junta con la fila que acaba de aparecer, sin duplicarla', async () => {
+    const rows = [];
+    nube.supabase = nubeFalsa(rows, (n) => { if (n === 1) rows.push(fila('t1', 'b')); });
+    await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+    await store.bootAuth('u1');
+    expect(await store.subirYa()).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(ids(rows[0].data.movs)).toEqual(['a', 'b']);
+  });
+
+  it('borrar todo no se deshace solo al juntarse con una nube que cambió', async () => {
+    const rows = [fila('t1', 'a')];
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, rows);
+    Object.assign(rows[0], { updated_at: 't9', data: perfilCon('a', 'b') }); // otro dispositivo
+    s.reiniciar();
+    await s.subirYa();
+    expect(rows[0].data.movs).toHaveLength(0);
+  });
+
+  it('cerrar sesión con cambios sin subir conserva la copia; otra cuenta no la hereda', async () => {
+    const rows = [fila('t1')];
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true, dueno: 'u1' }, rows);
+    s.signOutLocal();
+    expect(localStorage.getItem('reparto:v11')).not.toBeNull();
+    const otra = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true, dueno: 'u0' }, [fila('t1')]);
+    expect(otra.active().movs).toHaveLength(0);
+  });
+
+  it('descartar lo pendiente deja cerrar sesión limpia', async () => {
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true, dueno: 'u1' }, [fila('t1')]);
+    s.descartarPendiente();
+    s.signOutLocal();
+    expect(localStorage.getItem('reparto:v11')).toBeNull();
+  });
 });
+

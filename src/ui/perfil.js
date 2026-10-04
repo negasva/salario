@@ -17,6 +17,7 @@ const SYNC = {
   'al-dia': { ic: 'nube', t: 'Todo guardado', d: 'Tus datos están en tu cuenta.' },
   subiendo: { ic: 'nube', t: 'Guardando…', d: 'Subiendo los últimos cambios.' },
   'sin-red': { ic: 'nube-no', t: 'Sin conexión', d: 'Se sube al volver la red.' },
+  error: { ic: 'nube-no', t: 'No se pudo guardar', d: 'Sigue intentando. Tus datos están a salvo en este dispositivo.' },
   local: { ic: 'nube-no', t: 'Solo en este dispositivo', d: 'Entra con tu cuenta para guardar en la nube.' },
 };
 

@@ -148,7 +148,7 @@ describe('sugerencias descartadas', () => {
 });
 
 /* Supabase de mentira: una tabla en memoria con select, update, insert y eq. */
-function nubeFalsa(rows, alConsultar) {
+function nubeFalsa(rows, alConsultar, antesDeInsertar) {
   let consultas = 0;
   return {
     from: () => {
@@ -164,7 +164,14 @@ function nubeFalsa(rows, alConsultar) {
         then: (ok) => {
           if (accion === 'select') alConsultar?.(consultas++);
           const m = rows.filter((r) => filtros.every(([c, v]) => r[c] === v));
-          if (accion === 'insert') { const r = { id: `n${rows.length}`, ...carga }; rows.push(r); return ok({ data: [r], error: null }); }
+          if (accion === 'insert') {
+            antesDeInsertar?.();
+            // como la base: una sola fila por cuenta
+            if (rows.some((x) => x.user_id === carga.user_id)) return ok({ data: null, error: { code: '23505' } });
+            const r = { id: `n${rows.length}`, ...carga };
+            rows.push(r);
+            return ok({ data: [r], error: null });
+          }
           if (accion === 'update') m.forEach((r) => Object.assign(r, carga));
           return ok({ data: m, error: null });
         },
@@ -407,6 +414,19 @@ describe('respaldo y restauración', () => {
     expect(store.ultimoRespaldo()).toBeNull();
     store.marcarRespaldo('2026-10-04');
     expect(store.ultimoRespaldo()).toBe('2026-10-04');
+  });
+});
+
+describe('una fila por cuenta en la base', () => {
+  it('si otro dispositivo crea la fila justo antes de insertar, se junta con ella en vez de fallar', async () => {
+    const rows = [];
+    let creada = false;
+    nube.supabase = nubeFalsa(rows, null, () => { if (!creada) { creada = true; rows.push(fila('t1', 'b')); } });
+    await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+    await store.bootAuth('u1');
+    expect(await store.subirYa()).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(ids(rows[0].data.movs)).toEqual(['a', 'b']);
   });
 });
 

@@ -161,6 +161,8 @@ async function flushPush() {
     const { data, error } = remoteId
       ? await q.update(fila).eq('id', remoteId).eq('updated_at', sello).select()
       : await q.insert(fila).select();
+    // la base permite una fila por cuenta: si otro dispositivo la creó hace un instante, la próxima vuelta la encuentra y se junta con ella
+    if (error?.code === '23505') { reintentar(++conflictos > 3 ? 30000 : 0); return; }
     if (error) throw error;
     if (userId !== uid) return; // se cerró la sesión (o entró otra cuenta) mientras subía
     if (!data?.length) { await juntarConLaNube(); return; }

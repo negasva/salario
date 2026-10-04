@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { VERSION } from './engine/migrar.js';
 
 /* El store habla con Supabase y con el navegador. Aquí los dos son de mentira:
    lo que se prueba es que al abrir la app aparezca lo que había guardado. */
 
-vi.mock('./auth.js', () => ({ supabase: { from: () => ({}) } }));
+const nube = vi.hoisted(() => ({ supabase: { from: () => ({}) } }));
+vi.mock('./auth.js', () => ({ get supabase() { return nube.supabase; } }));
 
 function falsoLocalStorage(inicial = {}) {
   const datos = { ...inicial };
@@ -142,5 +144,85 @@ describe('sugerencias descartadas', () => {
     store.save();
     const guardado = localStorage.getItem('reparto:v11');
     expect((await cargarCon({ 'reparto:v11': guardado })).ignoradas).toEqual(['gasto|ser|gym']);
+  });
+});
+
+/* Supabase de mentira: una tabla en memoria con select, update, insert y eq. */
+function nubeFalsa(rows) {
+  return {
+    from: () => {
+      const filtros = [];
+      let accion = 'select';
+      let carga;
+      const b = {
+        select: () => b,
+        order: () => b,
+        update: (c) => { accion = 'update'; carga = c; return b; },
+        insert: (c) => { accion = 'insert'; carga = c; return b; },
+        eq: (col, v) => { filtros.push([col, v]); return b; },
+        then: (ok) => {
+          const m = rows.filter((r) => filtros.every(([c, v]) => r[c] === v));
+          if (accion === 'insert') { const r = { id: `n${rows.length}`, ...carga }; rows.push(r); return ok({ data: [r], error: null }); }
+          if (accion === 'update') m.forEach((r) => Object.assign(r, carga));
+          return ok({ data: m, error: null });
+        },
+      };
+      return b;
+    },
+  };
+}
+
+const mv = (id) => ({ id, fecha: '2026-10-01', tipo: 'gasto', monto: 1000, catId: 'otros', nota: id });
+const cats = [{ id: 'otros', n: 'Otros', m: 0, c: '#222' }];
+const perfilCon = (...ids) => ({ v: VERSION, name: 'Casa', saldoInicial: 0, cats, movs: ids.map(mv), recurrentes: [], arranques: {}, metas: [] });
+const fila = (updated_at, ...ids) => ({ id: 'r1', user_id: 'u1', nombre: 'Casa', updated_at, data: perfilCon(...ids) });
+
+async function abrirCon(local, rows) {
+  nube.supabase = nubeFalsa(rows);
+  await cargarCon({ 'reparto:v11': JSON.stringify({ ...local, remoteId: 'r1' }) });
+  await store.bootAuth('u1');
+  return store;
+}
+const ids = (movs) => movs.map((m) => m.id).sort();
+
+describe('sincronizar sin perder lo hecho', () => {
+  it('lo registrado sin red sobrevive a cerrar y abrir la app, y luego sube', async () => {
+    const rows = [fila('t1')];
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true }, rows);
+    expect(ids(s.active().movs)).toEqual(['a']);
+    expect(await s.subirYa()).toBe(true);
+    expect(ids(rows[0].data.movs)).toEqual(['a']);
+    expect(rows[0].updated_at).not.toBe('t1');
+  });
+
+  it('si otro dispositivo escribió mientras tanto, se juntan las dos copias', async () => {
+    const rows = [fila('t2', 'b')];
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true }, rows);
+    expect(ids(s.active().movs)).toEqual(['a', 'b']);
+    await s.subirYa();
+    expect(ids(rows[0].data.movs)).toEqual(['a', 'b']);
+  });
+
+  it('sin cambios pendientes manda la nube', async () => {
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, [fila('t2', 'b')]);
+    expect(ids(s.active().movs)).toEqual(['b']);
+  });
+
+  it('al subir, si la nube cambió, no la pisa: la junta y vuelve a subir', async () => {
+    const rows = [fila('t1')];
+    const s = await abrirCon({ ...perfilCon(), sello: 't1', pendiente: false }, rows);
+    Object.assign(rows[0], { updated_at: 't9', data: perfilCon('b') }); // otro dispositivo
+    s.active().movs.push(mv('c'));
+    s.save();
+    expect(await s.subirYa()).toBe(true);
+    expect(ids(rows[0].data.movs)).toEqual(['b', 'c']);
+  });
+
+  it('borrar todo se puede deshacer', async () => {
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, [fila('t1', 'a')]);
+    const antes = s.reiniciar();
+    expect(s.active().movs).toHaveLength(0);
+    s.restaurar(antes);
+    expect(ids(s.active().movs)).toEqual(['a']);
   });
 });

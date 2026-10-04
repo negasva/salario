@@ -3,6 +3,7 @@ import { categoriasBase, normalizarCats } from './engine/categorias.js';
 import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/migrar.js';
 import { normalizarMetas } from './engine/ahorro.js';
 import { normalizarPersona } from './engine/persona.js';
+import { fusionar } from './engine/sync.js';
 
 /* Un perfil, un blob. localStorage es la caché y Supabase la fuente de verdad:
    la UI nunca espera al servidor. El perfil es
@@ -16,7 +17,11 @@ let perfil = null;
 let remoteId = null;
 let userId = null;
 let correoUsuario = '';
-let pushPendiente = false;
+let pushPendiente = false;   // hay cambios locales que la nube aún no tiene; se guarda con el perfil
+let sello = null;            // el updated_at de la fila de la nube que este dispositivo vio por última vez
+let cambios = 0;             // sube con cada edición, para saber si algo cambió mientras se subía
+let enVuelo = false;
+let conflictos = 0;          // choques seguidos al subir, para no insistir sin fin
 let pushTimer = null;
 
 const listeners = [];
@@ -87,20 +92,24 @@ function leerLocal() {
 }
 
 function escribirLocal() {
-  try { localStorage.setItem(KEY, JSON.stringify({ ...perfil, remoteId })); }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...perfil, remoteId, sello, pendiente: pushPendiente })); }
   catch { /* almacenamiento lleno o bloqueado: se sigue en memoria */ }
 }
 
 export function load() {
   const v = leerLocal();
   remoteId = v?.remoteId || null;
+  sello = v?.sello || null;
+  pushPendiente = !!v?.pendiente;
   perfil = v ? normalizar(v) : freshProfile();
   delete perfil.remoteId;
+  delete perfil.sello;
+  delete perfil.pendiente;
 }
 
 export function save() {
-  escribirLocal();
   if (userId) programarPush();
+  escribirLocal();
   notify();
 }
 
@@ -108,23 +117,67 @@ export function save() {
 
 function programarPush() {
   pushPendiente = true;
+  cambios++;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(flushPush, 2000);
 }
 
+const reintentar = (ms) => { clearTimeout(pushTimer); pushTimer = setTimeout(flushPush, ms); };
+
+/* Sube el perfil solo si la nube sigue como este dispositivo la vio: si otro
+   dispositivo escribió entre medias, no se pisa; se trae lo suyo, se junta con
+   lo local y se vuelve a subir. Un fallo (sin red) deja la marca de pendiente
+   guardada en el disco, así que sobrevive a cerrar la app. */
 async function flushPush() {
-  if (!userId || !pushPendiente) return;
-  pushPendiente = false;
-  const { data, error } = await supabase.from('perfiles').upsert({
-    id: remoteId || undefined,
-    user_id: userId,
-    nombre: perfil.name,
-    updated_at: new Date().toISOString(),
-    data: perfil,
-  }, { onConflict: 'id' }).select().single();
-  if (error) { pushPendiente = true; clearTimeout(pushTimer); pushTimer = setTimeout(flushPush, 4000); return; }
-  // sin esto cada push insertaría una fila nueva en vez de actualizar la suya
-  if (data?.id && remoteId !== data.id) { remoteId = data.id; escribirLocal(); }
+  if (!userId || !pushPendiente || enVuelo) return;
+  enVuelo = true;
+  const version = cambios;
+  const fila = { user_id: userId, nombre: perfil.name, updated_at: new Date().toISOString(), data: perfil };
+  try {
+    const q = supabase.from('perfiles');
+    const { data, error } = remoteId
+      ? await q.update(fila).eq('id', remoteId).eq('updated_at', sello).select()
+      : await q.insert(fila).select();
+    if (error) throw error;
+    if (!data?.length) { await juntarConLaNube(); return; }
+    conflictos = 0;
+    remoteId = data[0].id;
+    sello = data[0].updated_at;
+    if (version === cambios) pushPendiente = false;
+    escribirLocal();
+    if (pushPendiente) reintentar(2000);
+  } catch {
+    reintentar(4000);
+  } finally {
+    enVuelo = false;
+  }
+}
+
+// La nube cambió desde la última vez que se vio: se junta con lo local y se vuelve a subir.
+async function juntarConLaNube() {
+  const { data, error } = await supabase.from('perfiles').select('*').eq('id', remoteId);
+  if (error) throw error;
+  const fila = data?.[0];
+  if (fila) {
+    perfil = normalizar(fusionar(perfil, normalizar({ ...fila.data, name: fila.nombre || fila.data?.name })));
+    sello = fila.updated_at;
+  } else {
+    remoteId = null; // la fila ya no existe: se vuelve a crear
+  }
+  cambios++;
+  escribirLocal();
+  notify();
+  reintentar(++conflictos > 3 ? 30000 : 0);
+}
+
+// Sube ya lo que esté esperando. Devuelve false si quedó algo sin subir (sin red).
+export async function subirYa() {
+  for (let i = 0; i < 3 && pushPendiente; i++) {
+    clearTimeout(pushTimer);
+    while (enVuelo) await new Promise((r) => setTimeout(r, 20));
+    await flushPush();
+  }
+  return !pushPendiente;
 }
 
 window.addEventListener('online', () => { if (pushPendiente) flushPush(); });
@@ -139,9 +192,22 @@ export async function bootAuth(uid) {
     /* Un solo perfil: si la cuenta traía varios, manda el que se usó por
        última vez. Las otras filas no se tocan. */
     const fila = data.find((r) => r.id === remoteId) || data[0];
-    remoteId = fila.id;
+    const remoto = normalizar({ ...fila.data, name: fila.nombre || fila.data?.name });
     const antes = fila.data?.recurrentes?.length || 0;
-    perfil = normalizar({ ...fila.data, name: fila.nombre || fila.data?.name });
+    /* Con cambios locales sin subir la nube no pisa: si nadie más escribió
+       (mismo sello) gana lo local; si alguien escribió, se juntan las dos. */
+    if (pushPendiente) {
+      if (fila.id !== remoteId || fila.updated_at !== sello) perfil = normalizar(fusionar(perfil, remoto));
+      remoteId = fila.id;
+      sello = fila.updated_at;
+      escribirLocal();
+      programarPush();
+      notify();
+      return { migrated: false, recuperados: 0 };
+    }
+    remoteId = fila.id;
+    sello = fila.updated_at;
+    perfil = remoto;
     escribirLocal();
     // se sube si la migración o el rescate cambiaron algo
     if (esViejo(fila.data) || perfil.recurrentes.length !== antes) programarPush();
@@ -204,7 +270,15 @@ export function estadoSync() {
 /* Borra todo lo que se registró y deja la cuenta como nueva. Se queda el
    nombre de la persona y el del presupuesto: lo que se vacía son los números. */
 export function reiniciar() {
+  const antes = perfil;
   perfil = { ...freshProfile(perfil.name), persona: perfil.persona };
+  save();
+  return antes;
+}
+
+// Devuelve el perfil que había antes de reiniciar (el deshacer de "borrar todos los datos").
+export function restaurar(antes) {
+  perfil = antes;
   save();
 }
 

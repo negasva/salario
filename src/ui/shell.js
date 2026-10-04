@@ -76,6 +76,8 @@ export function renderShell(root, currentRoute, onNavigate) {
 
 // sale y vuelve a la entrada sin #: al entrar de nuevo se empieza por Inicio
 export async function salir(todos = false) {
+  // lo que se hizo sin red y aún no subió se perdería al cerrar sesión
+  if (!(await store.subirYa()) && !window.confirm('Hay cambios que todavía no se subieron a la nube. Si cierras sesión ahora se pierden. ¿Cerrar sesión de todos modos?')) return;
   await (todos ? cerrarEnTodos() : signOut());
   history.replaceState(null, '', location.pathname);
   location.reload();

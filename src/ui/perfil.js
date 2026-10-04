@@ -174,8 +174,8 @@ export async function renderPerfil(root) {
   $('#pfSalir').onclick = () => salir();
   $('#pfSalirTodos').onclick = () => salir(true);
   mantenerPresionado($('#pfBorrar'), 2000, () => {
-    store.reiniciar();
-    toast('Datos borrados. Empiezas de cero.');
+    const antes = store.reiniciar();
+    toast('Datos borrados. Empiezas de cero.', () => { store.restaurar(antes); toast('Datos recuperados.'); });
     window.dispatchEvent(new CustomEvent('ir-a-vista', { detail: { route: 'inicio' } }));
   });
 }

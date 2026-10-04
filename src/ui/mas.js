@@ -7,8 +7,7 @@ import { esc } from '../format.js';
 
 const DETALLE = {
   recurrentes: 'Lo que se paga cada mes',
-  reportes: 'Mes y año, calendario, imprimir',
-  comparar: 'Cada categoría contra antes',
+  reportes: 'Mes y año, contra antes, calendario, imprimir',
   categorias: 'Nombres y presupuestos',
   ajustes: 'Saldo, datos, avisos',
 };

@@ -18,7 +18,6 @@ export const NAV = [
   { id: 'recurrentes', label: 'Recurrentes', ic: 'recurrente' },
   { id: 'ahorro', label: 'Ahorro', ic: 'ahorro', tel: true },
   { id: 'reportes', label: 'Reportes', ic: 'reportes' },
-  { id: 'comparar', label: 'Comparar', ic: 'comparar' },
   { id: 'categorias', label: 'Categorías', ic: 'categorias' },
   { id: 'ajustes', label: 'Ajustes', ic: 'ajustes' },
   { id: 'mas', label: 'Más', ic: 'mas-menu', soloTel: true },

@@ -254,7 +254,8 @@ function seccionDeudas(deudas, p, per) {
 /* Lo que ya haces cada mes sin haberlo marcado: un toque y pasa a recurrentes. */
 function tarjetaSugeridos(p) {
   const lista = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
-  if (!lista.length) return '';
+  const volver = p.ignoradas.length ? `<button class="mini" id="reVolver">Volver a sugerir las ${p.ignoradas.length} descartadas</button>` : '';
+  if (!lista.length) return volver;
   const alMes = totalAlMes(lista);
   return `<section class="card sugeridos">
     <div class="card-head"><h2 class="card-title">Se repite cada mes</h2></div>
@@ -264,7 +265,7 @@ function tarjetaSugeridos(p) {
       <button class="mini" data-no="${i}" aria-label="${esc(s.n)} no es recurrente">No</button>
       <button class="mini btn-primary" data-sug="${i}" aria-label="Agregar ${esc(s.n)} como recurrente">Agregar</button>
     </li>`).join('')}</ul>
-  </section>`;
+  </section>${volver}`;
 }
 
 export function renderRecurrentes(root) {
@@ -369,6 +370,7 @@ export function renderRecurrentes(root) {
     b.onclick = () => editorFicha(p.recurrentes.find((r) => r.id === b.dataset.deuda), repintar);
   });
   const sugeridos = sugerirRecurrentes(p.movs, p.recurrentes, undefined, p.ignoradas);
+  root.querySelector('#reVolver')?.addEventListener('click', () => { p.ignoradas = []; store.save(); repintar(); });
   root.querySelectorAll('[data-no]').forEach((b) => {
     b.onclick = () => {
       const { clave } = sugeridos[Number(b.dataset.no)];
@@ -385,7 +387,7 @@ export function renderRecurrentes(root) {
       store.save();
       repintar();
       toast(`${rec.n} ahora es recurrente.`, () => {
-        p.recurrentes.splice(p.recurrentes.indexOf(rec), 1);
+        p.recurrentes = p.recurrentes.filter((r) => r !== rec);
         ligados.forEach((m) => { delete m.recId; });
         store.save();
         repintar();

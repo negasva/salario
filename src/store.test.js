@@ -135,5 +135,12 @@ describe('sugerencias descartadas', () => {
   it('un perfil sin el campo lo recibe vacío', async () => {
     expect((await cargarCon({ 'reparto:v9': JSON.stringify(V9) })).ignoradas).toEqual([]);
   });
-});
 
+  it('se guardan al cambiar y vuelven al recargar', async () => {
+    const p = await cargarCon({});
+    p.ignoradas.push('gasto|ser|gym');
+    store.save();
+    const guardado = localStorage.getItem('reparto:v11');
+    expect((await cargarCon({ 'reparto:v11': guardado })).ignoradas).toEqual(['gasto|ser|gym']);
+  });
+});

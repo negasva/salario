@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import { sumarMeses, periodoActual, gastoPorCategoria, hoyISO } from '../engine/movimientos.js';
 import { segmentosPorCategoria } from '../engine/graficas.js';
 import { flujoDiario, acumulado, porDiaSemana, calor, topGastos, resumenReporte,
-  tendenciaCategorias, resumenAnual, insights } from '../engine/reportes.js';
+  tendenciaCategorias, resumenAnual, insights, frasesComparacion } from '../engine/reportes.js';
 import { idsAhorro } from '../engine/ahorro.js';
 import { compararMeses } from '../engine/comparar.js';
 import { nombreDe, colorDe } from '../engine/categorias.js';
@@ -103,6 +103,7 @@ function vistaMes(p, per) {
   const cmp = compararMeses(p.movs, p.cats, per, contra, { hastaDia: enCurso ? Number(hoy.slice(8, 10)) : 31 });
   const antesDe = (id) => cmp.filas.find((f) => f.id === id)?.antes ?? 0;
   const etiqueta = contra === 'promedio' ? 'vs promedio 3 meses' : enCurso ? 'a esta altura' : 'vs mes anterior';
+  const frasesCmp = frasesComparacion(cmp, { ahorroId, promedio: contra === 'promedio', etiqueta });
   const top = topGastos(p.movs, per, 5);
   const semana = porDiaSemana(p.movs, per, ahorroId);
   const frases = insights(p.movs, per, { cats: p.cats, hoy, ahorroId });
@@ -158,6 +159,8 @@ function vistaMes(p, per) {
         ${segs.length ? `<ul class="rep-cats">${segs.slice(0, 8).map(fila).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}
       </div>
     </section>
+
+    ${resumenFrases(frasesCmp)}
 
     <section class="seccion">
       <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('alerta', 'ic-sm')}</span>Mayores gastos</h2>

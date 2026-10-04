@@ -158,3 +158,29 @@ export function insights(movs, periodo, { cats = [], hoy = hoyISO(), ahorroId = 
   }
   return out.slice(0, 4);
 }
+
+/* Lo que Comparar decía y Reportes no: lo que más bajó (incluidas las
+   categorías en las que ya no se gastó nada), los ingresos contra antes y, si
+   se mide contra el promedio, también lo que más subió (con el mes anterior
+   eso ya lo dice `insights`). `cmp` es lo que devuelve `compararMeses`. */
+export function frasesComparacion(cmp, { ahorroId = null, promedio = false, etiqueta = '' } = {}) {
+  const ahorro = [].concat(ahorroId ?? []);
+  const gastos = cmp.filas.filter((f) => f.tipo === 'gasto' && !ahorro.includes(f.id));
+  const out = [];
+  const baja = gastos.find((f) => f.delta < 0);
+  if (baja) out.push({ tono: 'bien', ic: 'baja', texto: `Lo que más bajó fue ${baja.nombre}: ${money(-baja.delta)} menos${baja.pct !== null ? ` (−${Math.abs(baja.pct)} %)` : ''} ${etiqueta}.` });
+  const sube = gastos.find((f) => f.delta > 0);
+  if (promedio && sube) out.push({ tono: 'mal', ic: 'sube', texto: `Lo que más subió fue ${sube.nombre}: ${money(sube.delta)} más${sube.pct !== null ? ` (+${sube.pct} %)` : ''} ${etiqueta}.` });
+  const i = cmp.ingresos;
+  if (i.actual || i.antes) {
+    const d = i.delta;
+    out.push({
+      tono: d >= 0 ? 'bien' : 'mal', ic: d >= 0 ? 'sube' : 'baja',
+      texto: i.antes === 0 ? `Entraron ${money(i.actual)}; ${etiqueta} no había entrado nada.`
+        : d === 0 ? `Los ingresos van igual ${etiqueta}.`
+          : `Entraron ${money(i.actual)}: ${money(Math.abs(d))} ${d > 0 ? 'más' : 'menos'} ${etiqueta} (${d > 0 ? '+' : '−'}${Math.abs(i.pct)} %).`,
+    });
+  }
+  return out;
+}
+

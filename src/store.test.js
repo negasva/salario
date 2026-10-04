@@ -262,5 +262,20 @@ describe('sincronizar sin perder lo hecho', () => {
     s.signOutLocal();
     expect(localStorage.getItem('reparto:v11')).toBeNull();
   });
+
+  it('borrar todo sin red y recargar: sigue siendo un borrado, no se junta con la nube', async () => {
+    const rows = [fila('t9', 'b')]; // otro dispositivo escribió
+    const s = await abrirCon({ ...perfilCon(), sello: 't1', pendiente: true, reinicio: true }, rows);
+    expect(s.active().movs).toHaveLength(0);
+    await s.subirYa();
+    expect(rows[0].data.movs).toHaveLength(0);
+  });
+
+  it('después de cerrar sesión con pendientes, guardar no pisa la copia retenida', async () => {
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: true, dueno: 'u1' }, [fila('t1')]);
+    s.signOutLocal();
+    s.setPersona({ nombre: 'Otro' });
+    expect(JSON.parse(localStorage.getItem('reparto:v11')).movs).toHaveLength(1);
+  });
 });
 

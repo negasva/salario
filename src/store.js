@@ -95,7 +95,8 @@ function leerLocal() {
 }
 
 function escribirLocal() {
-  try { localStorage.setItem(KEY, JSON.stringify({ ...perfil, remoteId, sello, pendiente: pushPendiente, dueno: userId || duenoLocal })); }
+  if (!userId && pushPendiente) return; // copia con cambios sin subir de una sesión cerrada: no se pisa
+  try { localStorage.setItem(KEY, JSON.stringify({ ...perfil, remoteId, sello, pendiente: pushPendiente, reinicio, dueno: userId || duenoLocal })); }
   catch { /* almacenamiento lleno o bloqueado: se sigue en memoria */ }
 }
 
@@ -105,10 +106,12 @@ export function load() {
   sello = v?.sello || null;
   duenoLocal = v?.dueno || null;
   pushPendiente = !!v?.pendiente;
+  reinicio = !!v?.reinicio;
   perfil = v ? normalizar(v) : freshProfile();
   delete perfil.remoteId;
   delete perfil.sello;
   delete perfil.pendiente;
+  delete perfil.reinicio;
   delete perfil.dueno;
 }
 
@@ -150,6 +153,7 @@ async function flushPush() {
       ? await q.update(fila).eq('id', remoteId).eq('updated_at', sello).select()
       : await q.insert(fila).select();
     if (error) throw error;
+    if (!userId) return; // se cerró la sesión mientras subía
     if (!data?.length) { await juntarConLaNube(); return; }
     conflictos = 0;
     fallos = 0;
@@ -201,9 +205,10 @@ export async function bootAuth(uid) {
   if (duenoLocal && duenoLocal !== uid) {
     // la copia local es de otra cuenta: no se mezcla con esta
     perfil = freshProfile();
-    remoteId = null; sello = null; pushPendiente = false;
+    remoteId = null; sello = null; pushPendiente = false; reinicio = false;
   }
   duenoLocal = uid;
+  fallos = 0;
   const { data, error } = await supabase.from('perfiles').select('*').eq('user_id', uid)
     .order('updated_at', { ascending: false });
   if (error) return { migrated: false };
@@ -216,7 +221,7 @@ export async function bootAuth(uid) {
     /* Con cambios locales sin subir la nube no pisa: si nadie más escribió
        (mismo sello) gana lo local; si alguien escribió, se juntan las dos. */
     if (pushPendiente) {
-      if (fila.id !== remoteId || fila.updated_at !== sello) perfil = normalizar(fusionar(perfil, remoto));
+      if (!reinicio && (fila.id !== remoteId || fila.updated_at !== sello)) perfil = normalizar(fusionar(perfil, remoto));
       remoteId = fila.id;
       sello = fila.updated_at;
       escribirLocal();
@@ -246,6 +251,7 @@ export async function bootAuth(uid) {
 export function signOutLocal() {
   clearTimeout(pushTimer);
   userId = null;
+  fallos = 0;
   if (!pushPendiente) {
     remoteId = null;
     sello = null;
@@ -256,7 +262,7 @@ export function signOutLocal() {
 }
 
 // Quien cierra sesión sabiendo que hay cambios sin subir los descarta.
-export function descartarPendiente() { pushPendiente = false; }
+export function descartarPendiente() { pushPendiente = false; reinicio = false; }
 
 /* ---------- borrado con deshacer ---------- */
 
@@ -310,6 +316,7 @@ export function reiniciar() {
 
 // Devuelve el perfil que había antes de reiniciar (el deshacer de "borrar todos los datos").
 export function restaurar(antes) {
+  reinicio = false;
   perfil = antes;
   save();
 }

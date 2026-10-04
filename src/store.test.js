@@ -375,3 +375,38 @@ describe('privacidad: no quedan datos viejos en el navegador', () => {
   });
 });
 
+describe('respaldo y restauración', () => {
+  it('restaura una copia JSON y se puede deshacer', async () => {
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, [fila('t1', 'a')]);
+    const copia = JSON.stringify(perfilCon('x', 'y'));
+    const antes = s.restaurarDesdeJSON(copia);
+    expect(ids(s.active().movs)).toEqual(['x', 'y']);
+    s.restaurar(antes);
+    expect(ids(s.active().movs)).toEqual(['a']);
+  });
+
+  it('la copia restaurada pisa la nube, no se junta con ella', async () => {
+    const rows = [fila('t1', 'a')];
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, rows);
+    Object.assign(rows[0], { updated_at: 't9', data: perfilCon('a', 'b') });
+    s.restaurarDesdeJSON(JSON.stringify(perfilCon('x')));
+    await s.subirYa();
+    expect(ids(rows[0].data.movs)).toEqual(['x']);
+  });
+
+  it('rechaza un archivo que no es una copia y no toca nada', async () => {
+    const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, [fila('t1', 'a')]);
+    expect(() => s.restaurarDesdeJSON('no es json')).toThrow(/no es una copia/);
+    expect(() => s.restaurarDesdeJSON('{"movs": 3}')).toThrow(/no es una copia/);
+    expect(() => s.restaurarDesdeJSON(JSON.stringify({ ...perfilCon('x'), movs: [null] }))).toThrow(/dañado/);
+    expect(ids(s.active().movs)).toEqual(['a']);
+  });
+
+  it('recuerda el día de la última copia', async () => {
+    await cargarCon({});
+    expect(store.ultimoRespaldo()).toBeNull();
+    store.marcarRespaldo('2026-10-04');
+    expect(store.ultimoRespaldo()).toBe('2026-10-04');
+  });
+});
+

@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { enlaceDeCorreo } from './engine/persona.js';
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+const url = import.meta.env.VITE_SUPABASE_URL;
+const clave = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// sin las dos variables no hay nube: main.js lo avisa en pantalla en vez de dejarla en blanco
+export const sinConfiguracion = !url || !clave;
+export const supabase = sinConfiguracion ? null : createClient(url, clave);
 
 let currentSession = null;
 const listeners = [];
@@ -12,7 +13,7 @@ const listeners = [];
 // Qué trajo el enlace del correo, leído antes de que el cliente limpie la URL.
 export const enlaceInicial = enlaceDeCorreo(window.location.hash, window.location.search);
 
-supabase.auth.onAuthStateChange((event, session) => {
+supabase?.auth.onAuthStateChange((event, session) => {
   currentSession = session;
   listeners.forEach((cb) => cb(session, event));
 });

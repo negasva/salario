@@ -17,7 +17,7 @@ import { renderReportes } from './ui/reportes.js';
 import { renderPerfil } from './ui/perfil.js';
 import { renderMas } from './ui/mas.js';
 import { avisarVencimientos } from './ui/avisos.js';
-import { getSession, onAuthChange, enlaceInicial, signOut } from './auth.js';
+import { getSession, onAuthChange, enlaceInicial, signOut, sinConfiguracion } from './auth.js';
 import * as store from './store.js';
 import { montarTema } from './ui/tema.js';
 import { montarPaleta } from './ui/paleta.js';
@@ -125,7 +125,14 @@ onAuthChange((session, evento) => {
   if (!session && evento === 'SIGNED_OUT') { conSesion = false; store.signOutLocal(); renderLogin(app, boot); }
 });
 
-boot();
+if (sinConfiguracion) {
+  app.innerHTML = `<main class="content"><div class="content-in"><div class="empty-state">
+    <b>Falta configurar Supabase</b>
+    <span class="sub">Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY (ver el README) y vuelve a desplegar.</span>
+  </div></div></main>`;
+} else {
+  boot();
+}
 
 /* PWA: instalable y con cascarón offline. El service worker no cachea datos,
    solo el armazón; los saldos siempre salen de localStorage o de Supabase. */

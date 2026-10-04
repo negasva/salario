@@ -10,7 +10,7 @@ import { titulo, avatar } from './piezas.js';
 import { saludo, nombreVisible } from '../engine/persona.js';
 import { donutBloque, graficaBarras, graficaLinea, enlazarTips, responsiva } from './charts.js';
 import { selectorMes, enlazarMes, cabeceraMes, mesElegido } from './mes.js';
-import { vencimientos, cuandoVence } from '../engine/recurrentes.js';
+import { vencimientos, cuandoVence, sugerirRecurrentes } from '../engine/recurrentes.js';
 import { icon } from './icons.js';
 
 /* Lo que vence en la próxima semana y lo que ya se pasó sin pagar, en tiles
@@ -29,6 +29,13 @@ function proximos(p) {
       <li class="tile tile-nuevo"><a href="#recurrentes">${icon('mas')}<span>Nuevo pago</span></a></li>
     </ul>
   </section>`;
+}
+
+/* Si ya haces algo cada mes sin haberlo marcado, aquí se avisa. */
+function avisoSugeridos(p) {
+  const n = sugerirRecurrentes(p.movs, p.recurrentes).length;
+  if (!n) return '';
+  return `<a class="card aviso-sug" href="#recurrentes">${icon('recurrente')}<span><b>${n} ${n === 1 ? 'gasto se repite' : 'gastos se repiten'} cada mes.</b> Agrégalos como recurrentes con un toque.</span></a>`;
 }
 
 /* Los tres últimos movimientos del mes, como en la lista de Movimientos. */
@@ -125,6 +132,7 @@ export function renderInicio(root) {
     ${saludoFila(p)}
     ${selectorMes('Inicio')}
     ${cabeceraMes(p, per)}
+    ${avisoSugeridos(p)}
     ${ultimos(p, per)}
     ${proximos(p)}
     ${resumenRapido(p, per)}

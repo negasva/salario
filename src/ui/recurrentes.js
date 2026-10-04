@@ -259,7 +259,7 @@ function tarjetaSugeridos(p) {
     <div class="card-head"><h2 class="card-title">Se repite cada mes</h2></div>
     <p class="sub">Los encontré en tus movimientos. ¿Los agregamos como recurrentes?</p>
     <ul class="list">${lista.map((s, i) => `<li class="row">
-      <div class="row-txt"><div class="row-t">${esc(s.n)}</div><div class="row-s num">${money(s.monto)} · ${s.meses} meses · hacia el día ${s.dia}</div></div>
+      <div class="row-txt"><div class="row-t">${esc(s.n)}</div><div class="row-s num">${s.max > s.min * 1.15 ? `entre ${money(s.min)} y ${money(s.max)}` : money(s.monto)} · ${s.meses} meses · hacia el día ${s.dia}</div></div>
       <button class="mini btn-primary" data-sug="${i}" aria-label="Agregar ${esc(s.n)} como recurrente">Agregar</button>
     </li>`).join('')}</ul>
   </section>`;

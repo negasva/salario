@@ -288,36 +288,31 @@ describe('calendario', () => {
 describe('sugerir recurrentes', () => {
   const mov = (fecha, nota, monto, extra = {}) => ({ id: fecha + nota, fecha, tipo: 'gasto', monto, catId: 'ser', nota, ...extra });
   const hoy = '2026-10-04';
+  const netflix = [mov('2026-08-05', 'Netflix', 30000), mov('2026-09-06', 'NETFLIX COL 4411', 32000), mov('2026-10-03', 'netflix mes', 30000)];
 
-  it('sugiere lo que se repite en 3 meses o más, con monto y día típicos', () => {
-    const movs = [mov('2026-08-05', 'Netflix', 30000), mov('2026-09-06', 'netflix ', 32000), mov('2026-10-03', 'Netflix', 30000)];
-    expect(sugerirRecurrentes(movs, [], hoy)).toEqual([
-      { n: 'Netflix', tipo: 'gasto', monto: 30000, catId: 'ser', dia: 5, meses: 3 },
+  it('agrupa notas parecidas y da monto típico, rango y día', () => {
+    expect(sugerirRecurrentes(netflix, [], hoy)).toEqual([
+      { n: 'Netflix', tipo: 'gasto', monto: 30000, min: 30000, max: 32000, catId: 'ser', dia: 5, meses: 3 },
     ]);
   });
 
   it('no sugiere dos meses, lo que ya es recurrente ni los pagos de un recurrente', () => {
-    const dos = [mov('2026-09-05', 'Gym', 90000), mov('2026-10-05', 'Gym', 90000)];
-    expect(sugerirRecurrentes(dos, [], hoy)).toEqual([]);
-    const tres = [mov('2026-08-05', 'Luz', 80000), mov('2026-09-05', 'Luz', 80000), mov('2026-10-05', 'Luz', 80000)];
-    expect(sugerirRecurrentes(tres, [nuevoRecurrente({ n: 'luz' })], hoy)).toEqual([]);
-    expect(sugerirRecurrentes(tres.map((m) => ({ ...m, recId: 'x' })), [], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix.slice(1), [], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix, [nuevoRecurrente({ n: 'netflix' })], hoy)).toEqual([]);
+    expect(sugerirRecurrentes(netflix.map((m) => ({ ...m, recId: 'x' })), [], hoy)).toEqual([]);
   });
 
   it('dos compras el mismo mes cuentan como un mes', () => {
     const movs = [mov('2026-09-01', 'Éxito', 100), mov('2026-09-15', 'Éxito', 100), mov('2026-10-01', 'Éxito', 100)];
     expect(sugerirRecurrentes(movs, [], hoy)).toEqual([]);
   });
-});
 
-describe('adoptar una sugerencia', () => {
-  it('crea el recurrente y cuelga los movimientos sueltos de esa nota', () => {
-    const movs = [{ id: 'a', fecha: '2026-09-05', tipo: 'gasto', monto: 30000, catId: 'ser', nota: 'Netflix' },
-      { id: 'b', fecha: '2026-09-06', tipo: 'gasto', monto: 5000, catId: 'ser', nota: 'Otro' }];
-    const { rec, ligados } = adoptarSugerencia({ n: 'Netflix', tipo: 'gasto', monto: 30000, catId: 'ser', dia: 5 }, movs);
-    expect(rec).toMatchObject({ n: 'Netflix', monto: 30000, dia: 5 });
-    expect(ligados).toHaveLength(1);
-    expect(movs[0].recId).toBe(rec.id);
-    expect(movs[1].recId).toBeUndefined();
+  it('adoptar cuelga un pago por mes, solo de los últimos 6 meses', () => {
+    const movs = [...netflix, mov('2026-10-20', 'Netflix extra', 5000), mov('2025-01-05', 'Netflix', 30000), mov('2026-09-09', 'Luz', 80000)];
+    const [sug] = sugerirRecurrentes(movs, [], hoy);
+    const { rec, ligados } = adoptarSugerencia(sug, movs, hoy);
+    expect(rec).toMatchObject({ n: 'Netflix', monto: 30000, dia: 6 });
+    expect(ligados.map((m) => m.fecha)).toEqual(['2026-08-05', '2026-09-06', '2026-10-03']);
+    expect(movs.filter((m) => m.recId).length).toBe(3);
   });
 });

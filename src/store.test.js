@@ -432,3 +432,51 @@ describe('una fila por cuenta en la base', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+describe('errores de la base al subir', () => {
+  const nubeQueRechaza = (codigo, cuenta) => ({
+    from: () => {
+      let accion = 'select';
+      const b = {
+        select: () => b, eq: () => b, order: () => b,
+        update: () => { accion = 'update'; return b; },
+        insert: () => { accion = 'insert'; cuenta.insertos++; return b; },
+        then: (ok) => ok(accion === 'insert' ? { data: null, error: { code: codigo } } : { data: [], error: null }),
+      };
+      return b;
+    },
+  });
+
+  it('un choque de fila única que no se resuelve no martilla: cuatro intentos seguidos y luego espera 30 s', async () => {
+    vi.useFakeTimers();
+    try {
+      const cuenta = { insertos: 0 };
+      nube.supabase = nubeQueRechaza('23505', cuenta);
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+      await store.bootAuth('u1');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(cuenta.insertos).toBe(4);
+      await vi.advanceTimersByTimeAsync(25000);
+      expect(cuenta.insertos).toBe(4);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(cuenta.insertos).toBe(5);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('un perfil demasiado grande se avisa y no se reintenta hasta que algo cambie', async () => {
+    vi.useFakeTimers();
+    try {
+      const cuenta = { insertos: 0 };
+      nube.supabase = nubeQueRechaza('23514', cuenta);
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+      await store.bootAuth('u1');
+      await vi.advanceTimersByTimeAsync(120000);
+      expect(cuenta.insertos).toBe(1);
+      expect(store.estadoSync()).toBe('grande');
+      store.save(); // la persona borró algo: se vuelve a intentar
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(cuenta.insertos).toBe(2);
+    } finally { vi.useRealTimers(); }
+  });
+});
+

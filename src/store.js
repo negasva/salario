@@ -24,6 +24,7 @@ let sello = null;            // el updated_at de la fila de la nube que este dis
 let cambios = 0;             // sube con cada edición, para saber si algo cambió mientras se subía
 let enVuelo = false;
 let fallos = 0;              // fallos seguidos al subir: espera creciente y aviso en el perfil
+let rechazado = false;       // la base no aceptó el perfil por grande: no se insiste hasta que cambie algo
 let reinicio = false;        // tras "borrar todo" la nube se sobrescribe, no se fusiona
 let duenoLocal = null;       // de quién es la copia local: otra cuenta no hereda cambios ajenos
 let conflictos = 0;          // choques seguidos al subir, para no insistir sin fin
@@ -133,6 +134,7 @@ export function save() {
 
 function programarPush() {
   pushPendiente = true;
+  rechazado = false;
   cambios++;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(flushPush, 2000);
@@ -145,7 +147,7 @@ const reintentar = (ms) => { clearTimeout(pushTimer); pushTimer = setTimeout(flu
    lo local y se vuelve a subir. Un fallo (sin red) deja la marca de pendiente
    guardada en el disco, así que sobrevive a cerrar la app. */
 async function flushPush() {
-  if (!userId || !pushPendiente || enVuelo) return;
+  if (!userId || !pushPendiente || enVuelo || rechazado) return;
   enVuelo = true;
   const version = cambios;
   const uid = userId;
@@ -163,6 +165,8 @@ async function flushPush() {
       : await q.insert(fila).select();
     // la base permite una fila por cuenta: si otro dispositivo la creó hace un instante, la próxima vuelta la encuentra y se junta con ella
     if (error?.code === '23505') { reintentar(++conflictos > 3 ? 30000 : 0); return; }
+    // la base limita cada perfil a 5 MB: reintentar no lo arregla; se avisa en el perfil y se espera a que algo cambie
+    if (error?.code === '23514') { rechazado = true; return; }
     if (error) throw error;
     if (userId !== uid) return; // se cerró la sesión (o entró otra cuenta) mientras subía
     if (!data?.length) { await juntarConLaNube(); return; }
@@ -348,6 +352,7 @@ export function setPersona(cambios) {
 export function estadoSync() {
   if (!userId) return 'local';
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'sin-red';
+  if (pushPendiente && rechazado) return 'grande';
   if (pushPendiente && fallos >= 3) return 'error';
   return pushPendiente ? 'subiendo' : 'al-dia';
 }

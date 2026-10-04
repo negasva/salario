@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { diasDelMes, diasTranscurridos, flujoDiario, acumulado, porDiaSemana, calor, topGastos,
-  resumenReporte, tendenciaCategorias, resumenAnual, insights } from './reportes.js';
+  resumenReporte, tendenciaCategorias, resumenAnual, insights, frasesComparacion } from './reportes.js';
+import { compararMeses } from './comparar.js';
+import { money } from '../format.js';
 
 const m = (fecha, tipo, monto, catId = 'x') => ({ id: fecha + monto + tipo, fecha, tipo, monto, catId });
 // septiembre 2026 empieza en martes
@@ -111,3 +113,33 @@ describe('insights', () => {
     expect(lista[0].texto).toBe('Café ya va en 90 % de su presupuesto.');
   });
 });
+
+describe('frases de la comparación', () => {
+  const cats = [{ id: 'a', n: 'Mercado', c: '#111' }, { id: 'b', n: 'Taxis', c: '#222' }, { id: 'ah', n: 'Ahorro', c: '#333' }];
+  const mv = (fecha, tipo, monto, catId) => ({ id: fecha + monto + tipo + catId, fecha, tipo, monto, catId });
+  const base = [
+    mv('2026-08-05', 'gasto', 500, 'a'), mv('2026-08-06', 'gasto', 200, 'b'), mv('2026-08-07', 'gasto', 400, 'ah'), mv('2026-08-01', 'ingreso', 1000, null),
+    mv('2026-09-05', 'gasto', 250, 'a'), mv('2026-09-06', 'gasto', 100, 'ah'), mv('2026-09-01', 'ingreso', 1200, null),
+  ];
+
+  it('dice lo que más bajó (también lo que bajó a cero), sin contar el ahorro, y los ingresos contra antes', () => {
+    const cmp = compararMeses(base, cats, '2026-09', 'anterior');
+    const f = frasesComparacion(cmp, { ahorroId: ['ah'], etiqueta: 'vs mes anterior' });
+    expect(f[0]).toMatchObject({ tono: 'bien', texto: `Lo que más bajó fue Mercado: ${money(250)} menos (−50 %) vs mes anterior.` });
+    expect(f.some((x) => x.texto.includes('Taxis'))).toBe(false); // bajó menos que Mercado
+    expect(f[1].texto).toBe(`Entraron ${money(1200)}: ${money(200)} más vs mes anterior (+20 %).`);
+    expect(f).toHaveLength(2);
+  });
+
+  it('con el promedio también dice lo que más subió', () => {
+    const cmp = compararMeses([...base, mv('2026-09-20', 'gasto', 900, 'b')], cats, '2026-09', 'promedio');
+    const f = frasesComparacion(cmp, { ahorroId: ['ah'], promedio: true, etiqueta: 'vs promedio 3 meses' });
+    expect(f.some((x) => x.ic === 'sube' && x.texto.startsWith('Lo que más subió fue Taxis'))).toBe(true);
+  });
+
+  it('sin ingresos no inventa la frase', () => {
+    const cmp = compararMeses([mv('2026-09-05', 'gasto', 300, 'a')], cats, '2026-09', 'anterior');
+    expect(frasesComparacion(cmp, {}).some((x) => /Entraron|ingresos/.test(x.texto))).toBe(false);
+  });
+});
+

@@ -2,8 +2,9 @@ import * as store from '../store.js';
 import { sumarMeses, periodoActual, gastoPorCategoria, hoyISO } from '../engine/movimientos.js';
 import { segmentosPorCategoria } from '../engine/graficas.js';
 import { flujoDiario, acumulado, porDiaSemana, calor, topGastos, resumenReporte,
-  tendenciaCategorias, resumenAnual, insights } from '../engine/reportes.js';
+  tendenciaCategorias, resumenAnual, insights, frasesComparacion } from '../engine/reportes.js';
 import { idsAhorro } from '../engine/ahorro.js';
+import { compararMeses } from '../engine/comparar.js';
 import { nombreDe, colorDe } from '../engine/categorias.js';
 import { money, moneySigno, esc, fechaCorta, nombreMes, MESES } from '../format.js';
 import { selectorMes, enlazarMes, mesElegido, setMes } from './mes.js';
@@ -18,6 +19,7 @@ import { titulo } from './piezas.js';
    debajo. Se puede imprimir o guardar como PDF desde el navegador. */
 
 let vista = 'mes'; // mes | anio
+let contra = 'anterior'; // contra qué se mide cada categoría: anterior | promedio
 
 const dia2 = (n) => String(n).padStart(2, '0');
 
@@ -96,11 +98,16 @@ function vistaMes(p, per) {
   const segs = segmentosPorCategoria(p.cats, porCat);
   const tend = tendenciaCategorias(p.movs, per, 6);
   const totalCat = segs.reduce((t, s) => t + s.monto, 0);
+  // el mes en curso va a medias: se mide contra los mismos días de antes, no contra el mes entero
+  const enCurso = per === periodoActual();
+  const cmp = compararMeses(p.movs, p.cats, per, contra, { hastaDia: enCurso ? Number(hoy.slice(8, 10)) : 31 });
+  const antesDe = (id) => cmp.filas.find((f) => f.id === id)?.antes ?? 0;
+  const etiqueta = contra === 'promedio' ? 'vs promedio 3 meses' : enCurso ? 'a esta altura' : 'vs mes anterior';
+  const frasesCmp = frasesComparacion(cmp, { ahorroId, promedio: contra === 'promedio', etiqueta });
   const top = topGastos(p.movs, per, 5);
   const semana = porDiaSemana(p.movs, per, ahorroId);
   const frases = insights(p.movs, per, { cats: p.cats, hoy, ahorroId });
   const fila = (s) => {
-    const prevMonto = (tend[s.id] || [])[4] ?? 0;
     const tope = p.cats.find((c) => c.id === s.id)?.m || 0;
     const usado = tope ? Math.round((s.monto / tope) * 100) : 0;
     return `<li class="rep-cat">
@@ -109,7 +116,7 @@ function vistaMes(p, per) {
       ${sparkline(tend[s.id] || [0, 0], s.color)}
       <span class="num rep-cat-m">${money(s.monto)}</span>
       <span class="num fc-pct">${totalCat ? Math.round((s.monto / totalCat) * 100) : 0}%</span>
-      <span class="rep-cat-v">${variacion(s.monto, prevMonto, 'vs mes anterior')}${tope ? `<span class="var ${usado > 100 ? 'mal' : 'igual'}">${usado}\u00a0% del presupuesto</span>` : ''}</span>
+      <span class="rep-cat-v">${variacion(s.monto, antesDe(s.id), etiqueta)}${tope ? `<span class="var ${usado > 100 ? 'mal' : 'igual'}">${usado}\u00a0% del presupuesto</span>` : ''}</span>
       ${tope ? `<span class="barra rep-cat-b" role="progressbar" aria-label="Presupuesto de ${esc(s.nombre)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(usado, 100)}"><i style="width:${Math.min(usado, 100)}%;background:${usado > 100 ? 'var(--neg-fill)' : s.color}"></i></span>` : ''}</li>`;
   };
 
@@ -143,11 +150,17 @@ function vistaMes(p, per) {
 
     <section class="card">
       <div class="card-head">${titulo('categorias', 'A dónde se fue')}<span class="card-meta">Tendencia de 6 meses</span></div>
+      <div class="chips chips-base" role="group" aria-label="Medir cada categoría contra" data-seg="rep-contra">
+        <button class="chip ${contra === 'anterior' ? 'on' : ''}" data-contra="anterior" aria-pressed="${contra === 'anterior'}">Mes anterior</button>
+        <button class="chip ${contra === 'promedio' ? 'on' : ''}" data-contra="promedio" aria-pressed="${contra === 'promedio'}">Promedio 3 meses</button>
+      </div>
       <div class="rep-cats-card">
         ${donutBloque(segs, 'Salió', { lista: false })}
         ${segs.length ? `<ul class="rep-cats">${segs.slice(0, 8).map(fila).join('')}</ul>` : '<div class="empty">Sin gastos este mes.</div>'}
       </div>
     </section>
+
+    ${resumenFrases(frasesCmp)}
 
     <section class="seccion">
       <h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('alerta', 'ic-sm')}</span>Mayores gastos</h2>
@@ -226,6 +239,7 @@ export function renderReportes(root) {
   const repintar = () => renderReportes(root);
   enlazarMes(root, repintar);
   enlazarTips(root);
+  root.querySelectorAll('[data-contra]').forEach((b) => { b.onclick = () => { contra = b.dataset.contra; repintar(); }; });
   root.querySelectorAll('[data-vista]').forEach((b) => { b.onclick = () => { vista = b.dataset.vista; repintar(); }; });
   root.querySelectorAll('[data-anio]').forEach((b) => { b.onclick = () => { setMes(sumarMeses(per, 12 * Number(b.dataset.anio))); repintar(); }; });
   root.querySelector('[data-anio-hoy]')?.addEventListener('click', () => { setMes(periodoActual()); repintar(); });

@@ -12,7 +12,6 @@ import { renderRecurrentes } from './ui/recurrentes.js';
 import { renderCategorias } from './ui/categorias.js';
 import { renderAjustes } from './ui/ajustes.js';
 import { renderAhorro } from './ui/ahorro.js';
-import { renderComparar } from './ui/comparar.js';
 import { renderReportes } from './ui/reportes.js';
 import { renderPerfil } from './ui/perfil.js';
 import { renderMas } from './ui/mas.js';
@@ -36,19 +35,24 @@ const ROUTES = {
   ahorro: renderAhorro,
   reportes: renderReportes,
   perfil: renderPerfil,
-  comparar: renderComparar,
   categorias: renderCategorias,
   ajustes: renderAjustes,
   mas: renderMas,
 };
 
 // La pantalla vive en el # de la dirección: atrás funciona y se puede enlazar.
-const deHash = () => (ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 'inicio');
+// pantallas que ya no existen y a dónde llevan los enlaces y accesos directos viejos
+const RUTAS_VIEJAS = { comparar: 'reportes' };
+const deHash = () => {
+  const h = location.hash.slice(1);
+  const ruta = RUTAS_VIEJAS[h] || h;
+  return ROUTES[ruta] ? ruta : 'inicio';
+};
 let route = deHash();
 let conSesion = false;
 
 const TITULOS = { inicio: 'Inicio', movimientos: 'Movimientos', recurrentes: 'Recurrentes', ahorro: 'Ahorro',
-  reportes: 'Reportes', perfil: 'Perfil', comparar: 'Comparar', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
+  reportes: 'Reportes', perfil: 'Perfil', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
 
 function paintRoute({ entrada = false } = {}) {
   const content = renderShell(app, route, navegar);

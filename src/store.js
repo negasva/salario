@@ -4,6 +4,7 @@ import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/
 import { normalizarMetas } from './engine/ahorro.js';
 import { normalizarPersona } from './engine/persona.js';
 import { fusionar } from './engine/sync.js';
+import { motivoDeRechazo } from './engine/respaldo.js';
 
 /* Un perfil, un blob. localStorage es la caché y Supabase la fuente de verdad:
    la UI nunca espera al servidor. El perfil es
@@ -323,9 +324,8 @@ export function ultimoRespaldo() {
 export function restaurarDesdeJSON(texto) {
   let datos;
   try { datos = JSON.parse(texto); } catch { datos = null; }
-  if (!datos || typeof datos !== 'object' || !Array.isArray(datos.movs) || !Array.isArray(datos.cats)) {
-    throw new Error('Ese archivo no es una copia de Reparto mensual.');
-  }
+  const motivo = motivoDeRechazo(datos);
+  if (motivo) throw new Error(motivo);
   const antes = perfil;
   reinicio = true;
   perfil = normalizar({ ...datos, recRecuperados: true });

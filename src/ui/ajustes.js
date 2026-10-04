@@ -109,7 +109,9 @@ export function renderAjustes(root) {
     if (!f) return;
     if (!window.confirm('Esto reemplaza todos tus datos actuales por los de la copia. Podrás deshacerlo unos segundos. ¿Seguir?')) { archivo.value = ''; return; }
     try {
-      const antes = store.restaurarDesdeJSON(await f.text());
+      const texto = await f.text();
+      const antes = store.restaurarDesdeJSON(texto); // si la copia no sirve, lanza antes de tocar nada
+      descargar(`reparto-antes-de-restaurar-${hoyArchivo()}.json`, JSON.stringify(antes, null, 2), 'application/json'); // el seguro si el deshacer ya pasó
       renderAjustes(root);
       toast('Copia restaurada.', () => { store.restaurar(antes); renderAjustes(root); toast('Volvieron tus datos de antes.'); });
     } catch (e) {

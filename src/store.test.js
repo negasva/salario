@@ -398,6 +398,7 @@ describe('respaldo y restauración', () => {
     const s = await abrirCon({ ...perfilCon('a'), sello: 't1', pendiente: false }, [fila('t1', 'a')]);
     expect(() => s.restaurarDesdeJSON('no es json')).toThrow(/no es una copia/);
     expect(() => s.restaurarDesdeJSON('{"movs": 3}')).toThrow(/no es una copia/);
+    expect(() => s.restaurarDesdeJSON(JSON.stringify({ ...perfilCon('x'), movs: [null] }))).toThrow(/dañado/);
     expect(ids(s.active().movs)).toEqual(['a']);
   });
 

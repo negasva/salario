@@ -166,7 +166,7 @@ async function flushPush() {
     // la base permite una fila por cuenta: si otro dispositivo la creó hace un instante, la próxima vuelta la encuentra y se junta con ella
     if (error?.code === '23505') { reintentar(++conflictos > 3 ? 30000 : 0); return; }
     // la base limita cada perfil a 5 MB: reintentar no lo arregla; se avisa en el perfil y se espera a que algo cambie
-    if (error?.code === '23514') { rechazado = true; return; }
+    if (error?.code === '23514') { rechazado = true; notify(); return; }
     if (error) throw error;
     if (userId !== uid) return; // se cerró la sesión (o entró otra cuenta) mientras subía
     if (!data?.length) { await juntarConLaNube(); return; }
@@ -233,6 +233,8 @@ export async function bootAuth(uid) {
   } catch { /* almacenamiento bloqueado o copia ilegible: se sigue con la nube */ }
   duenoLocal = uid;
   fallos = 0;
+  conflictos = 0;
+  rechazado = false;
   const { data, error } = await supabase.from('perfiles').select('*').eq('user_id', uid)
     .order('updated_at', { ascending: false });
   if (error) { if (pushPendiente) reintentar(4000); return { migrated: false }; }
@@ -277,6 +279,8 @@ export function signOutLocal() {
   clearTimeout(pushTimer);
   userId = null;
   fallos = 0;
+  conflictos = 0;
+  rechazado = false;
   if (!pushPendiente) {
     remoteId = null;
     sello = null;

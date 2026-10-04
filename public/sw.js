@@ -5,11 +5,31 @@
    que aquí no se cachea ni una respuesta de la API: una app de plata que
    muestra saldos viejos es peor que una que dice que no hay internet. */
 
-const CACHE = 'reparto-v5';
+const CACHE = 'reparto-v6';
 const BASE = ['/', '/index.html', '/manifest.webmanifest', '/icono.svg', '/icono-192.png'];
 
+/* Deja guardado el cascarón y también su JS, CSS y fuentes. Sin esto, la
+   primera visita no los guarda (la página los pidió antes de que el service
+   worker la controlara) y, si se pierde la red justo después, la app no abre
+   hasta una segunda visita. Lo de los assets es de mejor esfuerzo: si uno
+   falla, la instalación sigue.
+   ponytail: las fuentes se leen del CSS (solo .woff2); con más tipos de recurso, ampliar. */
+async function precargar() {
+  const c = await caches.open(CACHE);
+  await c.addAll(BASE);
+  const html = await (await c.match('/index.html')).text();
+  const rutas = new Set(html.match(/\/assets\/[^"'\s)>]+/g) || []);
+  for (const css of [...rutas].filter((r) => r.endsWith('.css'))) {
+    try {
+      const texto = await (await fetch(css)).text();
+      (texto.match(/url\(\/assets\/[^)"']+\.woff2\)/g) || []).forEach((u) => rutas.add(u.slice(4, -1)));
+    } catch { /* sin las fuentes, la app abre igual con la del sistema */ }
+  }
+  await Promise.all([...rutas].map((r) => c.add(r).catch(() => {})));
+}
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(BASE)).then(() => self.skipWaiting()));
+  e.waitUntil(precargar().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

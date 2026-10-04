@@ -56,8 +56,18 @@ export function recoverPassword(email) {
   return supabase.auth.resetPasswordForEmail(email, { redirectTo: urlDeLaApp() });
 }
 
+/* La sesión tal como quedó guardada en el dispositivo, sin preguntarle a la
+   red. Con un token vencido, getSession() intenta renovarlo y sin conexión
+   tarda o no contesta; para pintar lo que ya está en el dispositivo no hace
+   falta esperar. Si la sesión ya no sirve, onAuthChange manda al ingreso. */
+export function sesionGuardada() {
+  try { return JSON.parse(localStorage.getItem(supabase.auth.storageKey) || 'null'); } catch { return null; }
+}
+
 // El usuario de la sesión: correo, fecha de alta y si confirmó el correo.
 export async function usuario() {
+  const guardada = sesionGuardada()?.user;
+  if (guardada) return guardada;
   const sesion = await getSession();
   return sesion?.user || null;
 }

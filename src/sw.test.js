@@ -9,14 +9,28 @@ function montar(red) {
   const caches = {
     open: async () => ({
       put: async (k, v) => { tienda.set(typeof k === 'string' ? `https://app.test${k}` : k.url, v); },
+      add: async (k) => {
+        const r = await fetch(k);
+        if (!r.ok) throw new Error('no ok');
+        tienda.set(typeof k === 'string' ? `https://app.test${k}` : k.url, r);
+      },
+      addAll: async (ks) => { for (const k of ks) await caches.open().then((c) => c.add(k)); },
+      match: async (k) => tienda.get(typeof k === 'string' ? `https://app.test${k}` : k.url),
       keys: async () => [...tienda.keys()].map((url) => ({ url })),
       delete: async (k) => tienda.delete(k.url),
     }),
     match: async (k) => tienda.get(typeof k === 'string' ? `https://app.test${k}` : k.url),
   };
   const manejadores = {};
-  const self = { location: { origin: 'https://app.test' }, addEventListener: (n, f) => { manejadores[n] = f; }, clients: {} };
-  new Function('self', 'caches', 'fetch', readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'))(self, caches, async (req) => red(req));
+  const self = { location: { origin: 'https://app.test' }, addEventListener: (n, f) => { manejadores[n] = f; }, clients: {}, skipWaiting: () => {} };
+  // el service worker pide rutas ('/index.html') o Request; la red de mentira siempre recibe algo con .url
+  const fetch = async (req) => red(typeof req === 'string' ? { url: `https://app.test${req}` } : req);
+  new Function('self', 'caches', 'fetch', readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'))(self, caches, fetch);
+  const instalar = async () => {
+    const esperas = [];
+    manejadores.install({ waitUntil: (p) => esperas.push(p) });
+    await Promise.all(esperas);
+  };
   const pedir = async (path, mode = 'cors') => {
     const esperas = [];
     let respuesta;
@@ -25,7 +39,7 @@ function montar(red) {
     await Promise.all(esperas);
     return r;
   };
-  return { tienda, pedir };
+  return { tienda, pedir, instalar };
 }
 
 const resp = (tipo, ok = true, texto = '') => ({ ok, headers: { get: () => tipo }, clone() { return this; }, text: async () => texto });
@@ -68,4 +82,35 @@ describe('service worker', () => {
     conRed = false;
     expect(await pedir('/', 'navigate')).toBe(primero);
   });
+
+  describe('primera instalación', () => {
+    const html = '<script type="module" src="/assets/index-A.js"></script><link rel="stylesheet" href="/assets/index-B.css">';
+    const css = '@font-face{src:url(/assets/poppins-400.woff2) format("woff2"),url(/assets/poppins-400.woff) format("woff")}.x{background:url("data:image/svg+xml,%3Csvg")}';
+    const red = (req) => {
+      const u = req.url.replace('https://app.test', '');
+      if (u === '/index.html' || u === '/') return resp('text/html', true, html);
+      if (u.endsWith('.css')) return resp('text/css', true, css);
+      return resp(u.endsWith('.js') ? 'text/javascript' : 'application/octet-stream');
+    };
+
+    it('deja guardados el cascarón, el JS, el CSS y las fuentes woff2, y después abre sin red', async () => {
+      let conRed = true;
+      const { tienda, instalar, pedir } = montar((req) => { if (!conRed) throw new Error('sin red'); return red(req); });
+      await instalar();
+      const guardado = [...tienda.keys()].map((k) => k.replace('https://app.test', '')).sort();
+      expect(guardado).toEqual(['/', '/assets/index-A.js', '/assets/index-B.css', '/assets/poppins-400.woff2', '/icono-192.png',
+        '/icono.svg', '/index.html', '/manifest.webmanifest']);
+      conRed = false;
+      expect((await pedir('/assets/index-A.js')).ok).toBe(true); // de la caché, aunque la red falle
+      expect((await pedir('/', 'navigate')).ok).toBe(true);
+    });
+
+    it('si un asset falla, la instalación sigue y el cascarón queda guardado', async () => {
+      const { tienda, instalar } = montar((req) => (req.url.endsWith('.js') ? { ok: false, headers: { get: () => '' }, clone() { return this; }, text: async () => '' } : red(req)));
+      await expect(instalar()).resolves.toBeUndefined();
+      expect(tienda.has('https://app.test/index.html')).toBe(true);
+      expect(tienda.has('https://app.test/assets/index-A.js')).toBe(false);
+    });
+  });
 });
+

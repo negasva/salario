@@ -309,3 +309,46 @@ export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date()) {
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Reparto mensual//ES', 'CALSCALE:GREGORIAN',
     'X-WR-CALNAME:Pagos del mes', ...eventos, 'END:VCALENDAR'].join('\r\n');
 }
+
+/* ---------- sugerencias ---------- */
+
+const clave = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const mediana = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+
+/* Lo que ya se repite sin que lo hayas marcado: movimientos sueltos (sin
+   recId) con la misma nota y tipo en 3 o más de los últimos 6 meses, que no
+   coinciden con un recurrente existente. Es lo que una hoja de cálculo no te
+   dice. Devuelve fichas listas para nuevoRecurrente, las más constantes primero. */
+export function sugerirRecurrentes(movs, recurrentes, hoy = hoyISO()) {
+  const desde = sumarMeses(periodoDe(hoy), -5);
+  const hay = new Set((recurrentes || []).map((r) => `${r.tipo}|${clave(r.n)}`));
+  const grupos = new Map();
+  for (const m of movs || []) {
+    const k = `${m.tipo}|${clave(m.nota)}`;
+    if (m.recId || !clave(m.nota) || periodoDe(m.fecha) < desde || hay.has(k)) continue;
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(m);
+  }
+  return [...grupos.values()]
+    .map((ms) => ({ ms, meses: new Set(ms.map((m) => periodoDe(m.fecha))).size }))
+    .filter((g) => g.meses >= 3)
+    .sort((a, b) => b.meses - a.meses || b.ms.length - a.ms.length)
+    .slice(0, 5)
+    .map(({ ms, meses }) => ({
+      n: ms[0].nota.trim(),
+      tipo: ms[0].tipo,
+      monto: mediana(ms.map((m) => m.monto)),
+      catId: ms[0].catId,
+      dia: mediana(ms.map((m) => Number(m.fecha.slice(8, 10)))),
+      meses,
+    }));
+}
+
+/* Convierte una sugerencia en recurrente y le cuelga los movimientos sueltos
+   que la originaron, para que este mes no aparezca "pendiente" lo ya pagado. */
+export function adoptarSugerencia(sug, movs) {
+  const rec = nuevoRecurrente(sug);
+  const ligados = movs.filter((m) => !m.recId && m.tipo === sug.tipo && clave(m.nota) === clave(sug.n));
+  ligados.forEach((m) => { m.recId = rec.id; });
+  return { rec, ligados };
+}

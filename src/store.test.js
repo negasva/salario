@@ -304,5 +304,13 @@ describe('sincronizar sin perder lo hecho', () => {
     await s.subirYa();
     expect(ids(rows[0].data.movs)).toEqual(['n', 'z']);
   });
+
+  it('una copia apartada ilegible no estorba al entrar', async () => {
+    nube.supabase = nubeFalsa([fila('t1', 'b')]);
+    await cargarCon({ 'reparto:retenida:u1': 'basura{' });
+    await store.bootAuth('u1');
+    expect(ids(store.active().movs)).toEqual(['b']);
+    expect(localStorage.getItem('reparto:retenida:u1')).toBeNull();
+  });
 });
 

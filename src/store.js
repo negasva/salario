@@ -138,6 +138,7 @@ async function flushPush() {
   if (!userId || !pushPendiente || enVuelo) return;
   enVuelo = true;
   const version = cambios;
+  const uid = userId;
   const fila = { user_id: userId, nombre: perfil.name, updated_at: new Date().toISOString(), data: perfil };
   try {
     if (!remoteId) {
@@ -151,7 +152,7 @@ async function flushPush() {
       ? await q.update(fila).eq('id', remoteId).eq('updated_at', sello).select()
       : await q.insert(fila).select();
     if (error) throw error;
-    if (!userId) return; // se cerró la sesión mientras subía
+    if (userId !== uid) return; // se cerró la sesión (o entró otra cuenta) mientras subía
     if (!data?.length) { await juntarConLaNube(); return; }
     conflictos = 0;
     fallos = 0;
@@ -200,16 +201,17 @@ export async function bootAuth(uid) {
   userId = uid;
   if (!uid) return { migrated: false };
   try {
+    const mia = localStorage.getItem(KEY);
     if (duenoLocal && duenoLocal !== uid) {
       // la copia local es de otra cuenta: no se mezcla con esta; si traía cambios sin subir, se aparta para cuando vuelva
-      if (pushPendiente) localStorage.setItem(`${RETENIDA}${duenoLocal}`, localStorage.getItem(KEY) || '');
+      if (pushPendiente && mia) localStorage.setItem(`${RETENIDA}${duenoLocal}`, mia);
       perfil = freshProfile();
       remoteId = null; sello = null; pushPendiente = false; reinicio = false;
     }
     const apartada = localStorage.getItem(`${RETENIDA}${uid}`);
-    if (apartada && !pushPendiente) {
-      aplicarBlob(JSON.parse(apartada));
-      localStorage.removeItem(`${RETENIDA}${uid}`);
+    if (apartada) {
+      localStorage.removeItem(`${RETENIDA}${uid}`); // se usa una vez; si venía ilegible, no vuelve a estorbar
+      if (!pushPendiente) aplicarBlob(JSON.parse(apartada)); // con cambios propios más nuevos, la apartada ya es vieja
     }
   } catch { /* almacenamiento bloqueado o copia ilegible: se sigue con la nube */ }
   duenoLocal = uid;

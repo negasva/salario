@@ -1,5 +1,6 @@
 import { signIn, signUp, recoverPassword } from '../auth.js';
-import { mensajeEnlace } from '../engine/persona.js';
+import { mensajeEnlace, problemaClave } from '../engine/persona.js';
+import { esc } from '../format.js';
 import { icon, logo } from './icons.js';
 
 let mode = 'login'; // login | registro | recuperar
@@ -43,7 +44,8 @@ export function renderLogin(root, onDone, aviso = '', alRecuperar = false) {
     </div>
     <form id="authForm">
       <div class="fld"><label for="authEmail">Correo</label><input id="authEmail" type="email" required autocomplete="email" placeholder="tu@correo.com"></div>
-      <div class="fld"><label for="authPass">Contraseña</label><input id="authPass" type="password" required autocomplete="${mode === 'registro' ? 'new-password' : 'current-password'}" minlength="6"></div>
+      <div class="fld"><label for="authPass">Contraseña</label><input id="authPass" type="password" required autocomplete="${mode === 'registro' ? 'new-password' : 'current-password'}" minlength="${mode === 'registro' ? 8 : 6}">
+        ${mode === 'registro' ? '<p class="sub">Mínimo 8 caracteres, con letras y números.</p>' : ''}</div>
       ${mode === 'login' ? '<button type="button" class="auth-olvide" id="authOlvide">¿Olvidaste tu contraseña?</button>' : ''}
       <div id="authErr" class="auth-err" role="alert">${aviso}</div>
       <button type="submit" class="wide btn-primary btn-lg">${accion}</button>
@@ -62,6 +64,9 @@ export function renderLogin(root, onDone, aviso = '', alRecuperar = false) {
     const err = root.querySelector('#authErr');
     const enviar = root.querySelector('#authForm [type=submit]');
     err.textContent = '';
+    // las cuentas nuevas piden lo mismo que el cambio de contraseña; entrar sigue aceptando las de antes
+    const falta = mode === 'registro' ? problemaClave(pass, pass) : '';
+    if (falta) { err.textContent = falta; return; }
     enviar.disabled = true;
     enviar.textContent = 'Un momento…';
     const res = mode === 'login' ? await signIn(email, pass) : await signUp(email, pass);
@@ -112,7 +117,7 @@ function renderEnviado(root, email, volver) {
   root.innerHTML = marcoAuth(`
     <div class="auth-sello" aria-hidden="true">${icon('correo')}</div>
     <h1 class="auth-title">Revisa tu correo</h1>
-    <p class="sub">Si <b>${email.replace(/[<>&"]/g, '')}</b> tiene cuenta, ahí va el enlace. Vale por una hora; mira también en spam.</p>
+    <p class="sub">Si <b>${esc(email)}</b> tiene cuenta, ahí va el enlace. Vale por una hora; mira también en spam.</p>
     <div id="authErr" class="auth-err ok" role="status"></div>
     <button type="button" class="wide btn-lg" id="authReenviar" disabled></button>
     <button type="button" class="auth-volver auth-volver-fin" id="authVolver">${icon('izq')}Volver a entrar</button>`);

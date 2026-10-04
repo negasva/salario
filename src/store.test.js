@@ -148,7 +148,7 @@ describe('sugerencias descartadas', () => {
 });
 
 /* Supabase de mentira: una tabla en memoria con select, update, insert y eq. */
-function nubeFalsa(rows, alConsultar) {
+function nubeFalsa(rows, alConsultar, antesDeInsertar) {
   let consultas = 0;
   return {
     from: () => {
@@ -164,7 +164,14 @@ function nubeFalsa(rows, alConsultar) {
         then: (ok) => {
           if (accion === 'select') alConsultar?.(consultas++);
           const m = rows.filter((r) => filtros.every(([c, v]) => r[c] === v));
-          if (accion === 'insert') { const r = { id: `n${rows.length}`, ...carga }; rows.push(r); return ok({ data: [r], error: null }); }
+          if (accion === 'insert') {
+            antesDeInsertar?.();
+            // como la base: una sola fila por cuenta
+            if (rows.some((x) => x.user_id === carga.user_id)) return ok({ data: null, error: { code: '23505' } });
+            const r = { id: `n${rows.length}`, ...carga };
+            rows.push(r);
+            return ok({ data: [r], error: null });
+          }
           if (accion === 'update') m.forEach((r) => Object.assign(r, carga));
           return ok({ data: m, error: null });
         },
@@ -407,6 +414,69 @@ describe('respaldo y restauración', () => {
     expect(store.ultimoRespaldo()).toBeNull();
     store.marcarRespaldo('2026-10-04');
     expect(store.ultimoRespaldo()).toBe('2026-10-04');
+  });
+});
+
+describe('una fila por cuenta en la base', () => {
+  it('si otro dispositivo crea la fila justo antes de insertar, se junta con ella enseguida en vez de esperar al reintento', async () => {
+    vi.useFakeTimers();
+    try {
+      const rows = [];
+      let creada = false;
+      nube.supabase = nubeFalsa(rows, null, () => { if (!creada) { creada = true; rows.push(fila('t1', 'b')); } });
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+      await store.bootAuth('u1');
+      await vi.advanceTimersByTimeAsync(50); // el reintento del choque es inmediato; el de un error común, de 4 s
+      expect(rows).toHaveLength(1);
+      expect(ids(rows[0].data.movs)).toEqual(['a', 'b']);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe('errores de la base al subir', () => {
+  const nubeQueRechaza = (codigo, cuenta) => ({
+    from: () => {
+      let accion = 'select';
+      const b = {
+        select: () => b, eq: () => b, order: () => b,
+        update: () => { accion = 'update'; return b; },
+        insert: () => { accion = 'insert'; cuenta.insertos++; return b; },
+        then: (ok) => ok(accion === 'insert' ? { data: null, error: { code: codigo } } : { data: [], error: null }),
+      };
+      return b;
+    },
+  });
+
+  it('un choque de fila única que no se resuelve no martilla: cuatro intentos seguidos y luego espera 30 s', async () => {
+    vi.useFakeTimers();
+    try {
+      const cuenta = { insertos: 0 };
+      nube.supabase = nubeQueRechaza('23505', cuenta);
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+      await store.bootAuth('u1');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(cuenta.insertos).toBe(4);
+      await vi.advanceTimersByTimeAsync(25000);
+      expect(cuenta.insertos).toBe(4);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(cuenta.insertos).toBe(5);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('un perfil demasiado grande se avisa y no se reintenta hasta que algo cambie', async () => {
+    vi.useFakeTimers();
+    try {
+      const cuenta = { insertos: 0 };
+      nube.supabase = nubeQueRechaza('23514', cuenta);
+      await cargarCon({ 'reparto:v11': JSON.stringify({ ...perfilCon('a'), pendiente: true }) });
+      await store.bootAuth('u1');
+      await vi.advanceTimersByTimeAsync(120000);
+      expect(cuenta.insertos).toBe(1);
+      expect(store.estadoSync()).toBe('grande');
+      store.save(); // la persona borró algo: se vuelve a intentar
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(cuenta.insertos).toBe(2);
+    } finally { vi.useRealTimers(); }
   });
 });
 

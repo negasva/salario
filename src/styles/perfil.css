@@ -97,7 +97,7 @@
 .pf-sync .sub{font-size:var(--text-xs)}
 .pf-sync-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:var(--radius-sm);background:var(--surface-3);color:var(--text-2);flex:none}
 .pf-sync[data-estado=al-dia] .pf-sync-ic{background:var(--pos-soft);color:var(--pos)}
-.pf-sync[data-estado=sin-red] .pf-sync-ic,.pf-sync[data-estado=error] .pf-sync-ic,.pf-sync[data-estado=local] .pf-sync-ic{background:var(--neg-soft);color:var(--neg)}
+.pf-sync[data-estado=sin-red] .pf-sync-ic,.pf-sync[data-estado=error] .pf-sync-ic,.pf-sync[data-estado=grande] .pf-sync-ic,.pf-sync[data-estado=local] .pf-sync-ic{background:var(--neg-soft);color:var(--neg)}
 
 .pf-botones{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 .pf-botones button{flex:1 1 140px}

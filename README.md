@@ -26,8 +26,8 @@ npm run dev
 ## Configurar Supabase
 
 1. Crea un proyecto en supabase.com.
-2. En el SQL editor, corre `supabase/schema.sql`.
-3. En Authentication → Providers, deja email/password activo.
+2. En el SQL editor, corre `supabase/schema.sql`. Se puede volver a correr sin riesgo, también sobre una base que ya tiene la tabla: deja una fila por cuenta, la política `with check` y solo los privilegios que la app usa. Si el índice único falla, hay cuentas con filas duplicadas; el propio archivo explica cómo revisarlas. Cada perfil puede pesar hasta 5 MB (unos 22.000 movimientos); si lo pasa, Perfil avisa "Demasiado grande para la nube" y los datos siguen a salvo en el dispositivo.
+3. En Authentication → Providers, deja email/password activo. En Authentication → Sign In / Up → Password, sube el largo mínimo a 8 y activa *Prevent use of leaked passwords* (la app ya pide 8 con letras y números al crear la cuenta, pero eso solo lo cumple el navegador).
 4. Copia `Project URL` y `anon public key` a `.env` (local) o a las variables de entorno de Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 5. Para que el enlace de **recuperar contraseña** vuelva a la app y no a otra dirección, en Authentication → URL Configuration:
    - **Site URL**: el dominio de producción (`https://tu-dominio.com`). Es el destino de respaldo: si queda en una URL de Vercel, los correos llevan allí.

@@ -111,7 +111,7 @@ export function renderAjustes(root) {
     try {
       const texto = await f.text();
       const antes = store.restaurarDesdeJSON(texto); // si la copia no sirve, lanza antes de tocar nada
-      descargar(`reparto-antes-de-restaurar-${hoyArchivo()}.json`, JSON.stringify(antes, null, 2), 'application/json'); // el seguro si el deshacer ya pasó
+      try { descargar(`reparto-antes-de-restaurar-${hoyArchivo()}.json`, JSON.stringify(antes, null, 2), 'application/json'); } catch { /* el seguro si el deshacer ya pasó; si el navegador lo bloquea, la restauración igual quedó hecha */ }
       renderAjustes(root);
       toast('Copia restaurada.', () => { store.restaurar(antes); renderAjustes(root); toast('Volvieron tus datos de antes.'); });
     } catch (e) {

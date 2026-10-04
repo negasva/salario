@@ -38,6 +38,12 @@ npm run dev
 
 La política de contenido (CSP) y demás cabeceras de seguridad viven en `vercel.json`. Solo deja conectar a la propia app y a `*.supabase.co`: si usas un dominio propio para Supabase, agrégalo a `connect-src`. Si editas el script del tema en `index.html`, hay que actualizar su hash (una prueba avisa).
 
+## Operación
+
+- **Antes de desplegar**: `vercel.json` hace que Vercel corra `npm test` antes de `npm run build`; si un test falla, no hay despliegue. En GitHub, `.github/workflows/ci.yml` corre los mismos tests y el build en cada pull request.
+- **Variables de entorno** (Vercel → Settings → Environment Variables): `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` son obligatorias; sin ellas la app muestra "Falta configurar Supabase" en vez de quedar en blanco. `VITE_SITE_URL` es opcional.
+- **Respaldos**: en Ajustes → Tus datos, `JSON` descarga una copia completa y la app recuerda cuándo fue la última (avisa pasados 30 días). `Restaurar copia` la vuelve a cargar y reemplaza todo, con deshacer unos segundos. Los respaldos automáticos de la base de datos dependen del plan de Supabase (Database → Backups); el plan gratuito no los incluye, así que conviene descargar el JSON de vez en cuando.
+
 ## Build y tests
 
 ```

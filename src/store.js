@@ -307,6 +307,32 @@ export function exportarJSON() {
   return JSON.stringify(perfil, null, 2);
 }
 
+const KEY_RESPALDO = 'reparto:respaldo';
+
+// Anota el día de la última copia descargada, para recordar cuándo toca otra.
+export function marcarRespaldo(dia) {
+  try { localStorage.setItem(KEY_RESPALDO, dia); } catch { /* noop */ }
+}
+export function ultimoRespaldo() {
+  try { return localStorage.getItem(KEY_RESPALDO); } catch { return null; }
+}
+
+/* Reemplaza todo por una copia JSON descargada antes. Se parece a "borrar todo"
+   en que la nube se sobrescribe (no se junta, o volvería lo que no estaba en la
+   copia). Devuelve el perfil anterior para poder deshacer con `restaurar`. */
+export function restaurarDesdeJSON(texto) {
+  let datos;
+  try { datos = JSON.parse(texto); } catch { datos = null; }
+  if (!datos || typeof datos !== 'object' || !Array.isArray(datos.movs) || !Array.isArray(datos.cats)) {
+    throw new Error('Ese archivo no es una copia de Reparto mensual.');
+  }
+  const antes = perfil;
+  reinicio = true;
+  perfil = normalizar({ ...datos, recRecuperados: true });
+  save();
+  return antes;
+}
+
 /* ---------- la persona ---------- */
 
 export const persona = () => perfil.persona;

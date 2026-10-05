@@ -81,9 +81,9 @@ export function mountIconSprite() {
 // El logo de la app, a color: no sale del sprite porque lleva dos tintas.
 export function logo(cls = 'logo') {
   return `<svg class="${cls}" viewBox="0 0 512 512" aria-hidden="true">
-    <rect width="512" height="512" rx="112" fill="#111312"/>
-    <circle cx="256" cy="256" r="150" fill="#9FD3B8"/>
-    <path d="M196 340V172h74a52 52 0 0 1 0 104h-32l52 64" fill="none" stroke="#111312"
+    <rect width="512" height="512" rx="112" fill="#52474D"/>
+    <circle cx="256" cy="256" r="150" fill="#FF85A9"/>
+    <path d="M196 340V172h74a52 52 0 0 1 0 104h-32l52 64" fill="none" stroke="#52474D"
       stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 

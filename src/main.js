@@ -19,11 +19,13 @@ import { avisarVencimientos } from './ui/avisos.js';
 import { getSession, onAuthChange, enlaceInicial, signOut, sinConfiguracion, sesionGuardada } from './auth.js';
 import * as store from './store.js';
 import { montarTema } from './ui/tema.js';
+import { montarFechas } from './ui/fecha.js';
 import { montarPaleta } from './ui/paleta.js';
 import { salir } from './ui/shell.js';
 
 mountIconSprite();
 montarTema();
+montarFechas();
 store.load();
 
 const app = document.getElementById('app');

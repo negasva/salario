@@ -17,7 +17,11 @@
    `cuotas: { total, desde: 'AAAA-MM' }`. Solo aparece en los meses que le
    tocan, dice qué cuota va y cuánto falta en total.
 
-   Un recurrente es { id, n, monto, catId, tipo, dia, cuotas? }. Sus pagos son
+   Un mes se puede saltar sin tocar los demás (la cuota de manejo que este
+   mes no se paga): `omitidos: ['AAAA-MM', ...]`. En ese mes no es pendiente,
+   no suma al estimado ni avisa; al siguiente vuelve solo.
+
+   Un recurrente es { id, n, monto, catId, tipo, dia, cuotas?, omitidos? }. Sus pagos son
    los movimientos del mes con `recId` igual a su id. */
 
 import { periodoDe, hoyISO, sumarMeses } from './movimientos.js';
@@ -105,6 +109,24 @@ export function estadoDeuda(rec, movs, periodo) {
   return { total, cuota, deuda, pagado, falta, fin, estado };
 }
 
+// ¿Se saltó este mes?
+export function omitidoEn(rec, periodo) {
+  return Array.isArray(rec?.omitidos) && rec.omitidos.includes(periodo);
+}
+
+// Salta el mes (o lo vuelve a poner con `omitir(rec, per, false)`).
+export function omitir(rec, periodo, omitido = true) {
+  const otros = (rec.omitidos || []).filter((p) => p !== periodo);
+  const nuevos = omitido ? [...otros, periodo].sort() : otros;
+  if (nuevos.length) rec.omitidos = nuevos; else delete rec.omitidos;
+  return rec;
+}
+
+// Toca en el mes y no se saltó: lo que cuenta para pendientes, estimado y avisos.
+export function cuentaEn(rec, periodo) {
+  return activoEn(rec, periodo) && !omitidoEn(rec, periodo);
+}
+
 const entero = (v) => Math.max(0, Math.round(Number(v) || 0));
 
 // Los pagos de este mes, del primero al último.
@@ -135,7 +157,7 @@ export function estadoDelMes(rec, movs, periodo) {
 
 // Los que tocan en el mes elegido y todavía no tienen ni un pago.
 export function pendientes(recurrentes, movs, periodo) {
-  return (recurrentes || []).filter((r) => activoEn(r, periodo) && !estaPagado(r, movs, periodo));
+  return (recurrentes || []).filter((r) => cuentaEn(r, periodo) && !estaPagado(r, movs, periodo));
 }
 
 function notaDe(rec, nota) {
@@ -214,7 +236,7 @@ export function marcarTodos(recurrentes, movs, periodo, soloIds = null) {
 /* Cómo va el mes: cuánto se esperaba, cuánto se lleva pagado, cuánto queda
    por pagar de los que tienen estimado y cuántos no tienen ni un pago. */
 export function resumen(recurrentes, movs, periodo, tipo = 'gasto') {
-  const lista = (recurrentes || []).filter((r) => r.tipo === tipo && activoEn(r, periodo));
+  const lista = (recurrentes || []).filter((r) => r.tipo === tipo && cuentaEn(r, periodo));
   let estimado = 0;
   let pagado = 0;
   let queda = 0;
@@ -245,7 +267,7 @@ export function vencimientos(recurrentes, movs, hoy = hoyISO(), dias = 7) {
   const lista = [];
   [actual, sumarMeses(actual, 1)].forEach((per) => {
     (recurrentes || []).forEach((rec) => {
-      if (rec.tipo !== 'gasto' || !activoEn(rec, per) || estaPagado(rec, movs, per)) return;
+      if (rec.tipo !== 'gasto' || !cuentaEn(rec, per) || estaPagado(rec, movs, per)) return;
       const fecha = fechaEnPeriodo(per, rec.dia);
       const en = diasEntre(hoy, fecha);
       if (en > dias || (per !== actual && en < 0)) return;

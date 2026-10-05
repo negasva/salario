@@ -3,7 +3,7 @@ import {
   fechaEnPeriodo, fechaSugerida, nuevoRecurrente, pendientes, pagosDelMes, estaPagado, estadoDelMes,
   abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos, resumen,
   normalizarCuotas, mesesEntre, numeroCuota, mesFinal, activoEn, estadoDeuda,
-  diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
+  omitir, omitidoEn, diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from './recurrentes.js';
 
 const nuevo = (n, monto, extra = {}) => nuevoRecurrente({ n, monto, catId: 'viv', dia: 5, ...extra });
@@ -340,3 +340,24 @@ describe('calendario sin inyección', () => {
   });
 });
 
+
+describe('saltar un mes', () => {
+  it('en el mes omitido no es pendiente, ni suma, ni avisa; el siguiente vuelve', () => {
+    const tc = nuevo('Cuota de manejo TC', 51000, { dia: 2 });
+    omitir(tc, '2026-10');
+    expect(omitidoEn(tc, '2026-10')).toBe(true);
+    expect(pendientes([tc], [], '2026-10')).toEqual([]);
+    expect(resumen([tc], [], '2026-10').estimado).toBe(0);
+    expect(vencimientos([tc], [], '2026-10-05', 7).filter((v) => v.periodo === '2026-10')).toEqual([]);
+    expect(pendientes([tc], [], '2026-11')).toHaveLength(1);
+    expect(vencimientos([tc], [], '2026-10-30', 7).map((v) => v.periodo)).toEqual(['2026-11']);
+  });
+
+  it('reanudar lo deja como estaba', () => {
+    const tc = nuevo('TC', 1);
+    omitir(tc, '2026-10');
+    omitir(tc, '2026-10', false);
+    expect('omitidos' in tc).toBe(false);
+    expect(pendientes([tc], [], '2026-10')).toHaveLength(1);
+  });
+});

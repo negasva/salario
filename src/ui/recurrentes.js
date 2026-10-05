@@ -1,7 +1,7 @@
 import * as store from '../store.js';
 import {
   estadoDelMes, abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos,
-  nuevoRecurrente, resumen, fechaSugerida, pendientes, normalizarCuotas, numeroCuota, activoEn,
+  nuevoRecurrente, resumen, fechaSugerida, pendientes, normalizarCuotas, numeroCuota, activoEn, omitidoEn, omitir,
   estadoDeuda, mesFinal, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from '../engine/recurrentes.js';
 import { deTipo, nombreDe, colorDe, OTROS } from '../engine/categorias.js';
@@ -276,7 +276,20 @@ export function renderRecurrentes(root) {
   const faltan = gastos.faltan + ingresos.faltan;
   const conEstimado = pendientes(p.recurrentes, p.movs, per).filter((r) => r.monto > 0).length;
 
+  const filaOmitida = (r) => `<li class="row rec omitido" data-id="${esc(r.id)}">
+      <span class="estado" aria-hidden="true">${icon('reloj')}</span>
+      <div class="row-txt">
+        <div class="row-t">${esc(r.n)}</div>
+        <div class="row-s num">En pausa en ${nombreMes(per)} · vuelve el mes siguiente</div>
+      </div>
+      <div class="row-acc">
+        <button class="mini" data-reanudar="${esc(r.id)}" aria-label="Reanudar ${esc(r.n)} en ${nombreMes(per)}">Reanudar</button>
+        <button class="btn-icon" data-edit="${esc(r.id)}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
+      </div>
+    </li>`;
+
   const fila = (r) => {
+    if (omitidoEn(r, per)) return filaOmitida(r);
     const e = estadoDelMes(r, p.movs, per);
     const ingreso = r.tipo === 'ingreso';
     const partes = e.pagos.length > 1 ? ` · ${e.pagos.length} pagos` : '';
@@ -306,6 +319,7 @@ export function renderRecurrentes(root) {
         ${e.estado === 'parcial' || e.pasado ? `<span class="barra ${e.pasado ? 'barra-over' : ''}" aria-hidden="true"><i style="width:${pct}%;background:${e.pasado ? 'var(--neg-fill)' : 'var(--brand)'}"></i></span>` : ''}
       </div>
       <div class="row-acc">
+        ${e.estado === 'pendiente' ? `<button class="btn-icon" data-omitir="${esc(r.id)}" aria-label="No pagar ${esc(r.n)} este mes">${icon('reloj')}</button>` : ''}
         <button class="${boton[0]}" data-pago="${esc(r.id)}" aria-label="${boton[2]}">${boton[1]}</button>
         <button class="btn-icon" data-edit="${esc(r.id)}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
       </div>
@@ -363,6 +377,17 @@ export function renderRecurrentes(root) {
   root.querySelectorAll('[data-pago]').forEach((b) => {
     b.onclick = () => hojaPagos(p.recurrentes.find((r) => r.id === b.dataset.pago), per, repintar);
   });
+  const pausa = (id, omitido) => {
+    const r = p.recurrentes.find((x) => x.id === id);
+    if (!r) return;
+    omitir(r, per, omitido);
+    store.save();
+    repintar();
+    toast(omitido ? `${r.n} en pausa en ${nombreMes(per)}. Vuelve el mes siguiente.` : `${r.n} vuelve a contar en ${nombreMes(per)}.`,
+      () => { omitir(r, per, !omitido); store.save(); repintar(); });
+  };
+  root.querySelectorAll('[data-omitir]').forEach((b) => { b.onclick = () => pausa(b.dataset.omitir, true); });
+  root.querySelectorAll('[data-reanudar]').forEach((b) => { b.onclick = () => pausa(b.dataset.reanudar, false); });
   root.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => editorFicha(p.recurrentes.find((r) => r.id === b.dataset.edit), repintar);
   });

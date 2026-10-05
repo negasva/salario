@@ -20,6 +20,7 @@ export function fusionar(local, remoto) {
     recurrentes: porId(local.recurrentes, remoto.recurrentes),
     metas: porId(local.metas, remoto.metas),
     arranques: { ...remoto.arranques, ...local.arranques },
+    sobrante: { ...(remoto.sobrante || {}), ...(local.sobrante || {}), hechos: { ...(remoto.sobrante?.hechos), ...(local.sobrante?.hechos) } },
     ignoradas: [...new Set([...(remoto.ignoradas || []), ...(local.ignoradas || [])])],
   };
 }

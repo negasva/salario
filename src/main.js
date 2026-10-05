@@ -18,6 +18,9 @@ import { renderMas } from './ui/mas.js';
 import { avisarVencimientos } from './ui/avisos.js';
 import { getSession, onAuthChange, enlaceInicial, signOut, sinConfiguracion, sesionGuardada } from './auth.js';
 import * as store from './store.js';
+import * as ahorro from './engine/ahorro.js';
+import { hoyISO } from './engine/movimientos.js';
+import { money } from './format.js';
 import { montarTema } from './ui/tema.js';
 import { montarFechas } from './ui/fecha.js';
 import { montarPaleta } from './ui/paleta.js';
@@ -56,7 +59,23 @@ let conSesion = false;
 const TITULOS = { inicio: 'Inicio', movimientos: 'Movimientos', recurrentes: 'Recurrentes', ahorro: 'Ahorro',
   reportes: 'Reportes', perfil: 'Perfil', categorias: 'Categorías', ajustes: 'Ajustes', mas: 'Más' };
 
+// Si pediste pasar el sobrante a Ahorro, al cerrar un mes se anota solo.
+function barrerSobrante() {
+  const p = store.active();
+  if (!p) return;
+  const creados = ahorro.barrerSobrante(p, hoyISO());
+  if (!creados.length) return;
+  store.save();
+  const total = creados.reduce((t, m) => t + m.monto, 0);
+  toast(`${money(total)} que sobraron pasaron a Ahorro.`, () => {
+    creados.forEach((m) => { const i = p.movs.indexOf(m); if (i >= 0) p.movs.splice(i, 1); });
+    store.save();
+    paintRoute();
+  });
+}
+
 function paintRoute({ entrada = false } = {}) {
+  barrerSobrante();
   const content = renderShell(app, route, navegar);
   ROUTES[route](content);
   document.title = `${TITULOS[route]} · Reparto mensual`;

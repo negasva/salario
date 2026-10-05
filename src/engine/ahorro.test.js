@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   catAhorro, idsAhorro, ahorroPorMes, ahorroTotal, nuevaMeta, progresoMeta, ritmoMensual, estadoAhorro,
-  inicialSugerido, retiro,
+  inicialSugerido, retiro, normalizarSobrante, barrerSobrante,
 } from './ahorro.js';
 
 const cats = [
@@ -92,5 +92,47 @@ describe('Ahorro y Ahorros', () => {
     const solo = [cats[1]];
     expect(catAhorro(solo).id).toBe('ahos');
     expect(estadoAhorro({ cats: solo, movs, metas: [] }, '2026-10').total).toBe(500000);
+  });
+});
+
+describe('sobrante del mes', () => {
+  const base = () => {
+    const p = {
+      saldoInicial: 0, arranques: {}, cats: [{ id: 'aho', n: 'Ahorro', tipo: 'gasto' }],
+      movs: [
+        { id: 'a', fecha: '2026-09-05', tipo: 'ingreso', monto: 1000, catId: 'x', nota: '' },
+        { id: 'b', fecha: '2026-09-10', tipo: 'gasto', monto: 300, catId: 'y', nota: '' },
+      ],
+      sobrante: normalizarSobrante({ activo: true, desde: '2026-09' }),
+    };
+    return p;
+  };
+
+  it('pasa el sobrante a Ahorro el último día, una sola vez', () => {
+    const p = base();
+    expect(barrerSobrante(p, '2026-09-29')).toEqual([]);
+    const [m] = barrerSobrante(p, '2026-09-30');
+    expect(m).toMatchObject({ fecha: '2026-09-30', tipo: 'gasto', monto: 700, catId: 'aho', sobrante: true });
+    expect(barrerSobrante(p, '2026-10-02')).toEqual([]);
+    expect(p.movs.filter((x) => x.sobrante)).toHaveLength(1);
+  });
+
+  it('un sobrante borrado a mano no vuelve y el mes siguiente arranca en cero', () => {
+    const p = base();
+    const [m] = barrerSobrante(p, '2026-10-02');
+    p.movs.splice(p.movs.indexOf(m), 1);
+    expect(barrerSobrante(p, '2026-10-03')).toEqual([]);
+  });
+
+  it('no toca nada si está apagado, no sobra o es antes de activarlo', () => {
+    const p = base();
+    p.sobrante.activo = false;
+    expect(barrerSobrante(p, '2026-10-05')).toEqual([]);
+    const q = base();
+    q.sobrante.desde = '2026-10';
+    expect(barrerSobrante(q, '2026-10-05')).toEqual([]);
+    const r = base();
+    r.movs.push({ id: 'c', fecha: '2026-09-20', tipo: 'gasto', monto: 900, catId: 'y', nota: '' });
+    expect(barrerSobrante(r, '2026-10-05')).toEqual([]);
   });
 });

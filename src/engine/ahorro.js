@@ -15,7 +15,7 @@
    su plata sale del total. */
 
 import { clave, nuevoId, OTROS_ING } from './categorias.js';
-import { periodoDe, sumarMeses } from './movimientos.js';
+import { periodoDe, sumarMeses, resumenMes } from './movimientos.js';
 
 /* Ahorro y Ahorros (como la escribe quien la crea a mano) son la misma cosa:
    toda categoría de gasto con ese nombre cuenta como ahorro. */
@@ -159,4 +159,50 @@ export function retiro(monto, fecha, nota, metaId = null) {
   };
   if (metaId) m.metaId = metaId;
   return m;
+}
+
+/* ---------- el sobrante del mes ----------
+
+   Si lo pides, lo que sobra al cerrar el mes pasa solo a Ahorro, fechado el
+   último día. `sobrante` es { activo, desde 'AAAA-MM', hechos: { 'AAAA-MM': true } }:
+   `desde` es el mes en que se activó (los anteriores no se tocan) y `hechos` los
+   meses ya revisados, para que uno que borraste a mano no vuelva a aparecer. */
+
+export function normalizarSobrante(s) {
+  const hechos = s?.hechos && typeof s.hechos === 'object' ? s.hechos : {};
+  return {
+    activo: Boolean(s?.activo),
+    desde: /^\d{4}-\d{2}$/.test(String(s?.desde || '')) ? s.desde : null,
+    hechos,
+  };
+}
+
+// El último día del mes, 'AAAA-MM-DD'.
+export function ultimoDia(periodo) {
+  const [a, m] = periodo.split('-').map(Number);
+  return `${periodo}-${String(new Date(a, m, 0).getDate()).padStart(2, '0')}`;
+}
+
+// Lo que sobra hoy en el mes (lo que "terminas con"), o 0 si no sobra nada.
+export function sobraEn(p, periodo) {
+  return Math.max(0, resumenMes(p.saldoInicial, p.movs, periodo, p.arranques).final);
+}
+
+/* Pasa a Ahorro el sobrante de cada mes ya terminado (su último día es hoy o
+   pasó) desde que se activó. Devuelve los movimientos creados. */
+export function barrerSobrante(p, hoy) {
+  const s = p.sobrante;
+  const cat = catAhorro(p.cats);
+  if (!s?.activo || !s.desde || !cat) return [];
+  const creados = [];
+  for (let per = s.desde; ultimoDia(per) <= hoy; per = sumarMeses(per, 1)) {
+    if (s.hechos[per]) continue;
+    const monto = sobraEn(p, per);
+    s.hechos[per] = true;
+    if (monto <= 0) continue;
+    const mov = { id: nuevoId(), fecha: ultimoDia(per), tipo: 'gasto', monto, catId: cat.id, nota: 'Sobrante del mes', sobrante: true };
+    p.movs.push(mov);
+    creados.push(mov);
+  }
+  return creados;
 }

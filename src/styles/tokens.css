@@ -1,4 +1,5 @@
-/* Sistema de diseño, séptima versión: tarjetas suaves.
+/* Sistema de diseño, séptima versión: tarjetas suaves. Paleta actual: ciruela
+   #52474D, magenta #DD4991, hueso #F5F5F2, rosa claro #FFC9DB y rosa #FF85A9.
 
    Copia la estética de dos referencias de apps de finanzas. En claro: fondo
    menta pálido, tarjetas blancas muy redondeadas, el saldo en una tarjeta
@@ -12,57 +13,57 @@
   color-scheme:dark;
 
   /* pastel de acento, compartidos por gráficas, tiles y categorías */
-  --menta:#9FD3B8; --rosa:#F6CACA; --limon:#F9D98B; --cielo:#BFD7F6; --oliva:#8C8A5E;
+  --menta:#9FD3B8; --rosa:#FFC9DB; --limon:#F9D98B; --cielo:#BFD7F6; --oliva:#8C8A5E;
 
-  --brand:        #9FD3B8;
-  --brand-strong: #B7E2CC;
-  --on-brand:     #0A0A0A;
+  --brand:        #FF85A9;
+  --brand-strong: #FFC9DB;
+  --on-brand:     #2A1520;
 
-  --primary:      #F5F5F5;
+  --primary:      #F5F5F2;
   --primary-hover:#FFFFFF;
-  --on-primary:   #0A0A0A;
+  --on-primary:   #2A1F26;
 
-  --bg:           #050505;
-  --page:         #050505;
-  --surface:      #1C1C1C;
-  --surface-2:    #262626;
-  --surface-3:    #313131;
-  --border:       #262626;
-  --border-strong:#3A3A3A;
-  --text:         #F5F5F5;
-  --text-2:       #A8A8A8;
-  --text-3:       #8E8E8E;
+  --bg:           #1B1719;
+  --page:         #1B1719;
+  --surface:      #272024;
+  --surface-2:    #31292D;
+  --surface-3:    #3D343A;
+  --border:       #31292D;
+  --border-strong:#52474D;
+  --text:         #F5F5F2;
+  --text-2:       #C9BFC5;
+  --text-3:       #A89DA4;
   --hairline:     none;
 
-  --accent-text:  #B7E2CC;
-  --accent-soft:  rgba(159,211,184,.14);
-  --accent-line:  rgba(159,211,184,.40);
+  --accent-text:  #FFC9DB;
+  --accent-soft:  rgba(255,133,169,.14);
+  --accent-line:  rgba(255,133,169,.45);
 
   /* el saldo: tile menta con tinta negra */
-  --hero-bg:      #A9D9C1;
-  --hero-text:    #0A0A0A;
-  --tile-ink:     #0A0A0A;
-  --hero-text-2:  rgba(10,10,10,.62);
-  --hero-line:    rgba(10,10,10,.12);
+  --hero-bg:      #FF85A9;
+  --hero-text:    #2A1520;
+  --tile-ink:     #2A1520;
+  --hero-text-2:  rgba(42,21,32,.68);
+  --hero-line:    rgba(42,21,32,.14);
   --hero-pos:     #0A5C36;
   --hero-neg:     #8E1F1F;
 
   --pos:          #7EE2A8;
   --pos-fill:     #7EE2A8;
-  --pos-soft:     #13241B;
+  --pos-soft:     #1B2A22;
   --pos-line:     #2A4D3A;
   --neg:          #FF8E8E;
   --neg-fill:     #F6A1A1;
-  --neg-soft:     #2A1616;
+  --neg-soft:     #2E1A20;
   --neg-line:     #5A2C2C;
 
   --warn:         #F9D98B;
-  --focus:        #F5F5F5;
-  --scrim:        rgba(0,0,0,.72);
-  --glass:        rgba(28,28,28,.92);
-  --seg-on:       #3A3A3A;
-  --nav-bg:       #333333;
-  --chart-line:   #9FD3B8;
+  --focus:        #FFC9DB;
+  --scrim:        rgba(12,8,10,.72);
+  --glass:        rgba(39,32,36,.92);
+  --seg-on:       #52474D;
+  --nav-bg:       #31292D;
+  --chart-line:   #FF85A9;
 
   --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: var(--font-sans);
@@ -97,31 +98,31 @@
 /* Tema claro: la primera referencia. */
 :root[data-theme=light]{
   color-scheme:light;
-  --menta:#BFE3D0; --rosa:#F8D3D3; --limon:#F7F27D; --cielo:#CFE1F7; --oliva:#C9C79A;
-  --brand:        #F7F27D;
-  --brand-strong: #EFE85C;
-  --on-brand:     #111312;
-  --primary:      #111312;
-  --primary-hover:#000000;
-  --on-primary:   #FFFFFF;
-  --bg:           #E4F0E9;
-  --page:         linear-gradient(180deg,#D5EADF 0%,#E9F3ED 45%,#F2F6F3 100%);
+  --menta:#BFE3D0; --rosa:#FFC9DB; --limon:#F7E9A0; --cielo:#CFE1F7; --oliva:#C9C79A;
+  --brand:        #DD4991;
+  --brand-strong: #C73B80;
+  --on-brand:     #FFFFFF;
+  --primary:      #52474D;
+  --primary-hover:#3F363B;
+  --on-primary:   #F5F5F2;
+  --bg:           #F5F5F2;
+  --page:         linear-gradient(180deg,#FFD9E6 0%,#F9E9EE 45%,#F5F5F2 100%);
   --surface:      #FFFFFF;
-  --surface-2:    #F2F4F3;
-  --surface-3:    #E7EBE9;
-  --border:       #ECEFED;
-  --border-strong:#DCE2DE;
-  --text:         #111312;
-  --text-2:       #555C58;
-  --text-3:       #6E7571;
-  --accent-text:  #111312;
-  --accent-soft:  rgba(17,19,18,.06);
-  --accent-line:  rgba(17,19,18,.25);
-  --hero-bg:      #F7F27D;
-  --hero-text:    #111312;
-  --tile-ink:     #111312;
-  --hero-text-2:  rgba(17,19,18,.6);
-  --hero-line:    rgba(17,19,18,.1);
+  --surface-2:    #F5F5F2;
+  --surface-3:    #EDE9EA;
+  --border:       #EFE9EB;
+  --border-strong:#DDD3D8;
+  --text:         #3A3236;
+  --text-2:       #6B5F66;
+  --text-3:       #7A6E75;
+  --accent-text:  #C73B80;
+  --accent-soft:  rgba(221,73,145,.09);
+  --accent-line:  rgba(221,73,145,.35);
+  --hero-bg:      #FFC9DB;
+  --hero-text:    #3A3236;
+  --tile-ink:     #3A3236;
+  --hero-text-2:  rgba(58,50,54,.66);
+  --hero-line:    rgba(58,50,54,.12);
   --hero-pos:     #136B36;
   --hero-neg:     #A32020;
   --pos:          #19893F;
@@ -133,12 +134,12 @@
   --neg-soft:     #FCEBEB;
   --neg-line:     #F2C4C4;
   --warn:         #8A6A00;
-  --focus:        #111312;
-  --scrim:        rgba(17,19,18,.4);
+  --focus:        #DD4991;
+  --scrim:        rgba(58,50,54,.4);
   --glass:        rgba(255,255,255,.92);
   --seg-on:       #FFFFFF;
   --nav-bg:       #FFFFFF;
-  --chart-line:   #111312;
-  --shadow-sm:    0 1px 2px rgba(20,50,35,.04), 0 6px 18px rgba(20,50,35,.05);
-  --shadow-lg:    0 24px 48px rgba(20,50,35,.16);
+  --chart-line:   #DD4991;
+  --shadow-sm:    0 1px 2px rgba(82,71,77,.05), 0 6px 18px rgba(82,71,77,.07);
+  --shadow-lg:    0 24px 48px rgba(82,71,77,.2);
 }

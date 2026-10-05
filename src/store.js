@@ -1,7 +1,7 @@
 import { supabase } from './auth.js';
 import { categoriasBase, normalizarCats } from './engine/categorias.js';
 import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/migrar.js';
-import { normalizarMetas } from './engine/ahorro.js';
+import { normalizarMetas, normalizarSobrante } from './engine/ahorro.js';
 import { normalizarPersona } from './engine/persona.js';
 import { fusionar } from './engine/sync.js';
 import { motivoDeRechazo } from './engine/respaldo.js';
@@ -38,7 +38,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], ignoradas: [], persona: normalizarPersona() };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], sobrante: normalizarSobrante(), ignoradas: [], persona: normalizarPersona() };
 }
 
 /* Las copias de versiones anteriores guardan los datos en claro y ya no hacen
@@ -84,6 +84,7 @@ function normalizar(p) {
   n.recurrentes = Array.isArray(n.recurrentes) ? n.recurrentes : [];
   n.arranques = n.arranques && typeof n.arranques === 'object' ? n.arranques : {};
   n.metas = normalizarMetas(n.metas);
+  n.sobrante = normalizarSobrante(n.sobrante);
   n.ignoradas = Array.isArray(n.ignoradas) ? n.ignoradas : [];
   n.persona = normalizarPersona(n.persona);
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);

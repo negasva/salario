@@ -1,9 +1,9 @@
 import * as store from '../store.js';
 import {
-  estadoAhorro, nuevaMeta, inicialSugerido, retiro,
+  estadoAhorro, nuevaMeta, inicialSugerido, retiro, sobraEn, ultimoDia,
 } from '../engine/ahorro.js';
 import { agregar, colorPara } from '../engine/categorias.js';
-import { hoyISO } from '../engine/movimientos.js';
+import { hoyISO, periodoActual } from '../engine/movimientos.js';
 import { money, plain, esc, digits, nombreMes, fechaCorta } from '../format.js';
 import { selectorMes, enlazarMes, mesElegido } from './mes.js';
 import { abrirRegistro } from './registrar.js';
@@ -210,6 +210,13 @@ export function renderAhorro(root) {
       </div>
     </section>
 
+    <section class="card sobrante">
+      <label class="check-chip"><input type="checkbox" id="ahSobrante" ${p.sobrante.activo ? 'checked' : ''}> Pasar lo que sobre a ahorros el último día del mes</label>
+      <p class="sub num">${p.sobrante.activo
+    ? `El ${fechaCorta(ultimoDia(periodoActual()))} pasan a Ahorro los ${money(sobraEn(p, periodoActual()))} que van sobrando en ${nombreMes(periodoActual()).split(' de ')[0]}. Se anota como un ahorro más y puedes borrarlo.`
+    : 'Lo que te quede libre al cerrar cada mes se anota solo como ahorro, fechado el último día.'}</p>
+    </section>
+
     <section class="seccion">
       <div class="seccion-head"><h2 class="seccion-t"><span class="ct-ic" aria-hidden="true">${icon('meta', 'ic-sm')}</span>Metas</h2><button class="mini" id="ahNueva" ${e.pctUsado >= 100 ? 'disabled' : ''}>${icon('mas', 'ic-sm')}Nueva meta</button></div>
       ${abiertas.length ? `<p class="sub intro">Cada meta se lleva un % de lo que ahorras. ${100 - e.pctUsado > 0 ? `Queda libre el ${100 - e.pctUsado} %.` : 'Todo va a metas.'}</p>
@@ -230,6 +237,13 @@ export function renderAhorro(root) {
 
   enlazarMes(root, repintar);
   root.querySelector('#ahGuardar').onclick = () => abrirRegistro({ catId: e.cat.id, titulo: 'Ahorrar', nota: 'Ahorro', alGuardar: repintar });
+  root.querySelector('#ahSobrante').onchange = (ev) => {
+    p.sobrante.activo = ev.target.checked;
+    if (p.sobrante.activo) p.sobrante.desde = periodoActual();
+    store.save();
+    repintar();
+    toast(p.sobrante.activo ? 'Listo: el último día del mes lo que sobre pasa a Ahorro.' : 'Ya no se pasa el sobrante a Ahorro.');
+  };
   root.querySelector('#ahSacar').onclick = () => sacar(null, e, repintar);
   root.querySelector('#ahNueva').onclick = () => editorMeta(null, e, per, repintar);
   root.querySelectorAll('[data-meta]').forEach((b) => {

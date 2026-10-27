@@ -38,7 +38,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], sobrante: normalizarSobrante(), ignoradas: [], persona: normalizarPersona() };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], sobrante: normalizarSobrante(), ignoradas: [], avisos: {}, persona: normalizarPersona() };
 }
 
 /* Las copias de versiones anteriores guardan los datos en claro y ya no hacen
@@ -86,6 +86,7 @@ function normalizar(p) {
   n.metas = normalizarMetas(n.metas);
   n.sobrante = normalizarSobrante(n.sobrante);
   n.ignoradas = Array.isArray(n.ignoradas) ? n.ignoradas : [];
+  n.avisos = n.avisos && typeof n.avisos === 'object' && /^-?\d{1,20}$/.test(String(n.avisos.telegram ?? '')) ? { telegram: String(n.avisos.telegram) } : {};
   n.persona = normalizarPersona(n.persona);
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');

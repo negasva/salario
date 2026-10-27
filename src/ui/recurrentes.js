@@ -3,9 +3,11 @@ import {
   estadoDelMes, abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos,
   nuevoRecurrente, resumen, fechaSugerida, pendientes, normalizarCuotas, numeroCuota, activoEn, omitidoEn, omitir,
   estadoDeuda, mesFinal, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
+  normalizarCiclo, proximoCiclo, cuandoVence, diasEntre,
 } from '../engine/recurrentes.js';
 import { deTipo, nombreDe, colorDe, OTROS } from '../engine/categorias.js';
 import { money, plain, esc, digits, fechaCorta, nombreMes } from '../format.js';
+import { hoyISO } from '../engine/movimientos.js';
 import { selectorMes, enlazarMes, mesElegido } from './mes.js';
 import { abrirModal } from './modal.js';
 import { icon } from './icons.js';
@@ -28,13 +30,25 @@ function editorFicha(rec, alGuardar) {
     </div>
     <div class="fld"><label for="reNombre">Nombre</label>
       <input id="reNombre" value="${esc(r.n)}" placeholder="Ej: Arriendo, Internet" autocomplete="off"></div>
-    <div class="fld"><label for="reMonto">Estimado al mes <span class="opcional">(opcional)</span></label>
+    <div class="fld"><label for="reMonto">Estimado <span class="opcional">(opcional)</span></label>
       <input id="reMonto" class="num monto" inputmode="numeric" placeholder="0" value="${r.monto ? plain(r.monto) : ''}">
       <p class="sub">Solo una referencia: al pagar escribes lo real. Vacío si cambia cada mes.</p></div>
     <div class="fld" id="reCatWrap"><label for="reCat">Categoría</label>
       <select id="reCat">${deTipo(p.cats, 'gasto').map((c) => `<option value="${esc(c.id)}" ${(r.catId || OTROS) === c.id ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>
-    <div class="fld"><label for="reDia">Día del mes</label>
+    <div class="fld" id="reFrecWrap"><label for="reFrec">Se repite</label>
+      <select id="reFrec">
+        <option value="mes" ${r.cada ? '' : 'selected'}>Cada mes</option>
+        <option value="dias" ${r.cada ? 'selected' : ''}>Cada cierto número de días</option>
+      </select></div>
+    <div class="fld" id="reDiaWrap"><label for="reDia">Día del mes</label>
       <input id="reDia" class="num" type="number" min="1" max="31" value="${r.dia || 1}"></div>
+    <div class="fld" id="reCicloWrap">
+      <div class="fld"><label for="reCadaDias">Cada cuántos días</label>
+        <input id="reCadaDias" class="num" type="number" min="1" max="365" inputmode="numeric" value="${r.cada?.dias || 20}"></div>
+      <div class="fld"><label for="reCadaDesde">Último pago o inicio del ciclo</label>
+        <input id="reCadaDesde" type="date" value="${r.cada?.desde || hoyISO()}"></div>
+      <p class="sub" id="reCicloTxt"></p>
+    </div>
     <div class="fld cuotas-wrap" id="reCuotasWrap">
       <label class="check-chip"><input type="checkbox" id="reEsDeuda" ${r.cuotas ? 'checked' : ''}> Es una deuda en cuotas</label>
       <div class="cuotas-campos" id="reCuotasCampos">
@@ -59,7 +73,21 @@ function editorFicha(rec, alGuardar) {
     });
     $('#reCatWrap').hidden = t === 'ingreso';
     $('#reCuotasWrap').hidden = t === 'ingreso';
+    $('#reFrecWrap').hidden = t === 'ingreso';
+    cuentaCiclo();
   };
+  // el siguiente pago se ve mientras se escribe, y se avisa el día anterior
+  function cuentaCiclo() {
+    const ciclo = tipo === 'gasto' && $('#reFrec').value === 'dias';
+    $('#reCicloWrap').hidden = !ciclo;
+    $('#reDiaWrap').hidden = ciclo;
+    $('#reCuotasWrap').hidden = tipo === 'ingreso' || ciclo;
+    const c = normalizarCiclo({ dias: $('#reCadaDias').value, desde: $('#reCadaDesde').value });
+    if (!ciclo || !c) { $('#reCicloTxt').textContent = ''; return; }
+    const prox = proximoCiclo({ id: r.id, cada: c }, p.movs);
+    $('#reCicloTxt').textContent = `Siguiente pago el ${fechaCorta(prox)}. Te aviso el día antes.`;
+  }
+  ['#reFrec', '#reCadaDias', '#reCadaDesde'].forEach((sel) => $(sel).addEventListener('input', cuentaCiclo));
   // la cuenta de la deuda se ve mientras se escribe: 12 cuotas de 500.000 son 6.000.000
   const cuentaCuotas = () => {
     const deuda = $('#reEsDeuda').checked;
@@ -75,12 +103,18 @@ function editorFicha(rec, alGuardar) {
   const guardar = () => {
     const n = $('#reNombre').value.trim();
     if (!n) { $('#reErr').textContent = 'Escribe el nombre.'; return; }
-    const cuotas = tipo === 'gasto' && $('#reEsDeuda').checked
+    const ciclo = tipo === 'gasto' && $('#reFrec').value === 'dias'
+      ? normalizarCiclo({ dias: $('#reCadaDias').value, desde: $('#reCadaDesde').value }) : null;
+    if (tipo === 'gasto' && $('#reFrec').value === 'dias' && !ciclo) {
+      $('#reErr').textContent = 'Escribe cada cuántos días y la fecha de inicio.'; return;
+    }
+    const cuotas = tipo === 'gasto' && !ciclo && $('#reEsDeuda').checked
       ? normalizarCuotas({ total: $('#reCuotas').value, desde: $('#reDesde').value }) : null;
-    if (tipo === 'gasto' && $('#reEsDeuda').checked && !cuotas) {
+    if (tipo === 'gasto' && !ciclo && $('#reEsDeuda').checked && !cuotas) {
       $('#reErr').textContent = 'Escribe cuántas cuotas son y el mes de la primera.'; return;
     }
     if (cuotas) r.cuotas = cuotas; else delete r.cuotas;
+    if (ciclo) r.cada = ciclo; else delete r.cada;
     Object.assign(r, {
       n,
       monto: Math.max(0, Math.round(digits($('#reMonto').value))),
@@ -304,6 +338,10 @@ export function renderRecurrentes(root) {
       const ultimo = e.pagos[e.pagos.length - 1];
       detalle = `${money(e.pagado)}${e.pagos.length > 1 ? partes : ` el ${fechaCorta(ultimo.fecha)}`}${r.monto && e.pagado !== r.monto ? ` · estimado ${money(r.monto)}` : ''}`;
     }
+    if (r.cada) {
+      const en = diasEntre(hoyISO(), proximoCiclo(r, p.movs));
+      detalle = `Cada ${r.cada.dias} días · ${en < 0 ? `<b class="neg">${cuandoVence(en)}</b>` : `<b>${cuandoVence(en)}</b>`}${r.monto ? ` · ${money(r.monto)}` : ''}`;
+    }
     if (r.cuotas) detalle = `Cuota ${numeroCuota(r, per)} de ${r.cuotas.total} · ${detalle}`;
     const pct = r.monto > 0 ? Math.min(100, Math.round((e.pagado / r.monto) * 100)) : 0;
     const boton = {
@@ -319,7 +357,7 @@ export function renderRecurrentes(root) {
         ${e.estado === 'parcial' || e.pasado ? `<span class="barra ${e.pasado ? 'barra-over' : ''}" aria-hidden="true"><i style="width:${pct}%;background:${e.pasado ? 'var(--neg-fill)' : 'var(--brand)'}"></i></span>` : ''}
       </div>
       <div class="row-acc">
-        ${e.estado === 'pendiente' ? `<button class="btn-icon" data-omitir="${esc(r.id)}" aria-label="No pagar ${esc(r.n)} este mes">${icon('reloj')}</button>` : ''}
+        ${e.estado === 'pendiente' && !r.cada ? `<button class="btn-icon" data-omitir="${esc(r.id)}" aria-label="No pagar ${esc(r.n)} este mes">${icon('reloj')}</button>` : ''}
         <button class="${boton[0]}" data-pago="${esc(r.id)}" aria-label="${boton[2]}">${boton[1]}</button>
         <button class="btn-icon" data-edit="${esc(r.id)}" aria-label="Editar ${esc(r.n)}">${icon('lapiz')}</button>
       </div>

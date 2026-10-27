@@ -8,7 +8,7 @@ Ocho pantallas. En el teléfono van abajo Inicio, Movimientos, **Registrar** (en
 
 - **Inicio**: flechas de mes · empezaste con / entró / salió / terminas con · **si pagas y recibes lo que falta de tus recurrentes, con cuánto terminas** · empezar el mes de nuevo · **próximos pagos** (lo que vence en 7 días y lo vencido) · donut por categoría · barras de 6 meses · línea de saldo.
 - **Movimientos**: lista del mes agrupada por día · **búsqueda** por nota, categoría, recurrente o monto, en el mes o en todos los meses, con el total de lo encontrado · filtro por categoría · botón “+” con hoja de 5 campos (ingreso/gasto, monto, categoría, fecha, nota).
-- **Recurrentes**: lo que se repite todos los meses, cada uno con su nombre y su estimado. Están todos siempre; lo que cambia cada mes es cuánto llevas pagado de cada uno. Se paga de una vez (“Pagar todo”) o por partes: el mercado presupuestado en 400.000 se va pagando 130.000 en el Éxito, 200.000 en el D1 y 30.000 en domicilios, y ves que quedan 40.000. Cada parte es un movimiento con su nota y su fecha; el estimado no se mueve por lo que pagues. **Deudas en cuotas**: un recurrente puede tener fin (“12 cuotas desde junio”); solo aparece en sus meses, dice “cuota 7 de 12” y la sección Deudas muestra cuánto falta en total y cuándo termina.
+- **Recurrentes**: lo que se repite todos los meses (o **cada N días**, como un plan de datos de 20 días: eliges el día del último pago o de inicio, avisa el día antes y se corre solo al registrar el siguiente pago; no cuenta como pendiente de ningún mes, pero sus pagos suman en todo), cada uno con su nombre y su estimado. Están todos siempre; lo que cambia cada mes es cuánto llevas pagado de cada uno. Se paga de una vez (“Pagar todo”) o por partes: el mercado presupuestado en 400.000 se va pagando 130.000 en el Éxito, 200.000 en el D1 y 30.000 en domicilios, y ves que quedan 40.000. Cada parte es un movimiento con su nota y su fecha; el estimado no se mueve por lo que pagues. **Deudas en cuotas**: un recurrente puede tener fin (“12 cuotas desde junio”); solo aparece en sus meses, dice “cuota 7 de 12” y la sección Deudas muestra cuánto falta en total y cuándo termina.
 - **Ahorro**: el total ahorrado (lo registrado en la categoría Ahorro menos lo que se sacó), siempre entero, y cómo se reparte. Cada **meta** tiene un objetivo y un porcentaje: “Llantas, 2.000.000, el 30 %” arranca con el 30 % de lo que ya tenías libre y cada mes se lleva el 30 % de lo que ahorres, hasta completar. Muestra el avance, lo que falta y en cuántos meses llegas al ritmo de los últimos tres. Usar una meta (o sacar de lo libre) devuelve la plata al saldo como ingreso.
 - **Reportes**: el mes o el año. Cuatro cifras (gastaste, gasto por día, tasa de ahorro, día más caro), frases que resumen lo accionable (presupuestos pasados, qué subió, cómo cierras el mes), el **gasto acumulado contra el mes anterior** con el ritmo actual en puntos, un **calendario de calor** por cuartiles, el gasto por día de la semana (sin recurrentes ni ahorro, que tapan los hábitos), las categorías con su tendencia de 6 meses, su presupuesto y su variación contra el mes anterior o contra el promedio de los tres anteriores (el mes en curso se mide contra los mismos días: el 3 de octubre se compara con el 1 al 3 de septiembre), y los mayores gastos. La vista del año suma entró/salió, lo que sobró cada mes y a dónde se fue. Las gráficas se leen con el mouse, con el dedo y con las flechas del teclado. **Imprimir** guarda el reporte en PDF, siempre en claro.
 - **Perfil**: se llega desde el avatar de Inicio (o desde la fila de cuenta de la barra lateral, o desde Más en el teléfono). Nombre y color del avatar con vista previa, correo y si está verificado, desde cuándo eres usuario, cambio de contraseña (con medidor de fuerza y mensajes en español), cerrar sesión aquí o en todos los dispositivos, cuántos datos hay y si ya se guardaron en la nube, atajos de teclado y **borrar todos los datos** manteniendo el botón presionado dos segundos.
@@ -37,6 +37,18 @@ npm run dev
 
 La política de contenido (CSP) y demás cabeceras de seguridad viven en `vercel.json`. Solo deja conectar a la propia app y a `*.supabase.co`: si usas un dominio propio para Supabase, agrégalo a `connect-src`. Si editas el script del tema en `index.html`, hay que actualizar su hash (una prueba avisa).
 
+## Avisos por Telegram (aunque la app esté cerrada)
+
+Safari no puede avisar si la app no está abierta, así que el aviso sale del servidor: una función de Supabase revisa cada mañana (8:00, hora de Colombia) los perfiles con Telegram vinculado y manda lo que vence hoy, mañana o ya venció. Es gratis.
+
+1. En Telegram, habla con **@BotFather** → `/newbot` → guarda el *token* y el nombre de usuario del bot.
+2. Con la CLI de Supabase: `supabase secrets set TELEGRAM_BOT_TOKEN=... CRON_SECRET=<una-clave-larga-al-azar>` y `supabase functions deploy avisar --no-verify-jwt`.
+3. Activa `pg_cron` y `pg_net` (Database → Extensions) y corre `supabase/avisos-cron.sql` con tu proyecto y tu `CRON_SECRET`.
+4. Pon `VITE_TELEGRAM_BOT=<usuario_del_bot>` (sin @) en `.env` y en Vercel, y vuelve a desplegar.
+5. En la app: Ajustes (o Recurrentes) → Avisos y calendario → **Avisos por Telegram** → abrir Telegram → Iniciar → "Ya toqué Iniciar". Con **Enviar prueba** compruebas que llega.
+
+La regla de avisos del servidor (`supabase/functions/avisar/vencimientos.js`) es una copia de la de la app; `src/engine/avisar.test.js` revisa que den lo mismo.
+
 ## Operación
 
 - **Antes de desplegar**: `vercel.json` hace que Vercel corra `npm test` antes de `npm run build`; si un test falla, no hay despliegue. En GitHub, `.github/workflows/ci.yml` corre los mismos tests y el build en cada pull request.
@@ -64,7 +76,7 @@ npm run test
 - localStorage como caché, Supabase como fuente de verdad: la UI nunca espera al servidor.
 - Solo pesos colombianos. Un perfil por cuenta.
 - Un recurrente no crea movimientos solo: uno que aparece sin que lo pidas es uno que nadie revisa.
-- Los avisos no tienen servidor de push: salen al abrir la app, una vez al día. Para que avise sin abrirla está el calendario .ics, que el teléfono recuerda por su cuenta.
+- Los avisos del navegador salen al abrir la app, una vez al día. Para que avise sin abrirla hay dos caminos: Telegram (función de Supabase + cron) y el calendario .ics, que el teléfono recuerda por su cuenta.
 - Una meta no aparta plata a mano: es un porcentaje de lo que ahorras. Cambiarle el porcentaje recalcula desde el mes en que se creó.
 - El importador solo lee CSV: cada banco exporta distinto, así que adivina y la persona confirma. Nada entra sin revisar.
 - Empezar un mes de nuevo no borra nada: `arranques` guarda desde qué mes se cuenta el arrastre, y los meses anteriores quedan intactos.

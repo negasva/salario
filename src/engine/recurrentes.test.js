@@ -3,7 +3,7 @@ import {
   fechaEnPeriodo, fechaSugerida, nuevoRecurrente, pendientes, pagosDelMes, estaPagado, estadoDelMes,
   abonar, pagarLoQueFalta, editarAbono, quitarAbono, notasUsadas, marcarTodos, resumen,
   normalizarCuotas, mesesEntre, numeroCuota, mesFinal, activoEn, estadoDeuda,
-  omitir, omitidoEn, diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
+  omitir, omitidoEn, proximoCiclo, normalizarCiclo, diasEntre, vencimientos, cuandoVence, proyeccion, calendarioICS, sugerirRecurrentes, adoptarSugerencia, totalAlMes,
 } from './recurrentes.js';
 
 const nuevo = (n, monto, extra = {}) => nuevoRecurrente({ n, monto, catId: 'viv', dia: 5, ...extra });
@@ -359,5 +359,45 @@ describe('saltar un mes', () => {
     omitir(tc, '2026-10', false);
     expect('omitidos' in tc).toBe(false);
     expect(pendientes([tc], [], '2026-10')).toHaveLength(1);
+  });
+});
+
+describe('recurrente cada tantos días', () => {
+  const plan = () => nuevoRecurrente({ n: 'Plan de datos', monto: 30000, cada: { dias: 20, desde: '2026-10-27' } });
+
+  it('el siguiente pago es a los 20 días y avisa desde el día anterior', () => {
+    const r = plan();
+    expect(proximoCiclo(r, [])).toBe('2026-11-16');
+    expect(vencimientos([r], [], '2026-11-14', 1)).toHaveLength(0);
+    const v = vencimientos([r], [], '2026-11-15', 1);
+    expect(v).toHaveLength(1);
+    expect(v[0].en).toBe(1);
+  });
+
+  it('pagar de nuevo corre el ciclo; cambiar la fecha de inicio lo mueve', () => {
+    const r = plan();
+    const movs = [{ id: 'a', fecha: '2026-11-16', tipo: 'gasto', monto: 30000, catId: 'x', recId: r.id }];
+    expect(proximoCiclo(r, movs)).toBe('2026-12-06');
+    r.cada.desde = '2026-12-01';
+    expect(proximoCiclo(r, movs)).toBe('2026-12-21');
+  });
+
+  it('sin pagar queda vencido, y no cuenta como pendiente de ningún mes', () => {
+    const r = plan();
+    expect(vencimientos([r], [], '2026-11-19', 1)[0].en).toBe(-3);
+    expect(pendientes([r], [], '2026-11')).toHaveLength(0);
+    expect(resumen([r], [], '2026-11').total).toBe(0);
+  });
+
+  it('el calendario lo repite cada N días', () => {
+    const ics = calendarioICS([plan()], '2026-10-27', new Date('2026-10-27T00:00:00Z'));
+    expect(ics).toContain('RRULE:FREQ=DAILY;INTERVAL=20');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20261116');
+  });
+
+  it('normalizarCiclo rechaza lo inválido y los ingresos no lo llevan', () => {
+    expect(normalizarCiclo({ dias: 0, desde: '2026-10-27' })).toBeNull();
+    expect(normalizarCiclo({ dias: 20, desde: 'x' })).toBeNull();
+    expect(nuevoRecurrente({ n: 'Sueldo', tipo: 'ingreso', cada: { dias: 15, desde: '2026-10-27' } }).cada).toBeUndefined();
   });
 });

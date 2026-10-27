@@ -21,7 +21,13 @@
    mes no se paga): `omitidos: ['AAAA-MM', ...]`. En ese mes no es pendiente,
    no suma al estimado ni avisa; al siguiente vuelve solo.
 
-   Un recurrente es { id, n, monto, catId, tipo, dia, cuotas?, omitidos? }. Sus pagos son
+   Un recurrente puede repetirse cada tantos días en vez de cada mes (el plan
+   de datos que dura 20 días): `cada: { dias, desde: 'AAAA-MM-DD' }`. `desde`
+   es el inicio del ciclo y se puede cambiar; el siguiente pago es `dias`
+   después del último pago o de `desde`, lo que sea más reciente. No es
+   pendiente de ningún mes: solo avisa cuando se acerca su fecha.
+
+   Un recurrente es { id, n, monto, catId, tipo, dia, cuotas?, cada?, omitidos? }. Sus pagos son
    los movimientos del mes con `recId` igual a su id. */
 
 import { periodoDe, hoyISO, sumarMeses } from './movimientos.js';
@@ -41,7 +47,7 @@ export function fechaSugerida(rec, periodo, hoy = hoyISO()) {
   return periodoDe(hoy) === periodo ? hoy : fechaEnPeriodo(periodo, rec?.dia);
 }
 
-export function nuevoRecurrente({ n, monto = 0, catId = OTROS, tipo = 'gasto', dia = 1, cuotas = null } = {}) {
+export function nuevoRecurrente({ n, monto = 0, catId = OTROS, tipo = 'gasto', dia = 1, cuotas = null, cada = null } = {}) {
   const r = {
     id: nuevoId(),
     n: String(n || '').trim(),
@@ -52,7 +58,33 @@ export function nuevoRecurrente({ n, monto = 0, catId = OTROS, tipo = 'gasto', d
   };
   const c = normalizarCuotas(cuotas);
   if (c) r.cuotas = c;
+  const ciclo = tipo === 'ingreso' ? null : normalizarCiclo(cada);
+  if (ciclo) r.cada = ciclo;
   return r;
+}
+
+/* ---------- cada tantos días ---------- */
+
+// { dias, desde } válido, o null si se repite por mes.
+export function normalizarCiclo(c) {
+  const dias = Math.round(Number(c?.dias) || 0);
+  if (!(dias >= 1 && dias <= 365) || !/^\d{4}-\d{2}-\d{2}$/.test(String(c?.desde || ''))) return null;
+  return { dias, desde: c.desde };
+}
+
+export function sumarDias(fecha, n) {
+  const [y, m, d] = fecha.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/* Cuándo toca el siguiente pago de uno que se repite cada tantos días: `dias`
+   después de lo más reciente entre el inicio del ciclo y su último pago. Si no
+   se paga, la fecha se queda y pasa a vencida. */
+export function proximoCiclo(rec, movs) {
+  if (!rec?.cada) return null;
+  const ultimo = (movs || []).filter((m) => m.recId === rec.id).reduce((u, m) => (m.fecha > u ? m.fecha : u), '');
+  const base = ultimo > rec.cada.desde ? ultimo : rec.cada.desde;
+  return sumarDias(base, rec.cada.dias);
 }
 
 /* ---------- deudas en cuotas ---------- */
@@ -124,7 +156,7 @@ export function omitir(rec, periodo, omitido = true) {
 
 // Toca en el mes y no se saltó: lo que cuenta para pendientes, estimado y avisos.
 export function cuentaEn(rec, periodo) {
-  return activoEn(rec, periodo) && !omitidoEn(rec, periodo);
+  return !rec?.cada && activoEn(rec, periodo) && !omitidoEn(rec, periodo);
 }
 
 const entero = (v) => Math.max(0, Math.round(Number(v) || 0));
@@ -265,6 +297,12 @@ export function diasEntre(a, b) {
 export function vencimientos(recurrentes, movs, hoy = hoyISO(), dias = 7) {
   const actual = periodoDe(hoy);
   const lista = [];
+  (recurrentes || []).forEach((rec) => {
+    if (rec.tipo !== 'gasto' || !rec.cada) return;
+    const fecha = proximoCiclo(rec, movs);
+    const en = diasEntre(hoy, fecha);
+    if (en <= dias) lista.push({ rec, periodo: periodoDe(fecha), fecha, en, monto: rec.monto });
+  });
   [actual, sumarMeses(actual, 1)].forEach((per) => {
     (recurrentes || []).forEach((rec) => {
       if (rec.tipo !== 'gasto' || !cuentaEn(rec, per) || estaPagado(rec, movs, per)) return;
@@ -297,13 +335,29 @@ export function proyeccion(final, recurrentes, movs, periodo) {
 /* Los recurrentes como calendario (.ics): un evento cada mes el día que toca,
    con aviso la víspera a las 9 de la mañana. El 31 cae en el último día de
    los meses cortos. Una deuda solo repite las cuotas que le faltan. */
-export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date()) {
+export function calendarioICS(recurrentes, hoy = hoyISO(), sello = new Date(), movs = []) {
   // un salto de línea dentro de un valor abriría una propiedad nueva del calendario
   const esc = (t) => String(t).replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r\n|\r|\n/g, '\\n');
   const plata = (v) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(v);
   const dtstamp = sello.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const actual = periodoDe(hoy);
   const eventos = (recurrentes || []).filter((r) => r.tipo === 'gasto').map((r) => {
+    if (r.cada) {
+      return [
+        'BEGIN:VEVENT',
+        `UID:${String(r.id).replace(/[^A-Za-z0-9-]/g, '')}@reparto-mensual`,
+        `DTSTAMP:${dtstamp}`,
+        `DTSTART;VALUE=DATE:${proximoCiclo(r, movs).replace(/-/g, '')}`,
+        `RRULE:FREQ=DAILY;INTERVAL=${r.cada.dias}`,
+        `SUMMARY:${esc(`Pagar ${r.n}${r.monto ? ` ($ ${plata(r.monto)})` : ''}`)}`,
+        'BEGIN:VALARM',
+        'ACTION:DISPLAY',
+        `DESCRIPTION:${esc(`Mañana: ${r.n}`)}`,
+        'TRIGGER:-PT15H',
+        'END:VALARM',
+        'END:VEVENT',
+      ].join('\r\n');
+    }
     let per = actual;
     let count = '';
     if (r.cuotas) {

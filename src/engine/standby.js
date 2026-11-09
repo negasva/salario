@@ -31,6 +31,7 @@ export function normalizarStandby(lista) {
       catId: typeof x.catId === 'string' && x.catId ? x.catId : (x.tipo === 'ingreso' ? OTROS_ING : OTROS),
       nota: String(x.nota || ''),
       origen: String(x.origen || ''),
+      ...(typeof x.recId === 'string' && x.recId ? { recId: x.recId } : {}),
     }));
 }
 
@@ -66,6 +67,12 @@ export function aprobar(p, id) {
   const item = p.standby[indice];
   const { origen, ...mov } = item;
   if (!mov.hora) delete mov.hora;
+  // ligado a un recurrente: cuenta como pago suyo (recId) y toma su categoría
+  const rec = mov.recId ? (p.recurrentes || []).find((r) => r.id === mov.recId && r.tipo === 'gasto') : null;
+  if (rec) {
+    mov.catId = rec.catId || mov.catId;
+    if (!mov.nota) mov.nota = rec.n;
+  } else delete mov.recId;
   p.standby.splice(indice, 1);
   p.movs.push(mov);
   return { mov, item, indice };

@@ -19,6 +19,8 @@ import { avisarVencimientos } from './ui/avisos.js';
 import { getSession, onAuthChange, enlaceInicial, signOut, sinConfiguracion, sesionGuardada } from './auth.js';
 import * as store from './store.js';
 import * as ahorro from './engine/ahorro.js';
+import { sembrar } from './engine/standby.js';
+import { REPORTE_2026_11 } from './data/reporte-2026-11.js';
 import { hoyISO } from './engine/movimientos.js';
 import { money } from './format.js';
 import { montarTema } from './ui/tema.js';
@@ -74,8 +76,24 @@ function barrerSobrante() {
   });
 }
 
+/* El reporte del banco entra una sola vez a "Por revisar" (no a los saldos). */
+function cargarReporte() {
+  const p = store.active();
+  if (!p || p.semillas?.includes(REPORTE_2026_11.id)) return;
+  const creados = sembrar(p, REPORTE_2026_11);
+  store.save();
+  if (!creados.length) return;
+  toast(`${creados.length} movimientos del reporte quedaron en Por revisar.`, () => {
+    const ids = new Set(creados.map((m) => m.id));
+    p.standby = p.standby.filter((m) => !ids.has(m.id));
+    store.save();
+    paintRoute();
+  });
+}
+
 function paintRoute({ entrada = false } = {}) {
   barrerSobrante();
+  cargarReporte();
   const content = renderShell(app, route, navegar);
   ROUTES[route](content);
   document.title = `${TITULOS[route]} · Reparto mensual`;

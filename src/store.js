@@ -3,6 +3,7 @@ import { categoriasBase, normalizarCats } from './engine/categorias.js';
 import { VERSION, esViejo, migrarPerfil, recurrentesDesdeViejo } from './engine/migrar.js';
 import { normalizarMetas, normalizarSobrante } from './engine/ahorro.js';
 import { normalizarPersona } from './engine/persona.js';
+import { normalizarStandby } from './engine/standby.js';
 import { fusionar } from './engine/sync.js';
 import { motivoDeRechazo } from './engine/respaldo.js';
 
@@ -38,7 +39,7 @@ export function subscribe(cb) {
 function notify() { listeners.forEach((cb) => cb()); }
 
 export function freshProfile(name = 'Mi presupuesto') {
-  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], sobrante: normalizarSobrante(), ignoradas: [], avisos: {}, persona: normalizarPersona() };
+  return { v: VERSION, name, saldoInicial: 0, cats: categoriasBase(), movs: [], recurrentes: [], arranques: {}, metas: [], sobrante: normalizarSobrante(), ignoradas: [], avisos: {}, persona: normalizarPersona(), standby: [], semillas: [] };
 }
 
 /* Las copias de versiones anteriores guardan los datos en claro y ya no hacen
@@ -88,6 +89,8 @@ function normalizar(p) {
   n.ignoradas = Array.isArray(n.ignoradas) ? n.ignoradas : [];
   n.avisos = n.avisos && typeof n.avisos === 'object' && /^-?\d{1,20}$/.test(String(n.avisos.telegram ?? '')) ? { telegram: String(n.avisos.telegram) } : {};
   n.persona = normalizarPersona(n.persona);
+  n.standby = normalizarStandby(n.standby);
+  n.semillas = Array.isArray(n.semillas) ? n.semillas.filter((s) => typeof s === 'string') : [];
   n.saldoInicial = Math.round(Number(n.saldoInicial) || 0);
   n.name = String(n.name || 'Mi presupuesto');
   n.v = VERSION;
@@ -381,7 +384,8 @@ export function reiniciar() {
   const antes = perfil;
   reinicio = true;
   limpiarViejas();
-  perfil = { ...freshProfile(perfil.name), persona: perfil.persona, recRecuperados: true };
+  // semillas se queda: lo que ya se cargó una vez no vuelve a "Por revisar" tras borrar todo
+  perfil = { ...freshProfile(perfil.name), persona: perfil.persona, semillas: perfil.semillas, recRecuperados: true };
   save();
   return antes;
 }

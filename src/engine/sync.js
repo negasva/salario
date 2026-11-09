@@ -12,11 +12,20 @@ const porId = (local = [], remoto = []) => {
   return [...m.values()];
 };
 
+// lo que ya se aprobó (está en movs) no vuelve a "Por revisar" desde la otra copia
+const sinAprobados = (standby, movs) => {
+  const hechos = new Set(movs.map((m) => m.id));
+  return standby.filter((x) => !hechos.has(x.id));
+};
+
 export function fusionar(local, remoto) {
+  const movs = porId(local.movs, remoto.movs);
   return {
     ...remoto,
     cats: porId(local.cats, remoto.cats),
-    movs: porId(local.movs, remoto.movs),
+    movs,
+    standby: sinAprobados(porId(local.standby, remoto.standby), movs),
+    semillas: [...new Set([...(remoto.semillas || []), ...(local.semillas || [])])],
     recurrentes: porId(local.recurrentes, remoto.recurrentes),
     metas: porId(local.metas, remoto.metas),
     arranques: { ...remoto.arranques, ...local.arranques },

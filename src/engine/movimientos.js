@@ -1,6 +1,7 @@
 /* El libro de movimientos. Todo puro: recibe el array, devuelve datos.
    Un movimiento es { id, fecha 'AAAA-MM-DD', tipo 'ingreso'|'gasto', monto,
-   catId, nota }. Los que salen de un recurrente llevan además `recId`. */
+   catId, nota }. Los que salen de un recurrente llevan además `recId`; los que
+   vienen de "Por revisar" (engine/standby.js), `hora` 'HH:MM'. */
 
 export function periodoDe(fecha) {
   return String(fecha).slice(0, 7);
@@ -23,13 +24,20 @@ export function sumarMeses(periodo, n) {
   return periodoDe(hoyISO(d));
 }
 
+/* Del más reciente al más viejo: por fecha y, dentro del día, por hora (la
+   que no tiene hora queda al final del día). */
+export const masReciente = (a, b) => {
+  const ka = `${a.fecha} ${a.hora || ''}`;
+  const kb = `${b.fecha} ${b.hora || ''}`;
+  return ka < kb ? 1 : ka > kb ? -1 : 0;
+};
+
 export function enPeriodo(movs, periodo) {
   return movs.filter((m) => periodoDe(m.fecha) === periodo);
 }
 
 export function delMes(movs, periodo) {
-  return enPeriodo(movs, periodo).slice()
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  return enPeriodo(movs, periodo).slice().sort(masReciente);
 }
 
 function signo(m) {
@@ -126,5 +134,5 @@ export function buscar(movs, texto, { cats = [], recurrentes = [] } = {}) {
     if (esNumero && String(m.monto).includes(cifras)) return true;
     const pajar = sinTildes(`${m.nota || ''} ${nombreCat.get(m.catId) || ''} ${nombreRec.get(m.recId) || ''}`);
     return palabras.every((p) => pajar.includes(p));
-  }).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  }).sort(masReciente);
 }

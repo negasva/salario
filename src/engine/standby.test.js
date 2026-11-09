@@ -102,6 +102,22 @@ describe('aprobar', () => {
   });
 });
 
+describe('ligar a un recurrente', () => {
+  it('al aprobar queda como pago del recurrente y toma su categoría', () => {
+    const p = perfil();
+    p.recurrentes = [{ id: 'r1', n: 'Claro Hogar', monto: 90000, catId: 'i2', tipo: 'gasto', dia: 6 }];
+    p.standby = normalizarStandby([{ id: 's1', fecha: '2026-11-03', hora: '13:07', tipo: 'gasto', monto: 87000, catId: 'otros', nota: '', recId: 'r1' }]);
+    const r = aprobar(p, 's1');
+    expect(r.mov).toMatchObject({ recId: 'r1', catId: 'i2', nota: 'Claro Hogar', monto: 87000 });
+  });
+
+  it('un recurrente que ya no existe no deja un recId colgado', () => {
+    const p = perfil();
+    p.standby = normalizarStandby([{ id: 's1', fecha: '2026-11-03', tipo: 'gasto', monto: 100, catId: 'otros', recId: 'borrado' }]);
+    expect(aprobar(p, 's1').mov.recId).toBeUndefined();
+  });
+});
+
 describe('fusionar con standby', () => {
   it('lo aprobado en una copia no vuelve a Por revisar desde la otra', () => {
     const a = { id: 'x', fecha: '2026-10-01', tipo: 'gasto', monto: 100, catId: 'otros', nota: '', origen: '' };
